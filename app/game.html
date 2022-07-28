@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <title>Ping-pong game</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
+  <link charset="utf-8" rel="stylesheet" type="text/css" href="/stylesheets/game.css">
+</head>
+
+<body>
+
+<div className="App">
+
+	<div className="header-info">
+
+		<h4 className = "page_title"> 7SQ Fight Simulator</h4>
+  	<input data-name="board_size_input" placeholder = "5-20" type = "number" min = "5" max = "20" id = "board_size"></input>
+		<button data-name="create_board_button">Создать поле</button>
+		<button data-name="save_board_button">Сохранить карту</button>
+		<button data-name="load_board_button">Загрузить карту</button>
+		<input data-name="save_name_input" placeholder = "Название сейва" maxLength = "25" id="map_name"></input>
+		<button data-name="roll_initiative_button">Ролл инициативы</button>
+
+	</div>
+
+	<div id="game-display-container">
+		<div id="board-container">
+
+		</div>
+
+		<div id="character-info-container">
+
+		</div>
+
+	</div>
+
+	</div>
+</body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js" charset="utf-8"> </script>
+<script src="/scripts/dist/game.js"></script>
+
+</html>

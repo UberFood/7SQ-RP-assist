@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Create Character Page</title>
+  </head>
+  <body>
+    <div className="Character">
+		<div class="verh"> </div>
+
+      		<h1>Create a character</h1>
+		<NavLink id="navigation_link" to="/" >Back to the game</NavLink>
+
+		<h2> Имя персонажа </h2>
+		<input maxLength = "25" id="name" required='1'></input>
+
+		<h2> Название аватара </h2>
+		<input maxLength = "25" id="avatar" required='1'></input>
+
+		<h2> Сила </h2>
+		<input maxLength = "3" id="strength" required='1'></input>
+
+		<h2> Телосложение </h2>
+		<input maxLength = "3" id="stamina" required='1'></input>
+
+		<h2> Ловкость </h2>
+		<input maxLength = "3" id="agility" required='1'></input>
+
+		<h2> Интеллект </h2>
+		<input maxLength = "3" id="intelligence" required='1'></input>
+
+		<button class="butt" data-name="add_character_button">Добавить персонажа</button>
+
+		<h3 class="design"> Design created by Semen Swallow</h3>
+    </div>
+  </body>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js" charset="utf-8"> </script>
+  <script src="/scripts/dist/character.js"></script>
+</html>
