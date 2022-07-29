@@ -71,6 +71,11 @@ wss.on('connection', (ws) => {
       var character_list_unparsed = fs.readFileSync('./app/characters/character_list.json');
       var character_list = JSON.parse(character_list_unparsed);
       answer.character_list = character_list;
+
+      var obstacle_list_unparsed = fs.readFileSync('./app/obstacles/obstacle_list.json');
+      var obstacle_list = JSON.parse(obstacle_list_unparsed);
+      answer.obstacle_list = obstacle_list;
+
       answer.isValid = 1;
       if (data.role == 'gm') {
         if (data.password != GM_PASSWORD) {
@@ -123,12 +128,41 @@ wss.on('connection', (ws) => {
         wss.clients.forEach(function(clientSocket) {
           clientSocket.send(JSON.stringify(response));
         });
+    } else if (data.command == 'add_obstacle') {
+        var response = {};
+        response.command = 'add_obstacle_response';
+        response.cell_id = data.cell_id;
+        response.to_name = 'all';
+        response.obstacle_number = data.obstacle_number;
+
+        var obstacle_unparsed = fs.readFileSync('./app/obstacles/' + data.obstacle_name + '.json');
+        var obstacle = JSON.parse(obstacle_unparsed);
+        response.obstacle_info = obstacle;
+        wss.clients.forEach(function(clientSocket) {
+          clientSocket.send(JSON.stringify(response));
+        });
     } else if (data.command == 'move_character') {
         data.command = 'move_character_response';
         data.to_name = 'all';
         wss.clients.forEach(function(clientSocket) {
           clientSocket.send(JSON.stringify(data));
         });
+    } else if (data.command == 'delete_character') {
+      var response = {};
+      response.command = 'delete_character_response';
+      response.to_name = 'all';
+      response.index = data.index;
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(response));
+      });
+    } else if (data.command == 'roll_initiative') {
+      var response = {};
+      response.command = 'roll_initiative_response';
+      response.to_name = 'all';
+      response.initiative_state = data.initiative_state;
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(response));
+      });
     } else {
       console.log('fucking pog ' + data['command']);
       wss.clients.forEach(function(clientSocket) {

@@ -14,10 +14,15 @@ var SERVER_ADDRESS = location.origin.replace(/^http/, 'ws');
 
 var my_name = JSON.parse(sessionStorage.getItem('username'));
 var my_role = JSON.parse(sessionStorage.getItem('user_role'));
+
 var character_list = [];
 var character_detailed_info = [];
+var obstacle_list = [];
+var obstacle_detailed_info = [];
 
 var TINY_EFFECT_CLASS = 'is-tiny';
+
+var EMPTY_CELL_PIC = "./images/square.jpg";
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165];
@@ -99,8 +104,8 @@ function construct_board(new_board_state, new_size, new_HP_state, new_initiative
 			button.column = j;
 			var image_name = get_object_picture(board_state[cell_id]);
 			button.src = image_name;
-			button.style.width = '100px';
-			button.style.height = '100px';
+			button.style.width = '50px';
+			button.style.height = '50px';
 			button.className = 'board_cell';
 			button.onclick = function(event) {
 			var character_profile_container = document.getElementById("character-info-container");
@@ -108,7 +113,6 @@ function construct_board(new_board_state, new_size, new_HP_state, new_initiative
 
 				var cell = event.target;
 				var index = cell.row*size + cell.column;
-				console.log(board_state[index]);
 				if (board_state[index] == 0) { // empty cell clicked
 					if (field_chosen == 0) {
 						add_object(index);
@@ -175,25 +179,37 @@ function add_obstacle(board_index) {
 	var container = document.getElementById("character-info-container");
 	container.innerHTML = "";
 
-	for (let i = 0; i < obstacle_base.length; i++) {
-		var button = document.createElement("button");
-		button.innerHTML = obstacle_base[i];
-		button.board_index = board_index;
-		button.obstacle_name = obstacle_base[i];
-		button.onclick = function(event) {
-			var obstacle_picked = event.target;
-			board_state[obstacle_picked.board_index] = (i+1) * -1;
-			var obstacle_unparsed = localStorage.getItem(obstacle_picked.obstacle_name);
-			var obstacle = JSON.parse(obstacle_unparsed);
-			var cell = document.getElementById("cell_" + obstacle_picked.board_index);
-			cell.src = obstacle.avatar;
+	var select = document.createElement("select");
+	select.id = "obstacle_chosen";
 
-			var container = document.getElementById("character-info-container");
-			container.innerHTML = "";
-		};
-		container.appendChild(button);
-		tiny_animation(container);
+	for (let i = 0; i < obstacle_list.length; i++) {
+		var current_option = document.createElement("option");
+		current_option.innerHTML = obstacle_list[i];
+		current_option.value = i;
+		select.appendChild(current_option);
 	}
+
+	var button = document.createElement("button");
+	button.innerHTML = "Добавить";
+	button.board_index = board_index;
+	button.onclick = function(event) {
+		var button = event.target;
+		var obstacle_number = parseInt(document.getElementById("obstacle_chosen").value);
+
+		var toSend = {};
+		toSend.command = 'add_obstacle';
+		toSend.cell_id = button.board_index;
+		toSend.obstacle_number = obstacle_number + 1;
+		toSend.obstacle_name = obstacle_list[obstacle_number];
+		socket.sendMessage(toSend);
+
+		var container = document.getElementById("character-info-container");
+		container.innerHTML = "";
+	}
+
+	container.appendChild(select);
+	container.appendChild(button);
+	tiny_animation(container);
 
 }
 
@@ -249,8 +265,6 @@ function move_character(to_index, to_cell) {
 }
 
 function select_character(index, cell) {
-	console.log(board_state[index]);
-	console.log(character_detailed_info);
 	var character = character_detailed_info[board_state[index]];
 
 	let name = character.name;
@@ -312,11 +326,7 @@ function select_character(index, cell) {
 	delete_button.index = index;
 	delete_button.cell = cell;
 	delete_button.onclick = function(event) {
-		var container = document.getElementById("character-info-container");
-		container.innerHTML = "";
-
-		board_state[event.target.index] = 0;
-		event.target.cell.src = "./images/square.jpg";
+		delete_object(event);
 	}
 
 	var damage_button = document.createElement("button");
@@ -364,10 +374,19 @@ function select_character(index, cell) {
 
 }
 
+function delete_object(event) {
+	var container = document.getElementById("character-info-container");
+	container.innerHTML = "";
+
+	var toSend = {};
+	toSend.command = 'delete_character';
+	toSend.index = event.target.index;
+	socket.sendMessage(toSend);
+}
+
 function select_obstacle(index, cell) {
-	var obstacle_id = board_state[index]*(-1) - 1;
-	var obstacle_unparsed = localStorage.getItem(obstacle_base[obstacle_id]);
-	var obstacle = JSON.parse(obstacle_unparsed);
+	var obstacle_id = board_state[index]*(-1);
+	var obstacle = obstacle_detailed_info[obstacle_id];
 
 	let name = obstacle.name;
 	let avatar = obstacle.avatar;
@@ -391,13 +410,7 @@ function select_obstacle(index, cell) {
 	delete_button.index = index;
 	delete_button.cell = cell;
 	delete_button.onclick = function(event) {
-		var container = document.getElementById("character-info-container");
-		container.innerHTML = "";
-
-		board_state[event.target.index] = 0;
-		HP_state[event.target.index] = "?";
-		initiative_state[event.target.index] = "?";
-		event.target.cell.src = "./images/square.jpg";
+		delete_object(event);
 	}
 	container.appendChild(delete_button);
 
@@ -422,7 +435,7 @@ function undo_selection() {
 }
 
 function get_object_picture(index_in_board_state) {
-	var image = "./images/square.jpg";
+	var image = EMPTY_CELL_PIC;
 	var index_in_base;
 	if (index_in_board_state > 0) {
 		index_in_base = index_in_board_state - 1;
@@ -446,22 +459,29 @@ function saveBoard() {
 
 }
 
+function computeInitiative(agility) {
+	return agility + Math.floor(Math.random() * 21);
+}
+
 function rollInitiative() {
 	for (let i = 0; i < board_state.length; i++) {
 		if (board_state[i] > 0) { // so there is character at position i
 			// retrieve that character's agility
-			var character_index = board_state[i] - 1;
-			var character_unparsed = localStorage.getItem(character_base[character_index]);
-			var character = JSON.parse(character_unparsed);
+			var character_index = board_state[i];
+			var character = character_detailed_info[character_index];
 
 			var agility = character.agility;
 
 			// roll initiative and add agility modificator
-			var initiative = parseInt(agility) + Math.floor(Math.random() * 21);
+			var initiative = computeInitiative(parseInt(agility));
 
 			initiative_state[i] = initiative;
 		}
 	}
+	var toSend = {};
+	toSend.command = 'roll_initiative';
+	toSend.initiative_state = initiative_state;
+	socket.sendMessage(toSend);
 }
 
 //socket.init('ws://localhost:3001');
@@ -495,6 +515,7 @@ socket.registerMessageHandler((data) => {
 				board_size_input.show();
 			}
 			character_list = data.character_list;
+			obstacle_list = data.obstacle_list;
     } else if (data.command == 'construct_board_response') {
 			construct_board(data.board_state, data.size, data.HP_state, data.initiative_state);
 		} else if (data.command == 'add_character_response') {
@@ -504,7 +525,13 @@ socket.registerMessageHandler((data) => {
 			cell.src = character.avatar;
 			board_state[data.cell_id] = data.character_number;
 			HP_state[data.cell_id] = HP_values[character.stamina];
-		} else if (data.command = 'move_character_response') {
+		} else if (data.command == 'add_obstacle_response') {
+			var obstacle = data.obstacle_info;
+			obstacle_detailed_info[data.obstacle_number] = obstacle;
+			var cell = document.getElementById("cell_" + data.cell_id);
+			cell.src = obstacle.avatar;
+			board_state[data.cell_id] = data.obstacle_number * (-1);
+		} else if (data.command == 'move_character_response') {
 			var to_index = data.to_index;
 			var from_index = data.from_index;
 			board_state[to_index] = data.character_number;
@@ -518,7 +545,14 @@ socket.registerMessageHandler((data) => {
 			HP_state[from_index] = 0;
 			initiative_state[from_index] = 0;
 			var old_cell = document.getElementById("cell_" + from_index);
-			old_cell.src = "./images/square.jpg";
+			old_cell.src = EMPTY_CELL_PIC;
+		} else if (data.command == 'delete_character_response') {
+			console.log('bin chilling');
+			board_state[data.index] = 0;
+			var cell = document.getElementById('cell_' + data.index);
+			cell.src = EMPTY_CELL_PIC;
+		} else if (data.command == 'roll_initiative_response') {
+				initiative_state = data.initiative_state;
 		}
   }
 });
