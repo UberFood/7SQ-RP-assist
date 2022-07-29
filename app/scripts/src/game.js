@@ -30,9 +30,11 @@ const HP_values = [15, 30, 40, 55, 75, 100, 130, 165];
 let board_state = [];
 let HP_state = [];
 let initiative_state = [];
+let size;
+
 let character_base = [];
 let obstacle_base = [];
-let size;
+
 
 let field_chosen = 0;
 let chosen_index;
@@ -53,10 +55,11 @@ function createBoard() {
 
 function loadBoard() {
 	var name = document.getElementById("map_name").value;
-	var game_state_unparsed = localStorage.getItem(name);
-	var game_state = JSON.parse(game_state_unparsed);
-
-	send_construct_command(game_state.board_state, Math.sqrt(game_state.board_state.length), game_state.HP_state, game_state.initiative_state);
+	var toSend = {};
+	toSend.command = 'load_game';
+	toSend.save_name = name;
+	toSend.from_name = my_name;
+	socket.sendMessage(toSend);
 }
 
 function send_construct_command(new_board_state, new_size, new_HP_state, new_initiative_state) {
@@ -74,16 +77,6 @@ function construct_board(new_board_state, new_size, new_HP_state, new_initiative
 	HP_state = new_HP_state;
 	initiative_state = new_initiative_state;
 	size = new_size;
-
-	let character_base_unparsed = localStorage.getItem('characters');
-	if (character_base_unparsed != null) {
-		character_base = JSON.parse(character_base_unparsed);
-	}
-
-	let obstacle_base_unparsed = localStorage.getItem('obstacles');
-	if (obstacle_base_unparsed != null) {
-		obstacle_base = JSON.parse(obstacle_base_unparsed);
-	}
 
 	var info_container = document.getElementById("character-info-container");
 	info_container.innerHTML = "";
@@ -336,15 +329,16 @@ function select_character(index, cell) {
 		var damage_field = document.getElementById("damage_field");
 		if(!(damage_field.value === "")) {
 			var damage = parseInt(damage_field.value);
-		} else {
-			var damage = 0;
+			var HP_display = document.getElementById("HP_display");
+			var new_HP = HP_state[event.target.index] - damage;
+			HP_display.innerHTML = "ХП: " + new_HP;
+
+			var toSend = {};
+			toSend.command = 'deal_damage';
+			toSend.index = event.target.index;
+			toSend.damage = damage;
+			socket.sendMessage(toSend);
 		}
-
-		HP_state[event.target.index] = HP_state[event.target.index] - damage;
-
-		var HP_display = document.getElementById("HP_display");
-		HP_display.innerHTML = "ХП: " + HP_state[event.target.index];
-
 	}
 
 	var damage_field = document.createElement("input");
@@ -438,14 +432,12 @@ function get_object_picture(index_in_board_state) {
 	var image = EMPTY_CELL_PIC;
 	var index_in_base;
 	if (index_in_board_state > 0) {
-		index_in_base = index_in_board_state - 1;
-		var character_unparsed = localStorage.getItem(character_base[index_in_base]);
-		var character = JSON.parse(character_unparsed);
+		index_in_base = index_in_board_state;
+		var character = character_detailed_info[index_in_base];
 		image = character.avatar;
 	} else if (index_in_board_state < 0) {
-		index_in_base = index_in_board_state*(-1) - 1;
-		var obstacle_unparsed = localStorage.getItem(obstacle_base[index_in_base]);
-		var obstacle = JSON.parse(obstacle_unparsed);
+		index_in_base = index_in_board_state*(-1);
+		var obstacle = obstacle_detailed_info[index_in_base];
 		image = obstacle.avatar;
 	}
 
@@ -453,10 +445,15 @@ function get_object_picture(index_in_board_state) {
 }
 
 function saveBoard() {
-	var name = document.getElementById("map_name").value;
-	var game_state = {board_state: board_state, HP_state: HP_state, initiative_state: initiative_state};
-	localStorage.setItem(name, JSON.stringify(game_state));
+	var save_name = document.getElementById("map_name").value;
+	var game_state = {board_state: board_state, HP_state: HP_state, initiative_state: initiative_state, character_detailed_info: character_detailed_info, obstacle_detailed_info: obstacle_detailed_info};
 
+	var toSend = {};
+	toSend.command = 'save_game';
+	toSend.save_name = save_name;
+	toSend.game_state = game_state;
+	toSend.from_name = my_name;
+	socket.sendMessage(toSend);
 }
 
 function computeInitiative(agility) {
@@ -553,6 +550,23 @@ socket.registerMessageHandler((data) => {
 			cell.src = EMPTY_CELL_PIC;
 		} else if (data.command == 'roll_initiative_response') {
 				initiative_state = data.initiative_state;
+		} else if (data.command == 'deal_damage_response') {
+			HP_state[data.index] = HP_state[data.index] - data.damage;
+		} else if (data.command == 'save_game_response') {
+			if (data.success == 1) {
+				alert('Game ' + data.save_name + ' saved succesfully');
+			} else {
+				alert('Game with name ' + data.save_name + ' already exist!');
+			}
+		} else if (data.command == 'load_game_response') {
+			if (data.success == 1) {
+				var game_state = data.game_state;
+				character_detailed_info = game_state.character_detailed_info;
+				obstacle_detailed_info = game_state.obstacle_detailed_info;
+				construct_board(game_state.board_state, Math.sqrt(game_state.board_state.length), game_state.HP_state, game_state.initiative_state);
+			} else {
+				alert('Failed to load game ' + data.save_name);
+			}
 		}
   }
 });

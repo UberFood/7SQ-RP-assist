@@ -163,6 +163,53 @@ wss.on('connection', (ws) => {
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(response));
       });
+    } else if (data.command == 'deal_damage') {
+      var response = {};
+      response.command = 'deal_damage_response';
+      response.to_name = 'all';
+      response.index = data.index;
+      response.damage = data.damage;
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(response));
+      });
+    } else if (data.command == 'save_game') {
+      var response = {};
+      response.command = 'save_game_response';
+      response.save_name = data.save_name;
+      response.to_name = data.from_name;
+      if (fs.existsSync('./app/saves/' + data.save_name + '.json')) {
+        response.success = 0;
+      } else {
+        fs.writeFile('./app/saves/' + data.save_name + '.json', JSON.stringify(data.game_state), function(err) {
+          if (err) {
+            console.log('There has been an error saving game state.');
+            console.log(err.message);
+            return;
+          }
+          console.log('Game state saved succesfully.')
+        });
+        response.success = 1;
+      }
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(response));
+      });
+    } else if (data.command == 'load_game') {
+      var response = {};
+      response.command = 'load_game_response';
+      response.save_name = data.save_name;
+      if (fs.existsSync('./app/saves/' + data.save_name + '.json')) {
+        response.success = 1;
+        response.to_name = 'all';
+        var game_state_unparsed = fs.readFileSync('./app/saves/' + data.save_name + '.json');
+        var game_state = JSON.parse(game_state_unparsed);
+        response.game_state = game_state;
+      } else {
+        response.success = 0;
+        response.to_name = data.from_name;
+      }
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(response));
+      });
     } else {
       console.log('fucking pog ' + data['command']);
       wss.clients.forEach(function(clientSocket) {
