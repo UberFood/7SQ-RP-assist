@@ -210,6 +210,15 @@ wss.on('connection', (ws) => {
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(response));
       });
+    } else if (data.command == 'update_fog') {
+      var response = {};
+      response.command = 'update_fog_response';
+      response.index = data.index;
+      response.to_name = 'all';
+      response.update_type = data.update_type;
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(response));
+      });
     } else {
       console.log('fucking pog ' + data['command']);
       wss.clients.forEach(function(clientSocket) {
