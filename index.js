@@ -180,7 +180,7 @@ wss.on('connection', (ws) => {
       if (fs.existsSync('./app/saves/' + data.save_name + '.json')) {
         response.success = 0;
       } else {
-        fs.writeFile('./app/saves/' + data.save_name + '.json', JSON.stringify(data.game_state), function(err) {
+        fs.writeFile('./app/saves/' + data.save_name + '.json', JSON.stringify(data.full_game_state), function(err) {
           if (err) {
             console.log('There has been an error saving game state.');
             console.log(err.message);
@@ -202,7 +202,7 @@ wss.on('connection', (ws) => {
         response.to_name = 'all';
         var game_state_unparsed = fs.readFileSync('./app/saves/' + data.save_name + '.json');
         var game_state = JSON.parse(game_state_unparsed);
-        response.game_state = game_state;
+        response.full_game_state = game_state;
       } else {
         response.success = 0;
         response.to_name = data.from_name;
@@ -216,6 +216,25 @@ wss.on('connection', (ws) => {
       response.index = data.index;
       response.to_name = 'all';
       response.update_type = data.update_type;
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(response));
+      });
+    } else if (data.command == 'assign_zone') {
+      var response = {};
+      response.command = 'assign_zone_response';
+      response.index = data.index;
+      response.to_name = 'all';
+      response.zone_number = data.zone_number;
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(response));
+      });
+    } else if (data.command == 'search_action') {
+      var response = {};
+      response.command = 'search_action_response';
+      response.character_name = data.character_name;
+      response.to_name = 'all';
+      response.zone_number = data.zone_number;
+      response.roll = data.roll;
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(response));
       });

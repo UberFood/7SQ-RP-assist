@@ -198,6 +198,14 @@ html, body {
 .cell_wrap {
   margin: 0px;
   padding: 0px;
+  position: relative;
+}
+
+.zone_text {
+  color: black;
+  position: absolute;
+  top: 40%;
+  left: 40%;
 }
 
 .board_cell{

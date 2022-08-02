@@ -7,6 +7,11 @@ var SAVE_BOARD_BUTTON_SELECTOR = '[data-name="save_board_button"]';
 var LOAD_BOARD_BUTTON_SELECTOR = '[data-name="load_board_button"]';
 var ROLL_INITIATIVE_BUTTON_SELECTOR = '[data-name="roll_initiative_button"]';
 var FOG_BUTTON_SELECTOR = '[data-name="fog_button"]';
+var ZONE_BUTTON_SELECTOR = '[data-name="zone_button"]';
+var FOG_ZONE_BUTTON_SELECTOR = '[data-name="fog_zone_button"]';
+var UNFOG_ZONE_BUTTON_SELECTOR = '[data-name="unfog_zone_button"]';
+
+var ZONE_NUMBER_SELECTOR = '[data-name="zone_number_select"]';
 
 var BOARD_SIZE_INPUT_SELECTOR = '[data-name="board_size_input"]';
 var SAVE_NAME_INPUT_SELECTOR = '[data-name="save_name_input"]';
@@ -26,20 +31,17 @@ var TINY_EFFECT_CLASS = 'is-tiny';
 var EMPTY_CELL_PIC = "./images/square.jpg";
 var FOG_IMAGE = "./images/fog.webp";
 var QUESTION_IMAGE = "./images/question.jpg";
+var MAX_ZONES = 12;
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165];
 
-let board_state = [];
-let HP_state = [];
-let initiative_state = [];
-let size;
+let game_state = {board_state: [], HP_state: [], initiative_state: [], fog_state: [], zone_state: [], size: 0};
 
 let character_base = [];
 let obstacle_base = [];
 
-let fog = 0;
-let fog_state = [];
+let gm_control_mod = 0; // normal mode
 
 let field_chosen = 0;
 let chosen_index;
@@ -48,19 +50,21 @@ let chosen_character_HP;
 let chosen_character_initiative;
 
 function createBoard() {
-  size = document.getElementById("board_size").value;
-  board_state = [];
-  HP_state = [];
-  initiative_state = [];
-  fog_state = [];
+  game_state.size = document.getElementById("board_size").value;
+  game_state.board_state = [];
+  game_state.HP_state = [];
+  game_state.initiative_state = [];
+  game_state.fog_state = [];
+  game_state.zone_state = [];
 
-  for (let i = 0; i < size * size; i++) {
-    board_state.push(0);
-    HP_state.push(0);
-    initiative_state.push(0);
-    fog_state.push(0);
+  for (let i = 0; i < game_state.size * game_state.size; i++) {
+    game_state.board_state.push(0);
+    game_state.HP_state.push(0);
+    game_state.initiative_state.push(0);
+    game_state.fog_state.push(0);
+    game_state.zone_state.push(0);
   }
-  send_construct_command(board_state, size, HP_state, initiative_state, fog_state);
+  send_construct_command(game_state);
 }
 
 function loadBoard() {
@@ -72,23 +76,20 @@ function loadBoard() {
   socket.sendMessage(toSend);
 }
 
-function send_construct_command(new_board_state, new_size, new_HP_state, new_initiative_state, new_fog_state) {
+function send_construct_command(new_game_state) {
   var toSend = {};
   toSend.command = 'construct_board';
-  toSend.board_state = new_board_state;
-  toSend.size = new_size;
-  toSend.HP_state = new_HP_state;
-  toSend.initiative_state = new_initiative_state;
-  toSend.fog_state = new_fog_state;
+  toSend.game_state = new_game_state;
   socket.sendMessage(toSend);
 }
 
-function construct_board(new_board_state, new_size, new_HP_state, new_initiative_state, new_fog_state) {
-  board_state = new_board_state;
-  HP_state = new_HP_state;
-  initiative_state = new_initiative_state;
-  size = new_size;
-  fog_state = new_fog_state;
+function construct_board(new_game_state) {
+  game_state.board_state = new_game_state.board_state;
+  game_state.HP_state = new_game_state.HP_state;
+  game_state.initiative_state = new_game_state.initiative_state;
+  game_state.size = new_game_state.size;
+  game_state.fog_state = new_game_state.fog_state;
+  game_state.zone_state = new_game_state.zone_state;
 
   var info_container = document.getElementById("character-info-container");
   info_container.innerHTML = "";
@@ -98,12 +99,12 @@ function construct_board(new_board_state, new_size, new_HP_state, new_initiative
   var board = document.createElement("table");
   board.className = "board";
 
-  for (let i = 0; i < size; i++) {
+  for (let i = 0; i < game_state.size; i++) {
     var row = document.createElement("tr");
     row.className = "board_row";
-    for (let j = 0; j < size; j++) {
+    for (let j = 0; j < game_state.size; j++) {
       var button = document.createElement("IMG");
-      var cell_id = i * size + j;
+      var cell_id = i * game_state.size + j;
       button.id = "cell_" + cell_id;
       button.row = i;
       button.column = j;
@@ -117,20 +118,23 @@ function construct_board(new_board_state, new_size, new_HP_state, new_initiative
         character_profile_container.innerHTML = "";
 
         var cell = event.target;
-        var index = cell.row * size + cell.column;
+        var index = cell.row * game_state.size + cell.column;
 
 				if (my_role == 'gm') {
 					// gm side
-					if (fog == 0) {
+					if (gm_control_mod == 0) {
 						// we are in normal add/move delete mode
 	          standard_cell_onClick(index, cell);
-	        } else {
+	        } else if (gm_control_mod == 1) {
 						// we are in fog mode
 						applyFog(index, cell);
-					}
+					} else if (gm_control_mod == 2) {
+            // we are in zones mode
+            assignZone(index);
+          }
 				} else {
 					// player side
-					if (fog_state[index] == 1) {
+					if (game_state.fog_state[index] == 1) {
 						// clicked fog
 						if (field_chosen == 1) {
 							undo_selection();
@@ -147,6 +151,12 @@ function construct_board(new_board_state, new_size, new_HP_state, new_initiative
       var cell_wrap = document.createElement("th");
       cell_wrap.appendChild(button);
       cell_wrap.className = "cell_wrap";
+
+      var zone_text = document.createElement("div");
+      zone_text.id = "zone_text_" + cell_id;
+      zone_text.className = "zone_text";
+      cell_wrap.appendChild(zone_text);
+
       row.appendChild(cell_wrap);
     }
     board.appendChild(row);
@@ -154,22 +164,35 @@ function construct_board(new_board_state, new_size, new_HP_state, new_initiative
   board_container.appendChild(board);
 }
 
+function assignZone(index) {
+  var zone_number = zone_number_select.val();
+
+  var zone_text = document.getElementById('zone_text_' + index);
+  zone_text.innerHTML = zone_number;
+
+  var toSend = {};
+  toSend.command = 'assign_zone';
+  toSend.zone_number = zone_number;
+  toSend.index = index;
+  socket.sendMessage(toSend);
+}
+
 function fogOrPic(cell_id) {
   var picture_name = FOG_IMAGE;
-  if ((fog_state[cell_id] != 1)||(my_role == 'gm')) {
-    picture_name = get_object_picture(board_state[cell_id]);
+  if ((game_state.fog_state[cell_id] != 1)||(my_role == 'gm')) {
+    picture_name = get_object_picture(game_state.board_state[cell_id]);
   }
   return picture_name;
 }
 
 function standard_cell_onClick(index, cell) {
-	if (board_state[index] == 0) { // empty cell clicked
+	if (game_state.board_state[index] == 0) { // empty cell clicked
 		if (field_chosen == 0) {
 			add_object(index);
 		} else {
 			move_character(index, cell);
 		}
-	} else if (board_state[index] > 0) { // character clicked
+	} else if (game_state.board_state[index] > 0) { // character clicked
 		if (field_chosen == 0) {
 			select_character(index, cell);
 
@@ -187,7 +210,7 @@ function standard_cell_onClick(index, cell) {
 }
 
 function applyFog(index, cell) {
-	if (fog_state[index] == 1) {
+	if (game_state.fog_state[index] == 1) {
 		// send update message
 		var toSend = {};
 		toSend.command = 'update_fog';
@@ -345,7 +368,7 @@ function displayFog() {
 }
 
 function select_character(index, cell) {
-  var character = character_detailed_info[board_state[index]];
+  var character = character_detailed_info[game_state.board_state[index]];
 
   let name = character.name;
   let avatar = character.avatar;
@@ -375,10 +398,10 @@ function select_character(index, cell) {
 
   var HP_display = document.createElement("h2");
   HP_display.id = "HP_display";
-  HP_display.innerHTML = "ХП: " + HP_state[index];
+  HP_display.innerHTML = "ХП: " + game_state.HP_state[index];
 
   var initiative_display = document.createElement("h2");
-  initiative_display.innerHTML = "Инициатива: " + initiative_state[index];
+  initiative_display.innerHTML = "Инициатива: " + game_state.initiative_state[index];
 
 
   container.appendChild(name_display);
@@ -417,7 +440,7 @@ function select_character(index, cell) {
     if (!(damage_field.value === "")) {
       var damage = parseInt(damage_field.value);
       var HP_display = document.getElementById("HP_display");
-      var new_HP = HP_state[event.target.index] - damage;
+      var new_HP = game_state.HP_state[event.target.index] - damage;
       HP_display.innerHTML = "ХП: " + new_HP;
 
       var toSend = {};
@@ -433,26 +456,58 @@ function select_character(index, cell) {
   damage_field.type = "number";
   damage_field.placeholder = "Значение урона";
 
+  var search_button = document.createElement("button");
+  search_button.innerHTML = "Обыскать";
+  search_button.index = index;
+  search_button.onclick = function(event) {
+    search_action(event.target);
+  }
+
   var button_list = document.createElement("ul");
   button_list.className = "button_list";
   var line1 = document.createElement("li");
   var line2 = document.createElement("li");
   var line3 = document.createElement("li");
+  var line4 = document.createElement("li");
 
 
   line1.appendChild(move_button);
   line2.appendChild(delete_button);
   line3.appendChild(damage_button);
   line3.appendChild(damage_field);
+  line4.appendChild(search_button);
 
   button_list.appendChild(line1);
   button_list.appendChild(line2);
   button_list.appendChild(line3);
+  button_list.appendChild(line4);
 
   container.appendChild(button_list);
 
   tiny_animation(container);
 
+}
+
+function search_action(search_button) {
+  var index = search_button.index;
+  var character = character_detailed_info[game_state.board_state[index]];
+
+  var name = character.name;
+  var intelligence = character.intelligence;
+  var roll = rollSearch(parseInt(intelligence));
+  var zone_number = game_state.zone_state[index];
+  alert('Персонаж ' + name + ' бросил ' + roll + ' на внимательность');
+
+  var toSend = {};
+  toSend.command = 'search_action';
+  toSend.character_name = name;
+  toSend.roll = roll;
+  toSend.zone_number = zone_number;
+  socket.sendMessage(toSend);
+}
+
+function rollSearch(intelligence) {
+  return intelligence + Math.floor(Math.random() * 21);
 }
 
 function delete_object(event) {
@@ -466,7 +521,7 @@ function delete_object(event) {
 }
 
 function select_obstacle(index, cell) {
-  var obstacle_id = board_state[index] * (-1);
+  var obstacle_id = game_state.board_state[index] * (-1);
   var obstacle = obstacle_detailed_info[obstacle_id];
 
   let name = obstacle.name;
@@ -503,16 +558,16 @@ function select_obstacle(index, cell) {
 function choose_character_to_move(index, cell) {
   field_chosen = 1;
   chosen_index = index;
-  chosen_character_HP = HP_state[index];
-  chosen_character_initiative = initiative_state[index];
-  chosen_character_index = board_state[index];
+  chosen_character_HP = game_state.HP_state[index];
+  chosen_character_initiative = game_state.initiative_state[index];
+  chosen_character_index = game_state.board_state[index];
   cell.src = "./images/loading.webp";
 }
 
 function undo_selection() {
   field_chosen = 0;
   var old_cell = document.getElementById("cell_" + chosen_index);
-  old_cell.src = character_detailed_info[board_state[chosen_index]].avatar;
+  old_cell.src = character_detailed_info[game_state.board_state[chosen_index]].avatar;
 }
 
 function get_object_picture(index_in_board_state) {
@@ -533,11 +588,13 @@ function get_object_picture(index_in_board_state) {
 
 function saveBoard() {
   var save_name = document.getElementById("map_name").value;
-  var game_state = {
-    board_state: board_state,
-    HP_state: HP_state,
-    fog_state: fog_state,
-    initiative_state: initiative_state,
+  var full_game_state = {
+    size: game_state.size,
+    board_state: game_state.board_state,
+    HP_state: game_state.HP_state,
+    fog_state: game_state.fog_state,
+    zone_state: game_state.zone_state,
+    initiative_state: game_state.initiative_state,
     character_detailed_info: character_detailed_info,
     obstacle_detailed_info: obstacle_detailed_info
   };
@@ -545,7 +602,7 @@ function saveBoard() {
   var toSend = {};
   toSend.command = 'save_game';
   toSend.save_name = save_name;
-  toSend.game_state = game_state;
+  toSend.full_game_state = full_game_state;
   toSend.from_name = my_name;
   socket.sendMessage(toSend);
 }
@@ -555,10 +612,10 @@ function computeInitiative(agility) {
 }
 
 function rollInitiative() {
-  for (let i = 0; i < board_state.length; i++) {
-    if (board_state[i] > 0) { // so there is character at position i
+  for (let i = 0; i < game_state.board_state.length; i++) {
+    if (game_state.board_state[i] > 0) { // so there is character at position i
       // retrieve that character's agility
-      var character_index = board_state[i];
+      var character_index = game_state.board_state[i];
       var character = character_detailed_info[character_index];
 
       var agility = character.agility;
@@ -566,36 +623,91 @@ function rollInitiative() {
       // roll initiative and add agility modificator
       var initiative = computeInitiative(parseInt(agility));
 
-      initiative_state[i] = initiative;
+      game_state.initiative_state[i] = initiative;
     }
   }
   var toSend = {};
   toSend.command = 'roll_initiative';
-  toSend.initiative_state = initiative_state;
+  toSend.initiative_state = game_state.initiative_state;
   socket.sendMessage(toSend);
 }
 
 function fogModeChange() {
-  if (fog == 0) {
+  if (gm_control_mod != 1) {
     // turn on fog adding mode
-    fog = 1;
+    gm_control_mod = 1;
     fog_button.text('Выкл Туман Войны');
-		for (let i = 0; i < size*size; i++) {
-			if (fog_state[i] == 1) {
+		for (let i = 0; i < game_state.size*game_state.size; i++) {
+			if (game_state.fog_state[i] == 1) {
 				var current_cell = document.getElementById("cell_" + i);
 				current_cell.src = FOG_IMAGE;
 			}
 		}
   } else {
     // turn off fog adding mode
-    fog = 0;
+    gm_control_mod = 0;
     fog_button.text('Вкл Туман Войны');
-		for (let i = 0; i < size*size; i++) {
-			if (fog_state[i] == 1) {
+		for (let i = 0; i < game_state.size*game_state.size; i++) {
+			if (game_state.fog_state[i] == 1) {
 				var current_cell = document.getElementById("cell_" + i);
-				current_cell.src = get_object_picture(board_state[i]);
+				current_cell.src = get_object_picture(game_state.board_state[i]);
 			}
 		}
+  }
+}
+
+function zoneModeChange() {
+  if (gm_control_mod != 2) {
+    // turn on zone adding mode
+    gm_control_mod = 2;
+    zone_button.text('Выкл Зональный режим');
+    zone_number_select.show();
+    fog_zone_button.show();
+    unfog_zone_button.show();
+
+    for (let i = 0; i < game_state.size*game_state.size; i++) {
+			if (game_state.zone_state[i] > 0) {
+				var current_zone_text = document.getElementById("zone_text_" + i);
+				current_zone_text.innerHTML = game_state.zone_state[i];
+			}
+		}
+  } else {
+    // back to normal mode
+    gm_control_mod = 0;
+    zone_button.text('Вкл Зональный режим');
+    zone_number_select.hide();
+    fog_zone_button.hide();
+    unfog_zone_button.hide();
+
+    for (let i = 0; i < game_state.size*game_state.size; i++) {
+				var current_zone_text = document.getElementById("zone_text_" + i);
+				current_zone_text.innerHTML = '';
+		}
+  }
+}
+
+function fogCurrentZone() {
+  fogParseZone(1);
+}
+
+function unfogCurrentZone() {
+  fogParseZone(0);
+}
+
+function fogParseZone(mod) {
+  var current_zone = zone_number_select.val();
+  var toSend = {};
+  toSend.command = 'update_fog';
+  if (mod == 0) {
+    toSend.update_type = 'remove';
+  } else if (mod == 1) {
+    toSend.update_type = 'add';
+  }
+  for (let i = 0; i < game_state.size * game_state.size; i++) {
+    if (game_state.zone_state[i] == current_zone) {
+      toSend.index = i;
+      socket.sendMessage(toSend);
+    }
   }
 }
 
@@ -627,59 +739,60 @@ socket.registerMessageHandler((data) => {
         load_board_button.show();
         roll_initiative_button.show();
         fog_button.show();
+        zone_button.show();
         save_name_input.show();
         board_size_input.show();
       }
       character_list = data.character_list;
       obstacle_list = data.obstacle_list;
     } else if (data.command == 'construct_board_response') {
-      construct_board(data.board_state, data.size, data.HP_state, data.initiative_state, data.fog_state);
+      construct_board(data.game_state);
     } else if (data.command == 'add_character_response') {
       var character = data.character_info;
       character_detailed_info[data.character_number] = character;
-      if (!((my_role == 'player')&&(fog_state[data.cell_id] == 1))) {
+      if (!((my_role == 'player')&&(game_state.fog_state[data.cell_id] == 1))) {
         var cell = document.getElementById("cell_" + data.cell_id);
         cell.src = character.avatar;
       }
-      board_state[data.cell_id] = data.character_number;
-      HP_state[data.cell_id] = HP_values[character.stamina];
+      game_state.board_state[data.cell_id] = data.character_number;
+      game_state.HP_state[data.cell_id] = HP_values[character.stamina];
     } else if (data.command == 'add_obstacle_response') {
       var obstacle = data.obstacle_info;
       obstacle_detailed_info[data.obstacle_number] = obstacle;
-      if (!((my_role == 'player')&&(fog_state[data.cell_id] == 1))) {
+      if (!((my_role == 'player')&&(game_state.fog_state[data.cell_id] == 1))) {
         var cell = document.getElementById("cell_" + data.cell_id);
         cell.src = obstacle.avatar;
       }
-      board_state[data.cell_id] = data.obstacle_number * (-1);
+      game_state.board_state[data.cell_id] = data.obstacle_number * (-1);
     } else if (data.command == 'move_character_response') {
       var to_index = data.to_index;
       var from_index = data.from_index;
-      board_state[to_index] = data.character_number;
-      HP_state[to_index] = data.character_hp;
-      initiative_state[to_index] = data.character_initiative;
+      game_state.board_state[to_index] = data.character_number;
+      game_state.HP_state[to_index] = data.character_hp;
+      game_state.initiative_state[to_index] = data.character_initiative;
 
-      if (!((my_role == 'player')&&(fog_state[to_index] == 1))) {
+      if (!((my_role == 'player')&&(game_state.fog_state[to_index] == 1))) {
         var to_cell = document.getElementById('cell_' + to_index);
         to_cell.src = data.character_avatar;
       }
 
-      board_state[from_index] = 0;
-      HP_state[from_index] = 0;
-      initiative_state[from_index] = 0;
-      if (!((my_role == 'player')&&(fog_state[from_index] == 1))) {
+      game_state.board_state[from_index] = 0;
+      game_state.HP_state[from_index] = 0;
+      game_state.initiative_state[from_index] = 0;
+      if (!((my_role == 'player')&&(game_state.fog_state[from_index] == 1))) {
         var old_cell = document.getElementById("cell_" + from_index);
         old_cell.src = EMPTY_CELL_PIC;
       }
     } else if (data.command == 'delete_character_response') {
-      board_state[data.index] = 0;
-      if (!((my_role == 'player')&&(fog_state[data.index] == 1))) {
+      game_state.board_state[data.index] = 0;
+      if (!((my_role == 'player')&&(game_state.fog_state[data.index] == 1))) {
         var cell = document.getElementById('cell_' + data.index);
         cell.src = EMPTY_CELL_PIC;
       }
     } else if (data.command == 'roll_initiative_response') {
-      initiative_state = data.initiative_state;
+      game_state.initiative_state = data.initiative_state;
     } else if (data.command == 'deal_damage_response') {
-      HP_state[data.index] = HP_state[data.index] - data.damage;
+      game_state.HP_state[data.index] = game_state.HP_state[data.index] - data.damage;
     } else if (data.command == 'save_game_response') {
       if (data.success == 1) {
         alert('Game ' + data.save_name + ' saved succesfully');
@@ -688,10 +801,10 @@ socket.registerMessageHandler((data) => {
       }
     } else if (data.command == 'load_game_response') {
       if (data.success == 1) {
-        var game_state = data.game_state;
-        character_detailed_info = game_state.character_detailed_info;
-        obstacle_detailed_info = game_state.obstacle_detailed_info;
-        construct_board(game_state.board_state, Math.sqrt(game_state.board_state.length), game_state.HP_state, game_state.initiative_state, game_state.fog_state);
+        var full_game_state = data.full_game_state;
+        character_detailed_info = full_game_state.character_detailed_info;
+        obstacle_detailed_info = full_game_state.obstacle_detailed_info;
+        construct_board(full_game_state);
       } else {
         alert('Failed to load game ' + data.save_name);
       }
@@ -699,13 +812,19 @@ socket.registerMessageHandler((data) => {
 				var index = data.index;
 				var cell = document.getElementById('cell_' + index);
 				if (data.update_type == 'remove') {
-					fog_state[index] = 0;
-					cell.src = get_object_picture(board_state[index]);
+					game_state.fog_state[index] = 0;
+					cell.src = get_object_picture(game_state.board_state[index]);
 				} else {
-					fog_state[index] = 1;
+					game_state.fog_state[index] = 1;
 					cell.src = FOG_IMAGE;
 				}
-		}
+		} else if (data.command == 'assign_zone_response') {
+      game_state.zone_state[data.index] = data.zone_number;
+    } else if (data.command == 'search_action_response') {
+      if (my_role == 'gm') {
+        alert('Персонаж ' + data.character_name + ' бросил ' + data.roll + ' на внимательность в зоне ' + data.zone_number);
+      }
+    }
   }
 });
 
@@ -728,6 +847,27 @@ roll_initiative_button.hide();
 var fog_button = $(FOG_BUTTON_SELECTOR);
 fog_button.on('click', fogModeChange);
 fog_button.hide();
+
+var zone_button = $(ZONE_BUTTON_SELECTOR);
+zone_button.on('click', zoneModeChange);
+zone_button.hide();
+
+var fog_zone_button = $(FOG_ZONE_BUTTON_SELECTOR);
+fog_zone_button.on('click', fogCurrentZone);
+fog_zone_button.hide();
+
+var unfog_zone_button = $(UNFOG_ZONE_BUTTON_SELECTOR);
+unfog_zone_button.on('click', unfogCurrentZone);
+unfog_zone_button.hide();
+
+var zone_number_select = $(ZONE_NUMBER_SELECTOR);
+zone_number_select.hide();
+for (let i = 1; i < MAX_ZONES; i++) {
+  var current_option = $("<option>");
+  current_option.text('Зона ' + i);
+  current_option.val(i);
+  zone_number_select.append(current_option);
+}
 
 var board_size_input = $(BOARD_SIZE_INPUT_SELECTOR);
 board_size_input.hide();
