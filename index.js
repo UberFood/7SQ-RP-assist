@@ -224,6 +224,7 @@ wss.on('connection', (ws) => {
       response.command = 'assign_zone_response';
       response.index = data.index;
       response.to_name = 'all';
+      response.modificator = data.modificator;
       response.zone_number = data.zone_number;
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(response));

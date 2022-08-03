@@ -8,13 +8,17 @@ var LOAD_BOARD_BUTTON_SELECTOR = '[data-name="load_board_button"]';
 var ROLL_INITIATIVE_BUTTON_SELECTOR = '[data-name="roll_initiative_button"]';
 var FOG_BUTTON_SELECTOR = '[data-name="fog_button"]';
 var ZONE_BUTTON_SELECTOR = '[data-name="zone_button"]';
+var CHAT_BUTTON_SELECTOR = '[data-name="chat_button"]';
 var FOG_ZONE_BUTTON_SELECTOR = '[data-name="fog_zone_button"]';
 var UNFOG_ZONE_BUTTON_SELECTOR = '[data-name="unfog_zone_button"]';
 
 var ZONE_NUMBER_SELECTOR = '[data-name="zone_number_select"]';
+var SEARCH_MODIFICATOR_SELECTOR = '[data-name="search_modificator"]';
 
 var BOARD_SIZE_INPUT_SELECTOR = '[data-name="board_size_input"]';
 var SAVE_NAME_INPUT_SELECTOR = '[data-name="save_name_input"]';
+
+var NOTIFICATIONS_LIST_SELECTOR = '[data-name="notifications_list"]';
 
 var SERVER_ADDRESS = location.origin.replace(/^http/, 'ws');
 
@@ -31,12 +35,14 @@ var TINY_EFFECT_CLASS = 'is-tiny';
 var EMPTY_CELL_PIC = "./images/square.jpg";
 var FOG_IMAGE = "./images/fog.webp";
 var QUESTION_IMAGE = "./images/question.jpg";
+
 var MAX_ZONES = 12;
+var CHAT_CASH = 10;
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165];
 
-let game_state = {board_state: [], HP_state: [], initiative_state: [], fog_state: [], zone_state: [], size: 0};
+let game_state = {board_state: [], HP_state: [], initiative_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: []};
 
 let character_base = [];
 let obstacle_base = [];
@@ -56,6 +62,7 @@ function createBoard() {
   game_state.initiative_state = [];
   game_state.fog_state = [];
   game_state.zone_state = [];
+  game_state.search_modificator_state = [];
 
   for (let i = 0; i < game_state.size * game_state.size; i++) {
     game_state.board_state.push(0);
@@ -63,6 +70,7 @@ function createBoard() {
     game_state.initiative_state.push(0);
     game_state.fog_state.push(0);
     game_state.zone_state.push(0);
+    game_state.search_modificator_state.push(0);
   }
   send_construct_command(game_state);
 }
@@ -90,6 +98,7 @@ function construct_board(new_game_state) {
   game_state.size = new_game_state.size;
   game_state.fog_state = new_game_state.fog_state;
   game_state.zone_state = new_game_state.zone_state;
+  game_state.search_modificator_state = new_game_state.search_modificator_state;
 
   var info_container = document.getElementById("character-info-container");
   info_container.innerHTML = "";
@@ -166,14 +175,16 @@ function construct_board(new_game_state) {
 
 function assignZone(index) {
   var zone_number = zone_number_select.val();
+  var modificator = search_modificator.val();
 
   var zone_text = document.getElementById('zone_text_' + index);
-  zone_text.innerHTML = zone_number;
+  zone_text.innerHTML = zone_number + '(' + modificator + ')';
 
   var toSend = {};
   toSend.command = 'assign_zone';
   toSend.zone_number = zone_number;
   toSend.index = index;
+  toSend.modificator = modificator;
   socket.sendMessage(toSend);
 }
 
@@ -493,10 +504,11 @@ function search_action(search_button) {
   var character = character_detailed_info[game_state.board_state[index]];
 
   var name = character.name;
+  var modificator = game_state.search_modificator_state[index];
   var intelligence = character.intelligence;
-  var roll = rollSearch(parseInt(intelligence));
+  var roll = rollSearch(parseInt(intelligence), parseInt(modificator));
   var zone_number = game_state.zone_state[index];
-  alert('Персонаж ' + name + ' бросил ' + roll + ' на внимательность');
+  pushToList('Персонаж ' + name + ' бросил ' + roll + ' на внимательность');
 
   var toSend = {};
   toSend.command = 'search_action';
@@ -506,8 +518,8 @@ function search_action(search_button) {
   socket.sendMessage(toSend);
 }
 
-function rollSearch(intelligence) {
-  return intelligence + Math.floor(Math.random() * 21);
+function rollSearch(intelligence, mod) {
+  return intelligence + Math.floor(Math.random() * 21) + mod;
 }
 
 function delete_object(event) {
@@ -594,6 +606,7 @@ function saveBoard() {
     HP_state: game_state.HP_state,
     fog_state: game_state.fog_state,
     zone_state: game_state.zone_state,
+    search_modificator_state: game_state.search_modificator_state,
     initiative_state: game_state.initiative_state,
     character_detailed_info: character_detailed_info,
     obstacle_detailed_info: obstacle_detailed_info
@@ -664,11 +677,12 @@ function zoneModeChange() {
     zone_number_select.show();
     fog_zone_button.show();
     unfog_zone_button.show();
+    search_modificator.show();
 
     for (let i = 0; i < game_state.size*game_state.size; i++) {
 			if (game_state.zone_state[i] > 0) {
 				var current_zone_text = document.getElementById("zone_text_" + i);
-				current_zone_text.innerHTML = game_state.zone_state[i];
+				current_zone_text.innerHTML = game_state.zone_state[i] + '(' + game_state.search_modificator_state[i] + ')';
 			}
 		}
   } else {
@@ -678,6 +692,7 @@ function zoneModeChange() {
     zone_number_select.hide();
     fog_zone_button.hide();
     unfog_zone_button.hide();
+    search_modificator.hide();
 
     for (let i = 0; i < game_state.size*game_state.size; i++) {
 				var current_zone_text = document.getElementById("zone_text_" + i);
@@ -708,6 +723,28 @@ function fogParseZone(mod) {
       toSend.index = i;
       socket.sendMessage(toSend);
     }
+  }
+}
+
+function pushToList(message) {
+  for (let i=1; i < CHAT_CASH; i++) {
+    var element_to_copy = $('[data-name="notifications_list_element_' + i + '"]');
+    var element_to_paste = $('[data-name="notifications_list_element_' + (i-1) + '"]');
+
+    element_to_paste.text(element_to_copy.text());
+  }
+  var top_element = $('[data-name="notifications_list_element_' + (CHAT_CASH-1) + '"]');
+  top_element.text(message);
+
+  chat_button.css('background-color', 'red');
+}
+
+function changeChatVisibility() {
+  chat_button.css('background-color', 'white');
+  if (notifications_container.style.display == 'none') {
+    notifications_container.style.display = 'block';
+  } else {
+    notifications_container.style.display = 'none';
   }
 }
 
@@ -820,9 +857,10 @@ socket.registerMessageHandler((data) => {
 				}
 		} else if (data.command == 'assign_zone_response') {
       game_state.zone_state[data.index] = data.zone_number;
+      game_state.search_modificator_state[data.index] = data.modificator;
     } else if (data.command == 'search_action_response') {
       if (my_role == 'gm') {
-        alert('Персонаж ' + data.character_name + ' бросил ' + data.roll + ' на внимательность в зоне ' + data.zone_number);
+        pushToList(data.character_name + ' бросил ' + data.roll + ' на внимательность в зоне ' + data.zone_number);
       }
     }
   }
@@ -852,6 +890,9 @@ var zone_button = $(ZONE_BUTTON_SELECTOR);
 zone_button.on('click', zoneModeChange);
 zone_button.hide();
 
+var chat_button = $(CHAT_BUTTON_SELECTOR);
+chat_button.on('click', changeChatVisibility);
+
 var fog_zone_button = $(FOG_ZONE_BUTTON_SELECTOR);
 fog_zone_button.on('click', fogCurrentZone);
 fog_zone_button.hide();
@@ -869,8 +910,22 @@ for (let i = 1; i < MAX_ZONES; i++) {
   zone_number_select.append(current_option);
 }
 
+var search_modificator = $(SEARCH_MODIFICATOR_SELECTOR);
+search_modificator.hide();
+
+var notifications_list = $(NOTIFICATIONS_LIST_SELECTOR);
+for (let i = 0; i < CHAT_CASH; i++) {
+  var current_element = $("<li>");
+  current_element.attr('data-name', 'notifications_list_element_' + i);
+  current_element.attr('class', 'notifications_list_element');
+  notifications_list.append(current_element);
+}
+
 var board_size_input = $(BOARD_SIZE_INPUT_SELECTOR);
 board_size_input.hide();
 
 var save_name_input = $(SAVE_NAME_INPUT_SELECTOR);
 save_name_input.hide();
+
+var notifications_container = document.getElementById("notifications-container");
+notifications_container.style.display = 'none';

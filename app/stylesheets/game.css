@@ -28,6 +28,10 @@ h4 {
 	color: red;
 }
 
+button {
+  background-color: white;
+}
+
 .button_list {
   list-style: none;
 }
@@ -152,7 +156,7 @@ html, body {
 }
 
 #board-container {
-  width: 60%;
+  width: 55%;
   height: 700px;
   overflow-x: auto;
   overflow-y: auto;
@@ -167,8 +171,13 @@ html, body {
   justify-content: flex-start;
   height: 700px;
   margin: 10px;
-  width: 40%;
+  height: 700px;
   transition: transform 333ms ease-in-out;
+}
+
+#notifications-container{
+  height: 700px;
+  height: 15%;
 }
 
 #character-info-container > * {
@@ -205,7 +214,18 @@ html, body {
   color: black;
   position: absolute;
   top: 40%;
-  left: 40%;
+  left: 25%;
+}
+
+.chat {
+  list-style: none;
+  color: black;
+  font-size: 15;
+  font-weight: bold;
+}
+
+.notifications_list_element {
+  margin-top: 5px;
 }
 
 .board_cell{
