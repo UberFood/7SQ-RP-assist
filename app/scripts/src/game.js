@@ -38,7 +38,7 @@ var EMPTY_CELL_PIC = "./images/square.jpg";
 var FOG_IMAGE = "./images/fog.webp";
 var QUESTION_IMAGE = "./images/question.jpg";
 
-var MAX_ZONES = 12;
+var MAX_ZONES = 25;
 var CHAT_CASH = 10;
 
 // This is a constant, will be moved to database later
