@@ -9,6 +9,7 @@ var ROLL_INITIATIVE_BUTTON_SELECTOR = '[data-name="roll_initiative_button"]';
 var FOG_BUTTON_SELECTOR = '[data-name="fog_button"]';
 var ZONE_BUTTON_SELECTOR = '[data-name="zone_button"]';
 var CHAT_BUTTON_SELECTOR = '[data-name="chat_button"]';
+var MIRROR_BUTTON_SELECTOR = '[data-name="mirror_button"]';
 var FOG_ZONE_BUTTON_SELECTOR = '[data-name="fog_zone_button"]';
 var UNFOG_ZONE_BUTTON_SELECTOR = '[data-name="unfog_zone_button"]';
 
@@ -764,6 +765,53 @@ function changeChatVisibility() {
     notifications_container.style.display = 'none';
   }
 }
+// {board_state: [], HP_state: [], initiative_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: []};
+function mirror_board() {
+  var left_index;
+  var right_index;
+  var temp;
+  var left_cell;
+  var right_cell;
+  for (let y = 0; y < game_state.size; y++) {
+    for (let x = 0; x < game_state.size/2; x++) {
+
+      left_index = y*game_state.size + x;
+      right_index = y*game_state.size + parseInt(game_state.size) - x - 1;
+      //console.log('y: ' + y + ' x: ' + x + ' left index: ' + left_index + ' right index: ' + right_index);
+
+      temp = game_state.board_state[left_index];
+      game_state.board_state[left_index] = game_state.board_state[right_index];
+      game_state.board_state[right_index] = temp;
+
+      temp = game_state.HP_state[left_index];
+      game_state.HP_state[left_index] = game_state.HP_state[right_index];
+      game_state.HP_state[right_index] = temp;
+
+      temp = game_state.initiative_state[left_index];
+      game_state.initiative_state[left_index] = game_state.initiative_state[right_index];
+      game_state.initiative_state[right_index] = temp;
+
+      temp = game_state.fog_state[left_index];
+      game_state.fog_state[left_index] = game_state.fog_state[right_index];
+      game_state.fog_state[right_index] = temp;
+
+      temp = game_state.zone_state[left_index];
+      game_state.zone_state[left_index] = game_state.zone_state[right_index];
+      game_state.zone_state[right_index] = temp;
+
+      temp = game_state.search_modificator_state[left_index];
+      game_state.search_modificator_state[left_index] = game_state.search_modificator_state[right_index];
+      game_state.search_modificator_state[right_index] = temp;
+
+      left_cell = document.getElementById('cell_' + left_index);
+      right_cell = document.getElementById('cell_' + right_index);
+
+      temp = left_cell.src;
+      left_cell.src = right_cell.src;
+      right_cell.src = temp;
+    }
+  }
+}
 
 //socket.init('ws://localhost:3001');
 socket.init(SERVER_ADDRESS);
@@ -797,6 +845,7 @@ socket.registerMessageHandler((data) => {
         zone_button.show();
         save_name_input.show();
         board_size_input.show();
+        mirror_button.show();
       }
       character_list = data.character_list;
       obstacle_list = data.obstacle_list;
@@ -910,6 +959,10 @@ zone_button.hide();
 
 var chat_button = $(CHAT_BUTTON_SELECTOR);
 chat_button.on('click', changeChatVisibility);
+
+var mirror_button = $(MIRROR_BUTTON_SELECTOR);
+mirror_button.on('click', mirror_board);
+mirror_button.hide();
 
 var fog_zone_button = $(FOG_ZONE_BUTTON_SELECTOR);
 fog_zone_button.on('click', fogCurrentZone);
