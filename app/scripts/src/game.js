@@ -42,7 +42,7 @@ var MAX_ZONES = 25;
 var CHAT_CASH = 10;
 
 // This is a constant, will be moved to database later
-const HP_values = [15, 30, 40, 55, 75, 100, 130, 165];
+const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
 
 let game_state = {board_state: [], HP_state: [], initiative_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: []};
 
