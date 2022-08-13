@@ -52,6 +52,7 @@ wss.on('connection', (ws) => {
     if (data.command == 'add_character_permission') {
       var answer = {};
       answer.command = 'add_character_permission_server';
+      answer.room_number = data.room_number;
       answer.to_name = data.from_name;
       if (data.password == GM_PASSWORD) {
         answer.isValid = 1;
@@ -64,6 +65,7 @@ wss.on('connection', (ws) => {
 
     } else if (data.command == 'player_info') {
       var answer = {};
+      answer.room_number = data.room_number;
       answer.command = 'player_info_response';
       answer.to_name = data.from_name;
       answer.role = data.role;
@@ -117,6 +119,7 @@ wss.on('connection', (ws) => {
         });
     } else if (data.command == 'add_character') {
         var response = {};
+        response.room_number = data.room_number;
         response.command = 'add_character_response';
         response.cell_id = data.cell_id;
         response.to_name = 'all';
@@ -130,6 +133,7 @@ wss.on('connection', (ws) => {
         });
     } else if (data.command == 'add_obstacle') {
         var response = {};
+        response.room_number = data.room_number;
         response.command = 'add_obstacle_response';
         response.cell_id = data.cell_id;
         response.to_name = 'all';
@@ -149,6 +153,7 @@ wss.on('connection', (ws) => {
         });
     } else if (data.command == 'delete_character') {
       var response = {};
+      response.room_number = data.room_number;
       response.command = 'delete_character_response';
       response.to_name = 'all';
       response.index = data.index;
@@ -157,6 +162,7 @@ wss.on('connection', (ws) => {
       });
     } else if (data.command == 'roll_initiative') {
       var response = {};
+      response.room_number = data.room_number;
       response.command = 'roll_initiative_response';
       response.to_name = 'all';
       response.initiative_state = data.initiative_state;
@@ -165,6 +171,7 @@ wss.on('connection', (ws) => {
       });
     } else if (data.command == 'deal_damage') {
       var response = {};
+      response.room_number = data.room_number;
       response.command = 'deal_damage_response';
       response.to_name = 'all';
       response.index = data.index;
@@ -174,6 +181,7 @@ wss.on('connection', (ws) => {
       });
     } else if (data.command == 'save_game') {
       var response = {};
+      response.room_number = data.room_number;
       response.command = 'save_game_response';
       response.save_name = data.save_name;
       response.to_name = data.from_name;
@@ -195,6 +203,7 @@ wss.on('connection', (ws) => {
       });
     } else if (data.command == 'load_game') {
       var response = {};
+      response.room_number = data.room_number;
       response.command = 'load_game_response';
       response.save_name = data.save_name;
       if (fs.existsSync('./app/saves/' + data.save_name + '.json')) {
@@ -212,6 +221,7 @@ wss.on('connection', (ws) => {
       });
     } else if (data.command == 'update_fog') {
       var response = {};
+      response.room_number = data.room_number;
       response.command = 'update_fog_response';
       response.index = data.index;
       response.to_name = 'all';
@@ -221,6 +231,7 @@ wss.on('connection', (ws) => {
       });
     } else if (data.command == 'assign_zone') {
       var response = {};
+      response.room_number = data.room_number;
       response.command = 'assign_zone_response';
       response.index = data.index;
       response.to_name = 'all';
@@ -231,6 +242,7 @@ wss.on('connection', (ws) => {
       });
     } else if (data.command == 'search_action') {
       var response = {};
+      response.room_number = data.room_number;
       response.command = 'search_action_response';
       response.character_name = data.character_name;
       response.to_name = 'all';

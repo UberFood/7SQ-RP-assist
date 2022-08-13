@@ -24,6 +24,7 @@ var SERVER_ADDRESS = location.origin.replace(/^http/, 'ws');
 
 var my_name = JSON.parse(sessionStorage.getItem('username'));
 var my_role = JSON.parse(sessionStorage.getItem('user_role'));
+var my_room = JSON.parse(sessionStorage.getItem('room_number'));
 
 var character_list = [];
 var character_detailed_info = [];
@@ -81,12 +82,14 @@ function loadBoard() {
   toSend.command = 'load_game';
   toSend.save_name = name;
   toSend.from_name = my_name;
+  toSend.room_number = my_room;
   socket.sendMessage(toSend);
 }
 
 function send_construct_command(new_game_state) {
   var toSend = {};
   toSend.command = 'construct_board';
+  toSend.room_number = my_room;
   toSend.game_state = new_game_state;
   socket.sendMessage(toSend);
 }
@@ -185,6 +188,7 @@ function assignZone(index) {
   toSend.zone_number = zone_number;
   toSend.index = index;
   toSend.modificator = modificator;
+  toSend.room_number = my_room;
   socket.sendMessage(toSend);
 }
 
@@ -229,6 +233,7 @@ function applyFog(index, cell) {
 		toSend.command = 'update_fog';
 		toSend.update_type = 'remove';
 		toSend.index = index;
+    toSend.room_number = my_room;
 		socket.sendMessage(toSend);
 	} else {
 		// send update message
@@ -236,6 +241,7 @@ function applyFog(index, cell) {
 		toSend.command = 'update_fog';
 		toSend.update_type = 'add';
 		toSend.index = index;
+    toSend.room_number = my_room;
 		socket.sendMessage(toSend);
 	}
 }
@@ -299,6 +305,7 @@ function add_obstacle(board_index) {
     toSend.cell_id = button.board_index;
     toSend.obstacle_number = obstacle_number + 1;
     toSend.obstacle_name = obstacle_list[obstacle_number];
+    toSend.room_number = my_room;
     socket.sendMessage(toSend);
 
     var container = document.getElementById("character-info-container");
@@ -337,6 +344,7 @@ function add_character(board_index) {
     toSend.cell_id = button.board_index;
     toSend.character_number = character_number + 1;
     toSend.character_name = character_list[character_number];
+    toSend.room_number = my_room;
     socket.sendMessage(toSend);
 
     var container = document.getElementById("character-info-container");
@@ -359,6 +367,7 @@ function move_character(to_index, to_cell) {
   toSend.character_hp = chosen_character_HP;
   toSend.character_initiative = chosen_character_initiative;
   toSend.character_avatar = character_detailed_info[chosen_character_index].avatar;
+  toSend.room_number = my_room;
   socket.sendMessage(toSend);
 }
 
@@ -460,6 +469,7 @@ function select_character(index, cell) {
       toSend.command = 'deal_damage';
       toSend.index = event.target.index;
       toSend.damage = damage;
+      toSend.room_number = my_room;
       socket.sendMessage(toSend);
     }
   }
@@ -517,6 +527,7 @@ function search_action(search_button) {
   toSend.character_name = name;
   toSend.roll = roll;
   toSend.zone_number = zone_number;
+  toSend.room_number = my_room;
   socket.sendMessage(toSend);
 }
 
@@ -530,6 +541,7 @@ function delete_object(event) {
 
   var toSend = {};
   toSend.command = 'delete_character';
+  toSend.room_number = my_room;
   toSend.index = event.target.index;
   socket.sendMessage(toSend);
 }
@@ -619,6 +631,7 @@ function saveBoard() {
   toSend.save_name = save_name;
   toSend.full_game_state = full_game_state;
   toSend.from_name = my_name;
+  toSend.room_number = my_room;
   socket.sendMessage(toSend);
 }
 
@@ -643,6 +656,7 @@ function rollInitiative() {
   }
   var toSend = {};
   toSend.command = 'roll_initiative';
+  toSend.room_number = my_room;
   toSend.initiative_state = game_state.initiative_state;
   socket.sendMessage(toSend);
 }
@@ -715,6 +729,7 @@ function fogParseZone(mod) {
   var current_zone = zone_number_select.val();
   var toSend = {};
   toSend.command = 'update_fog';
+  toSend.room_number = my_room;
   if (mod == 0) {
     toSend.update_type = 'remove';
   } else if (mod == 1) {
@@ -756,6 +771,7 @@ socket.init(SERVER_ADDRESS);
 socket.registerOpenHandler(() => {
   var toSend = {};
   toSend.command = 'player_info';
+  toSend.room_number = my_room;
   toSend.from_name = my_name;
   toSend.role = my_role;
   if (my_role == 'gm') {
@@ -766,7 +782,7 @@ socket.registerOpenHandler(() => {
 
 socket.registerMessageHandler((data) => {
   console.log(data);
-  if ((data.to_name == my_name) || (data.to_name == 'all')) {
+  if (((data.to_name == my_name) || (data.to_name == 'all')) && (data.room_number == my_room)) {
     if (data.command == 'player_info_response') {
       if (data.isValid == 0) {
         alert('Та какой ты гм');
