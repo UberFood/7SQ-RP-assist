@@ -133,7 +133,7 @@ function construct_board(new_game_state) {
 					// gm side
 					if (gm_control_mod == 0) {
 						// we are in normal add/move delete mode
-	          standard_cell_onClick(index, cell);
+	          standard_cell_onClick(index, cell, my_role);
 	        } else if (gm_control_mod == 1) {
 						// we are in fog mode
 						applyFog(index, cell);
@@ -152,7 +152,7 @@ function construct_board(new_game_state) {
 							displayFog();
 						}
 					} else {
-						standard_cell_onClick(index, cell);
+						standard_cell_onClick(index, cell, my_role);
 					}
 				}
 
@@ -196,10 +196,12 @@ function fogOrPic(cell_id) {
   return picture_name;
 }
 
-function standard_cell_onClick(index, cell) {
+function standard_cell_onClick(index, cell, role) {
 	if (game_state.board_state[index] == 0) { // empty cell clicked
 		if (field_chosen == 0) {
-			add_object(index);
+      if (role == 'gm') {
+			   add_object(index);
+      }
 		} else {
 			move_character(index, cell);
 		}
