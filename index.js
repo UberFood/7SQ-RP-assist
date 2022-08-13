@@ -3,7 +3,7 @@ var fs = require('fs');
 var extract = require('./extract');
 var mime = require('mime');
 
-var GM_PASSWORD = '123';
+var GM_PASSWORD = 'KoroVa';
 
 var handleError = function(err, res) {
   res.writeHead(404);
