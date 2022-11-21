@@ -23,6 +23,13 @@ function registerMessageHandler(handlerFunction) {
   };
 }
 
+function registerMessageHandlerDefault() {
+  socket.onmessage = (e) => {
+    let data = JSON.parse(e.data);
+    onMessageFunction(data);
+  };
+}
+
 function sendMessage(payload) {
   if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(payload));

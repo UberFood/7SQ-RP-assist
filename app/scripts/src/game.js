@@ -62,7 +62,7 @@ let last_obstacle;
 function reconnect() {
   if (!(socket.readyState === WebSocket.OPEN)) {
     socket.init(SERVER_ADDRESS);
-    socket.registerMessageHandler(onMessageFunction);
+    socket.registerMessageHandlerDefault();
     console.log('Hopefully reconnected (pray)');
   } else {
     console.log('Was online anyway');
