@@ -279,6 +279,9 @@ function add_object(board_index) {
   var container = document.getElementById("character-info-container");
   container.innerHTML = "";
 
+  var weapon_container = document.getElementById("weapon-info-container");
+  weapon_container.innerHTML = "";
+
   var button_container = document.createElement("div");
   button_container.className = "add-object-button-container";
 
