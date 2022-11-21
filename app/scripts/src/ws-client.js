@@ -8,6 +8,10 @@ function init(url) {
   console.log('connecting..');
 }
 
+function isReady() {
+  return socket.readyState === WebSocket.OPEN
+}
+
 function registerOpenHandler(handlerFunction) {
   socket.onopen = () => {
     console.log('open');
@@ -49,5 +53,6 @@ export default {
   registerOpenHandler,
   registerMessageHandler,
   sendMessage,
-  registerMessageHandlerDefault
+  registerMessageHandlerDefault,
+  isReady
 }

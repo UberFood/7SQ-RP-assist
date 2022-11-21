@@ -60,7 +60,7 @@ let chosen_character_initiative;
 let last_obstacle;
 
 function reconnect() {
-  if (!(socket.readyState === WebSocket.OPEN)) {
+  if (!socket.isReady()) {
     socket.init(SERVER_ADDRESS);
     socket.registerMessageHandlerDefault();
     console.log('Hopefully reconnected (pray)');
