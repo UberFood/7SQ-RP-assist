@@ -427,6 +427,9 @@ function select_character(index, cell) {
   var container = document.getElementById("character-info-container");
   container.innerHTML = "";
 
+  var weapon_container = document.getElementById("weapon-info-container");
+  weapon_container.innerHTML = "";
+
   var name_display = document.createElement("h2");
   name_display.innerHTML = name;
 
@@ -540,13 +543,41 @@ function select_character(index, cell) {
 
     var weapon_damage_display = document.getElementById("weapon_damage_display")
     weapon_damage_display.innerHTML = "Урон: " + weapon.damage[0] + 'd' + weapon.damage[1]
+
+    var weapon_name_display = document.getElementById("weapon_name_display")
+    weapon_name_display.innerHTML = weapon.name
+
+    var weapon_avatar_display = document.getElementById("weapon_avatar_display")
+    weapon_avatar_display.src = weapon.avatar;
+    weapon_avatar_display.style.width = '250px';
+    weapon_avatar_display.style.height = '250px';
   }
+
+  var default_weapon_index = character.inventory[0]
+  var default_weapon = weapon_detailed_info[default_weapon_index]
 
   var weapon_range_display = document.createElement("h2");
   weapon_range_display.id = "weapon_range_display";
+  weapon_range_display.innerHTML = "Дальность: " + default_weapon.range
 
   var weapon_damage_display = document.createElement("h2");
   weapon_damage_display.id = "weapon_damage_display";
+  weapon_damage_display.innerHTML = "Урон: " + default_weapon.damage[0] + 'd' + default_weapon.damage[1]
+
+  var weapon_avatar_display = document.createElement("IMG");
+  weapon_avatar_display.id = "weapon_avatar_display"
+  weapon_avatar_display.src = default_weapon.avatar;
+  weapon_avatar_display.style.width = '250px';
+  weapon_avatar_display.style.height = '250px';
+
+  var weapon_name_display = document.createElement("h2");
+  weapon_name_display.id = "weapon_name_display";
+  weapon_name_display.innerHTML = default_weapon.name
+
+  weapon_container.append(weapon_name_display)
+  weapon_container.append(weapon_avatar_display)
+  weapon_container.append(weapon_range_display)
+  weapon_container.append(weapon_damage_display)
 
 
   var button_list = document.createElement("ul");
@@ -565,8 +596,6 @@ function select_character(index, cell) {
   line4.appendChild(search_button);
   line5.appendChild(pick_weapon_button);
   line5.appendChild(weapon_select);
-  line5.appendChild(weapon_range_display);
-  line5.appendChild(weapon_damage_display);
 
   button_list.appendChild(line1);
   button_list.appendChild(line2);

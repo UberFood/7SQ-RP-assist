@@ -171,7 +171,16 @@ html, body {
   justify-content: flex-start;
   height: 700px;
   margin: 10px;
+  transition: transform 333ms ease-in-out;
+}
+
+#weapon-info-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
   height: 700px;
+  margin: 10px;
   transition: transform 333ms ease-in-out;
 }
 
