@@ -57,6 +57,18 @@ let chosen_character_index;
 let chosen_character_HP;
 let chosen_character_initiative;
 
+let last_obstacle;
+
+function reconnect() {
+  if (!(socket.readyState === WebSocket.OPEN)) {
+    init(server_address);
+    registerMessageHandler(onMessageFunction);
+    console.log('Hopefully reconnected (pray)');
+  } else {
+    console.log('Was online anyway');
+  }
+}
+
 function createBoard() {
   game_state.size = document.getElementById("board_size").value;
   game_state.board_state = [];
@@ -95,6 +107,38 @@ function send_construct_command(new_game_state) {
   socket.sendMessage(toSend);
 }
 
+function no_shift_onclick(my_role, gm_control_mod, game_state, field_chosen, cell, index) {
+  var character_profile_container = document.getElementById("character-info-container");
+  character_profile_container.innerHTML = "";
+
+  if (my_role == 'gm') {
+    // gm side
+    if (gm_control_mod == 0) {
+      // we are in normal add/move delete mode
+      standard_cell_onClick(index, cell, my_role);
+    } else if (gm_control_mod == 1) {
+      // we are in fog mode
+      applyFog(index, cell);
+    } else if (gm_control_mod == 2) {
+      // we are in zones mode
+      assignZone(index);
+    }
+  } else {
+    // player side
+    if (game_state.fog_state[index] == 1) {
+      // clicked fog
+      if (field_chosen == 1) {
+        undo_selection();
+      } else {
+        console.log(' fog detected');
+        displayFog();
+      }
+    } else {
+      standard_cell_onClick(index, cell, my_role);
+    }
+  }
+}
+
 function construct_board(new_game_state) {
   game_state.board_state = new_game_state.board_state;
   game_state.HP_state = new_game_state.HP_state;
@@ -127,38 +171,20 @@ function construct_board(new_game_state) {
       button.style.height = '50px';
       button.className = 'board_cell';
       button.onclick = function(event) {
-        var character_profile_container = document.getElementById("character-info-container");
-        character_profile_container.innerHTML = "";
-
         var cell = event.target;
         var index = cell.row * game_state.size + cell.column;
 
-				if (my_role == 'gm') {
-					// gm side
-					if (gm_control_mod == 0) {
-						// we are in normal add/move delete mode
-	          standard_cell_onClick(index, cell, my_role);
-	        } else if (gm_control_mod == 1) {
-						// we are in fog mode
-						applyFog(index, cell);
-					} else if (gm_control_mod == 2) {
-            // we are in zones mode
-            assignZone(index);
-          }
-				} else {
-					// player side
-					if (game_state.fog_state[index] == 1) {
-						// clicked fog
-						if (field_chosen == 1) {
-							undo_selection();
-						} else {
-							console.log(' fog detected');
-							displayFog();
-						}
-					} else {
-						standard_cell_onClick(index, cell, my_role);
-					}
-				}
+        if (event.shiftKey) {
+          var toSend = {};
+          toSend.command = 'add_obstacle';
+          toSend.cell_id = index;
+          toSend.obstacle_number = last_obstacle;
+          toSend.obstacle_name = obstacle_list[last_obstacle - 1];
+          toSend.room_number = my_room;
+          socket.sendMessage(toSend);
+        } else {
+          no_shift_onclick(my_role, gm_control_mod, game_state, field_chosen, cell, index)
+        }
 
       };
       var cell_wrap = document.createElement("th");
@@ -550,6 +576,9 @@ function delete_object(event) {
 function select_obstacle(index, cell) {
   var obstacle_id = game_state.board_state[index] * (-1);
   var obstacle = obstacle_detailed_info[obstacle_id];
+
+  // keep track of last chosen obstale to quickly add to the map
+  last_obstacle = obstacle_id
 
   let name = obstacle.name;
   let avatar = obstacle.avatar;
@@ -1000,3 +1029,5 @@ save_name_input.hide();
 
 var notifications_container = document.getElementById("notifications-container");
 notifications_container.style.display = 'none';
+
+setInterval(reconnect, 30*1000)
