@@ -31,6 +31,8 @@ var character_list = [];
 var character_detailed_info = [];
 var obstacle_list = [];
 var obstacle_detailed_info = [];
+var weapon_list = []
+var weapon_detailed_info = [];
 
 var TINY_EFFECT_CLASS = 'is-tiny';
 
@@ -513,12 +515,47 @@ function select_character(index, cell) {
     search_action(event.target);
   }
 
+  var weapon_select = document.createElement("select");
+  weapon_select.id = "weapon_chosen";
+
+  inventory = character.inventory
+
+  for (let i = 0; i < inventory.length; i++) {
+    var current_option = document.createElement("option");
+    current_option.innerHTML = weapon_list[inventory[i]];
+    current_option.value = inventory[i];
+    weapon_select.appendChild(current_option);
+  }
+
+  var pick_weapon_button = document.createElement("button");
+  pick_weapon_button.innerHTML = "Сменить оружие";
+  pick_weapon_button.index = index;
+  pick_weapon_button.onclick = function(event) {
+    weapon_select = document.getElementById("weapon_chosen")
+    weapon_index = weapon_select.HP_values
+    weapon = weapon_detailed_info[weapon_index]
+
+    weapon_range_display = document.getElementById("weapon_range_display")
+    weapon_range_display.innerHTML = "Дальность: " + weapon.range
+
+    weapon_damage_display = document.getElementById("weapon_damage_display")
+    weapon_damage_display.innerHTML = "Урон: " + weapon.damage[0] + 'd' + weapon.damage[1]
+  }
+
+  var weapon_range_display = document.createElement("h2");
+  weapon_range_display.id = "weapon_range_display";
+
+  var weapon_damage_display = document.createElement("h2");
+  weapon_damage_display.id = "weapon_damage_display";
+
+
   var button_list = document.createElement("ul");
   button_list.className = "button_list";
   var line1 = document.createElement("li");
   var line2 = document.createElement("li");
   var line3 = document.createElement("li");
   var line4 = document.createElement("li");
+  var line5 = document.createElement("li");
 
 
   line1.appendChild(move_button);
@@ -526,11 +563,16 @@ function select_character(index, cell) {
   line3.appendChild(damage_button);
   line3.appendChild(damage_field);
   line4.appendChild(search_button);
+  line5.appendChild(pick_weapon_button);
+  line5.appendChild(weapon_select);
+  line5.appendChild(weapon_range_display);
+  line5.appendChild(weapon_damage_display);
 
   button_list.appendChild(line1);
   button_list.appendChild(line2);
   button_list.appendChild(line3);
   button_list.appendChild(line4);
+  button_list.appendChild(line5);
 
   container.appendChild(button_list);
 
@@ -878,6 +920,9 @@ socket.registerMessageHandler((data) => {
       }
       character_list = data.character_list;
       obstacle_list = data.obstacle_list;
+      weapon_list = data.weapon_list
+      weapon_detailed_info = data.weapon_detailed_info
+
     } else if (data.command == 'construct_board_response') {
       construct_board(data.game_state);
     } else if (data.command == 'add_character_response') {

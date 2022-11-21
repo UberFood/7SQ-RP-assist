@@ -78,6 +78,17 @@ wss.on('connection', (ws) => {
       var obstacle_list = JSON.parse(obstacle_list_unparsed);
       answer.obstacle_list = obstacle_list;
 
+      var weapon_list_unparsed = fs.readFileSync('./app/weapons/weapon_list.json');
+      var weapon_list = JSON.parse(weapon_list_unparsed);
+      answer.weapon_list = weapon_list;
+
+      weapon_detailed_info = []
+      for weapon_name in weapon_list:
+        current_weapon_unparsed = fs.readFileSync('./app/weapons/' + weapon_name + '.json');
+        var current_weapon = JSON.parse(current_weapon_unparsed);
+        weapon_detailed_info.append(current_weapon)
+      answer.weapon_detailed_info = weapon_detailed_info
+
       answer.isValid = 1;
       if (data.role == 'gm') {
         if (data.password != GM_PASSWORD) {
