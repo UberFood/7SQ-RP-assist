@@ -86,7 +86,7 @@ wss.on('connection', (ws) => {
       for (weapon_name of weapon_list) {
         current_weapon_unparsed = fs.readFileSync('./app/weapons/' + weapon_name + '.json');
         var current_weapon = JSON.parse(current_weapon_unparsed);
-        weapon_detailed_info.append(current_weapon)
+        weapon_detailed_info.push(current_weapon)
       }
       answer.weapon_detailed_info = weapon_detailed_info
 

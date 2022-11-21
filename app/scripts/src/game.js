@@ -518,7 +518,7 @@ function select_character(index, cell) {
   var weapon_select = document.createElement("select");
   weapon_select.id = "weapon_chosen";
 
-  inventory = character.inventory
+  var inventory = character.inventory
 
   for (let i = 0; i < inventory.length; i++) {
     var current_option = document.createElement("option");
@@ -531,14 +531,14 @@ function select_character(index, cell) {
   pick_weapon_button.innerHTML = "Сменить оружие";
   pick_weapon_button.index = index;
   pick_weapon_button.onclick = function(event) {
-    weapon_select = document.getElementById("weapon_chosen")
-    weapon_index = weapon_select.HP_values
-    weapon = weapon_detailed_info[weapon_index]
+    var weapon_select = document.getElementById("weapon_chosen")
+    var weapon_index = weapon_select.value
+    var weapon = weapon_detailed_info[weapon_index]
 
-    weapon_range_display = document.getElementById("weapon_range_display")
+    var weapon_range_display = document.getElementById("weapon_range_display")
     weapon_range_display.innerHTML = "Дальность: " + weapon.range
 
-    weapon_damage_display = document.getElementById("weapon_damage_display")
+    var weapon_damage_display = document.getElementById("weapon_damage_display")
     weapon_damage_display.innerHTML = "Урон: " + weapon.damage[0] + 'd' + weapon.damage[1]
   }
 
