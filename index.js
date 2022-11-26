@@ -3,7 +3,7 @@ var fs = require('fs');
 var extract = require('./extract');
 var mime = require('mime');
 
-var GM_PASSWORD = 'KoroVa';
+var GM_PASSWORD = '123';
 
 var handleError = function(err, res) {
   res.writeHead(404);
@@ -186,7 +186,7 @@ wss.on('connection', (ws) => {
       response.room_number = data.room_number;
       response.command = 'deal_damage_response';
       response.to_name = 'all';
-      response.index = data.index;
+      response.character_number = data.character_number;
       response.damage = data.damage;
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(response));
@@ -263,7 +263,14 @@ wss.on('connection', (ws) => {
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(response));
       });
-    } else {
+    } else if (data.command == 'resolve_attack') {
+      data.command = 'resolve_attack_response';
+      data.to_name = 'all';
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(data));
+      });
+    }
+    else {
       console.log('fucking pog ' + data['command']);
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(data));

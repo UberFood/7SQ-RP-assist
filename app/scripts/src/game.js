@@ -45,8 +45,10 @@ var CHAT_CASH = 10;
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
+const strength_damage_map = [-2, 0, 1, 2, 3, 5, 7, 10, 13, 17, 21]
 
-let game_state = {board_state: [], HP_state: [], initiative_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: []};
+let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: []};
+let character_state = {HP: [], initiative: [], can_evade: [], KD_points: [], current_weapon: []}
 
 let character_base = [];
 let obstacle_base = [];
@@ -56,10 +58,11 @@ let gm_control_mod = 0; // normal mode
 let field_chosen = 0;
 let chosen_index;
 let chosen_character_index;
-let chosen_character_HP;
-let chosen_character_initiative;
 
-let last_obstacle;
+let attack = {in_process: 0, weapon_id: 0, attacker_id: 0, attacker_position: 0};
+
+
+let last_obstacle = 1;
 
 function reconnect() {
   if (!socket.isReady()) {
@@ -74,16 +77,12 @@ function reconnect() {
 function createBoard() {
   game_state.size = document.getElementById("board_size").value;
   game_state.board_state = [];
-  game_state.HP_state = [];
-  game_state.initiative_state = [];
   game_state.fog_state = [];
   game_state.zone_state = [];
   game_state.search_modificator_state = [];
 
   for (let i = 0; i < game_state.size * game_state.size; i++) {
     game_state.board_state.push(0);
-    game_state.HP_state.push(0);
-    game_state.initiative_state.push(0);
     game_state.fog_state.push(0);
     game_state.zone_state.push(0);
     game_state.search_modificator_state.push(0);
@@ -112,6 +111,8 @@ function send_construct_command(new_game_state) {
 function no_shift_onclick(my_role, gm_control_mod, game_state, field_chosen, cell, index) {
   var character_profile_container = document.getElementById("character-info-container");
   character_profile_container.innerHTML = "";
+  var weapon_container = document.getElementById("weapon-info-container");
+  weapon_container.innerHTML = "";
 
   if (my_role == 'gm') {
     // gm side
@@ -143,8 +144,6 @@ function no_shift_onclick(my_role, gm_control_mod, game_state, field_chosen, cel
 
 function construct_board(new_game_state) {
   game_state.board_state = new_game_state.board_state;
-  game_state.HP_state = new_game_state.HP_state;
-  game_state.initiative_state = new_game_state.initiative_state;
   game_state.size = new_game_state.size;
   game_state.fog_state = new_game_state.fog_state;
   game_state.zone_state = new_game_state.zone_state;
@@ -232,28 +231,96 @@ function fogOrPic(cell_id) {
 function standard_cell_onClick(index, cell, role) {
 	if (game_state.board_state[index] == 0) { // empty cell clicked
 		if (field_chosen == 0) {
-      if (role == 'gm') {
-			   add_object(index);
-      }
+      if (attack.in_process == 0) {
+        if (role == 'gm') {
+			     add_object(index);
+        }
+     } else {
+       stop_attack()
+     }
 		} else {
 			move_character(index, cell);
 		}
 	} else if (game_state.board_state[index] > 0) { // character clicked
 		if (field_chosen == 0) {
-			select_character(index, cell);
-
+      if (attack.in_process == 0) {
+			     select_character(index, cell);
+      } else {
+        perform_attack(index, cell)
+      }
 		} else {
 			undo_selection();
 		}
 	} else { // obstacle clicked
 		if (field_chosen == 0) {
-			select_obstacle(index, cell);
-
+      if (attack.in_process == 0) {
+			     select_obstacle(index, cell);
+      } else {
+        stop_attack()
+      }
 		} else {
 			undo_selection();
 		}
 	}
 }
+
+
+function perform_attack(index, cell) {
+  var target_character_number = game_state.board_state[index]
+  var target_character_KD = parseInt(character_state.KD_points[target_character_number])
+  var target_character = character_detailed_info[target_character_number]
+  var attacking_character = character_detailed_info[attack.attacker_id]
+  var weapon = weapon_detailed_info[attack.weapon_id]
+  var attack_roll = Math.floor(Math.random() * 21)
+  if (weapon.type == "ranged") {
+    attack_roll = attack_roll + parseInt(attacking_character.intelligence)
+  } else if (weapon.type == "melee") {
+    attack_roll = attack_roll + parseInt(attacking_character.agility)
+  }
+
+  var toSend = {};
+  toSend.command = 'resolve_attack';
+  toSend.room_number = my_room;
+  toSend.attacker_id = attack.attacker_id
+  toSend.target_id = target_character_number
+  toSend.attack_roll = attack_roll
+
+  if (attack_roll > target_character_KD) {// Есть пробитие
+    if (character_state.can_evade[target_character_number] == 1) {
+      var evade_roll = Math.floor(Math.random() * 21) + parseInt(target_character.agility)
+      toSend.evade_roll = evade_roll
+      if (evade_roll > attack_roll) { //succesfully evaded
+        toSend.outcome = "evaded"
+      } else {
+        var damage_roll = compute_damage(weapon, attacking_character)
+        toSend.damage_roll = damage_roll
+        toSend.outcome = "damage_after_evasion"
+      }
+    } else {
+      var damage_roll = compute_damage(weapon, attacking_character)
+      toSend.damage_roll = damage_roll
+      toSend.outcome = "damage_without_evasion"
+    }
+  } else {
+    toSend.outcome = "KD_block"
+  }
+
+  stop_attack()
+  socket.sendMessage(toSend);
+
+}
+
+function compute_damage(weapon, character) {
+  var damage = 0
+  for (let i = 0; i < weapon.damage[0]; i++) {
+    damage = damage + Math.floor(Math.random() * (weapon.damage[1] + 1))
+  }
+  if (weapon.type == 'melee') {
+    damage = damage + strength_damage_map[parseInt(character.strength)]
+  }
+  return damage
+}
+
 
 function applyFog(index, cell) {
 	if (game_state.fog_state[index] == 1) {
@@ -396,8 +463,6 @@ function move_character(to_index, to_cell) {
   toSend.from_index = chosen_index;
   toSend.to_index = to_index;
   toSend.character_number = chosen_character_index;
-  toSend.character_hp = chosen_character_HP;
-  toSend.character_initiative = chosen_character_initiative;
   toSend.character_avatar = character_detailed_info[chosen_character_index].avatar;
   toSend.room_number = my_room;
   socket.sendMessage(toSend);
@@ -422,7 +487,8 @@ function displayFog() {
 }
 
 function select_character(index, cell) {
-  var character = character_detailed_info[game_state.board_state[index]];
+  var character_number = game_state.board_state[index]
+  var character = character_detailed_info[character_number];
 
   let name = character.name;
   let avatar = character.avatar;
@@ -455,10 +521,10 @@ function select_character(index, cell) {
 
   var HP_display = document.createElement("h2");
   HP_display.id = "HP_display";
-  HP_display.innerHTML = "ХП: " + game_state.HP_state[index];
+  HP_display.innerHTML = "ХП: " + character_state.HP[character_number];
 
   var initiative_display = document.createElement("h2");
-  initiative_display.innerHTML = "Инициатива: " + game_state.initiative_state[index];
+  initiative_display.innerHTML = "Инициатива: " + character_state.initiative[character_number];
 
 
   container.appendChild(name_display);
@@ -481,38 +547,42 @@ function select_character(index, cell) {
     choose_character_to_move(character_picked.index, character_picked.cell);
   }
 
-  var delete_button = document.createElement("button");
-  delete_button.innerHTML = "Уничтожить";
-  delete_button.index = index;
-  delete_button.cell = cell;
-  delete_button.onclick = function(event) {
-    delete_object(event);
-  }
+  if (my_role == "gm") {
 
-  var damage_button = document.createElement("button");
-  damage_button.innerHTML = "Нанести урон";
-  damage_button.index = index;
-  damage_button.onclick = function(event) {
-    var damage_field = document.getElementById("damage_field");
-    if (!(damage_field.value === "")) {
-      var damage = parseInt(damage_field.value);
-      var HP_display = document.getElementById("HP_display");
-      var new_HP = game_state.HP_state[event.target.index] - damage;
-      HP_display.innerHTML = "ХП: " + new_HP;
-
-      var toSend = {};
-      toSend.command = 'deal_damage';
-      toSend.index = event.target.index;
-      toSend.damage = damage;
-      toSend.room_number = my_room;
-      socket.sendMessage(toSend);
+    var delete_button = document.createElement("button");
+    delete_button.innerHTML = "Уничтожить";
+    delete_button.index = index;
+    delete_button.cell = cell;
+    delete_button.onclick = function(event) {
+      delete_object(event);
     }
+
+    var damage_button = document.createElement("button");
+    damage_button.innerHTML = "Нанести урон";
+    damage_button.index = index;
+    damage_button.onclick = function(event) {
+      var damage_field = document.getElementById("damage_field");
+      if (!(damage_field.value === "")) {
+        var damage = parseInt(damage_field.value);
+        var HP_display = document.getElementById("HP_display");
+        var new_HP = character_state.HP[character_number] - damage;
+        HP_display.innerHTML = "ХП: " + new_HP;
+
+        var toSend = {};
+        toSend.command = 'deal_damage';
+        toSend.character_number = character_number;
+        toSend.damage = damage;
+        toSend.room_number = my_room;
+        socket.sendMessage(toSend);
+      }
   }
 
-  var damage_field = document.createElement("input");
-  damage_field.id = "damage_field";
-  damage_field.type = "number";
-  damage_field.placeholder = "Значение урона";
+    var damage_field = document.createElement("input");
+    damage_field.id = "damage_field";
+    damage_field.type = "number";
+    damage_field.placeholder = "Значение урона";
+
+  }
 
   var search_button = document.createElement("button");
   search_button.innerHTML = "Обыскать";
@@ -539,6 +609,7 @@ function select_character(index, cell) {
   pick_weapon_button.onclick = function(event) {
     var weapon_select = document.getElementById("weapon_chosen")
     var weapon_index = weapon_select.value
+    character_state.current_weapon[character_number] = weapon_index
     var weapon = weapon_detailed_info[weapon_index]
 
     var weapon_range_display = document.getElementById("weapon_range_display")
@@ -556,7 +627,7 @@ function select_character(index, cell) {
     weapon_avatar_display.style.height = '250px';
   }
 
-  var default_weapon_index = character.inventory[0]
+  var default_weapon_index = character_state.current_weapon[character_number]
   var default_weapon = weapon_detailed_info[default_weapon_index]
 
   var weapon_range_display = document.createElement("h2");
@@ -582,6 +653,18 @@ function select_character(index, cell) {
   weapon_container.append(weapon_range_display)
   weapon_container.append(weapon_damage_display)
 
+  var attack_button = document.createElement("button");
+  attack_button.innerHTML = "Атаковать";
+  attack_button.onclick = function(event) {
+    attack.in_process = 1
+    attack.weapon_id = character_state.current_weapon[character_number]
+    attack.attacker_id = character_number
+    attack.attacker_position = index
+    field_chosen = 0
+
+    cell.src = "./images/attack_placeholder.jpg";
+  }
+
 
   var button_list = document.createElement("ul");
   button_list.className = "button_list";
@@ -590,21 +673,27 @@ function select_character(index, cell) {
   var line3 = document.createElement("li");
   var line4 = document.createElement("li");
   var line5 = document.createElement("li");
-
+  var line6 = document.createElement("li");
 
   line1.appendChild(move_button);
-  line2.appendChild(delete_button);
-  line3.appendChild(damage_button);
-  line3.appendChild(damage_field);
+  if (my_role == "gm") {
+    line2.appendChild(delete_button);
+    line3.appendChild(damage_button);
+    line3.appendChild(damage_field);
+  }
   line4.appendChild(search_button);
   line5.appendChild(pick_weapon_button);
   line5.appendChild(weapon_select);
+  line6.appendChild(attack_button);
 
   button_list.appendChild(line1);
-  button_list.appendChild(line2);
-  button_list.appendChild(line3);
+  if (my_role == "gm") {
+    button_list.appendChild(line2);
+    button_list.appendChild(line3);
+  }
   button_list.appendChild(line4);
   button_list.appendChild(line5);
+  button_list.appendChild(line6);
 
   container.appendChild(button_list);
 
@@ -687,17 +776,22 @@ function select_obstacle(index, cell) {
 
 function choose_character_to_move(index, cell) {
   field_chosen = 1;
+  attack.in_process = 0
   chosen_index = index;
-  chosen_character_HP = game_state.HP_state[index];
-  chosen_character_initiative = game_state.initiative_state[index];
   chosen_character_index = game_state.board_state[index];
   cell.src = "./images/loading.webp";
 }
 
 function undo_selection() {
   field_chosen = 0;
-  var old_cell = document.getElementById("cell_" + chosen_index);
-  old_cell.src = character_detailed_info[game_state.board_state[chosen_index]].avatar;
+  var old_cell = document.getElementById("cell_" + attack.attacker_position);
+  old_cell.src = character_detailed_info[attack.attacker_id].avatar;
+}
+
+function stop_attack() {
+  attack.in_process = 0
+  var old_cell = document.getElementById("cell_" + attack.attacker_position);
+  old_cell.src = character_detailed_info[attack.attacker_id].avatar;
 }
 
 function get_object_picture(index_in_board_state) {
@@ -721,13 +815,12 @@ function saveBoard() {
   var full_game_state = {
     size: game_state.size,
     board_state: game_state.board_state,
-    HP_state: game_state.HP_state,
     fog_state: game_state.fog_state,
     zone_state: game_state.zone_state,
     search_modificator_state: game_state.search_modificator_state,
-    initiative_state: game_state.initiative_state,
     character_detailed_info: character_detailed_info,
-    obstacle_detailed_info: obstacle_detailed_info
+    obstacle_detailed_info: obstacle_detailed_info,
+    character_state: character_state
   };
 
   var toSend = {};
@@ -744,24 +837,22 @@ function computeInitiative(agility) {
 }
 
 function rollInitiative() {
-  for (let i = 0; i < game_state.board_state.length; i++) {
-    if (game_state.board_state[i] > 0) { // so there is character at position i
+  for (let i = 1; i < character_state.initiative.length; i++) {
+    if (character_state.HP[i] > 0) { // so character i is present
       // retrieve that character's agility
-      var character_index = game_state.board_state[i];
-      var character = character_detailed_info[character_index];
-
+      var character = character_detailed_info[i];
       var agility = character.agility;
 
       // roll initiative and add agility modificator
       var initiative = computeInitiative(parseInt(agility));
 
-      game_state.initiative_state[i] = initiative;
+      character_state.initiative[i] = initiative;
     }
   }
   var toSend = {};
   toSend.command = 'roll_initiative';
   toSend.room_number = my_room;
-  toSend.initiative_state = game_state.initiative_state;
+  toSend.initiative_state = character_state.initiative;
   socket.sendMessage(toSend);
 }
 
@@ -886,14 +977,6 @@ function mirror_board() {
       game_state.board_state[left_index] = game_state.board_state[right_index];
       game_state.board_state[right_index] = temp;
 
-      temp = game_state.HP_state[left_index];
-      game_state.HP_state[left_index] = game_state.HP_state[right_index];
-      game_state.HP_state[right_index] = temp;
-
-      temp = game_state.initiative_state[left_index];
-      game_state.initiative_state[left_index] = game_state.initiative_state[right_index];
-      game_state.initiative_state[right_index] = temp;
-
       temp = game_state.fog_state[left_index];
       game_state.fog_state[left_index] = game_state.fog_state[right_index];
       game_state.fog_state[right_index] = temp;
@@ -965,7 +1048,11 @@ socket.registerMessageHandler((data) => {
         cell.src = character.avatar;
       }
       game_state.board_state[data.cell_id] = data.character_number;
-      game_state.HP_state[data.cell_id] = HP_values[character.stamina];
+      character_state.HP[data.character_number] = HP_values[character.stamina];
+      character_state.initiative[data.character_number] = character.agility;
+      character_state.KD_points[data.character_number] = character.KD_points;
+      character_state.can_evade[data.character_number] = 1;
+      character_state.current_weapon[data.character_number] = character.inventory[0]
     } else if (data.command == 'add_obstacle_response') {
       var obstacle = data.obstacle_info;
       obstacle_detailed_info[data.obstacle_number] = obstacle;
@@ -978,8 +1065,6 @@ socket.registerMessageHandler((data) => {
       var to_index = data.to_index;
       var from_index = data.from_index;
       game_state.board_state[to_index] = data.character_number;
-      game_state.HP_state[to_index] = data.character_hp;
-      game_state.initiative_state[to_index] = data.character_initiative;
 
       if (!((my_role == 'player')&&(game_state.fog_state[to_index] == 1))) {
         var to_cell = document.getElementById('cell_' + to_index);
@@ -987,8 +1072,6 @@ socket.registerMessageHandler((data) => {
       }
 
       game_state.board_state[from_index] = 0;
-      game_state.HP_state[from_index] = 0;
-      game_state.initiative_state[from_index] = 0;
       if (!((my_role == 'player')&&(game_state.fog_state[from_index] == 1))) {
         var old_cell = document.getElementById("cell_" + from_index);
         old_cell.src = EMPTY_CELL_PIC;
@@ -1000,9 +1083,9 @@ socket.registerMessageHandler((data) => {
         cell.src = EMPTY_CELL_PIC;
       }
     } else if (data.command == 'roll_initiative_response') {
-      game_state.initiative_state = data.initiative_state;
+      character_state.initiative = data.initiative_state;
     } else if (data.command == 'deal_damage_response') {
-      game_state.HP_state[data.index] = game_state.HP_state[data.index] - data.damage;
+      character_state.HP[data.character_number] = character_state.HP[data.character_number] - data.damage;
     } else if (data.command == 'save_game_response') {
       if (data.success == 1) {
         alert('Game ' + data.save_name + ' saved succesfully');
@@ -1012,6 +1095,7 @@ socket.registerMessageHandler((data) => {
     } else if (data.command == 'load_game_response') {
       if (data.success == 1) {
         var full_game_state = data.full_game_state;
+        character_state = full_game_state.character_state;
         character_detailed_info = full_game_state.character_detailed_info;
         obstacle_detailed_info = full_game_state.obstacle_detailed_info;
         construct_board(full_game_state);
@@ -1031,6 +1115,34 @@ socket.registerMessageHandler((data) => {
 		} else if (data.command == 'assign_zone_response') {
       game_state.zone_state[data.index] = data.zone_number;
       game_state.search_modificator_state[data.index] = data.modificator;
+    } else if (data.command == 'resolve_attack_response') {
+      var attacker = character_detailed_info[data.attacker_id]
+      var target = character_detailed_info[data.target_id]
+      switch (data.outcome) {
+        case "KD_block":
+          var message = attacker.name + " атакует " + target.name + " (" + data.attack_roll + "), но не пробивает броню."
+          pushToList(message)
+          break;
+        case "evaded":
+          var message = attacker.name + " атакует " + target.name + " (" + data.attack_roll + "), однако " + target.name + " удалось увернуться (" + data.evade_roll + ")."
+          pushToList(message)
+          character_state.can_evade[data.target_id] = 0
+          break;
+        case "damage_without_evasion":
+          var message = attacker.name + " успешно атакует " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться. Атака наносит " + data.damage_roll + " урона."
+          pushToList(message)
+          character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+          break;
+        case "damage_after_evasion":
+          var message = attacker.name + " успешно атакует " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + "). Атака наносит " + data.damage_roll + " урона."
+          pushToList(message)
+          character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+          character_state.can_evade[data.target_id] = 0
+          break;
+        default:
+          console.log("fucked up resolving damage")
+          break;
+      }
     } else if (data.command == 'search_action_response') {
       if (my_role == 'gm') {
         pushToList(data.character_name + ' бросил ' + data.roll + ' на внимательность в зоне ' + data.zone_number);
