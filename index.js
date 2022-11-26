@@ -269,6 +269,24 @@ wss.on('connection', (ws) => {
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(data));
       });
+    } else if (data.command == 'new_round') {
+      data.command = 'new_round_response';
+      data.to_name = 'all';
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(data));
+      });
+    } else if (data.command == 'simple_roll') {
+      data.command = 'simple_roll_response';
+      data.to_name = 'all';
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(data));
+      });
+    } else if (data.command == 'change_character_visibility') {
+      data.command = 'change_character_visibility_response';
+      data.to_name = 'all';
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(data));
+      });
     }
     else {
       console.log('fucking pog ' + data['command']);

@@ -10,6 +10,7 @@ var FOG_BUTTON_SELECTOR = '[data-name="fog_button"]';
 var ZONE_BUTTON_SELECTOR = '[data-name="zone_button"]';
 var CHAT_BUTTON_SELECTOR = '[data-name="chat_button"]';
 var MIRROR_BUTTON_SELECTOR = '[data-name="mirror_button"]';
+var NEXT_ROUND_BUTTON_SELECTOR = '[data-name="next_round_button"]';
 var FOG_ZONE_BUTTON_SELECTOR = '[data-name="fog_zone_button"]';
 var UNFOG_ZONE_BUTTON_SELECTOR = '[data-name="unfog_zone_button"]';
 
@@ -48,7 +49,7 @@ const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
 const strength_damage_map = [-2, 0, 1, 2, 3, 5, 7, 10, 13, 17, 21]
 
 let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: []};
-let character_state = {HP: [], initiative: [], can_evade: [], KD_points: [], current_weapon: []}
+let character_state = {HP: [], initiative: [], can_evade: [], KD_points: [], current_weapon: [], visibility: []}
 
 let character_base = [];
 let obstacle_base = [];
@@ -264,59 +265,101 @@ function standard_cell_onClick(index, cell, role) {
 	}
 }
 
+function isInRange(index1, index2, range) {
+  var x1 = Math.floor(index1/game_state.size)
+  var y1 = index1 % game_state.size
 
-function perform_attack(index, cell) {
-  var target_character_number = game_state.board_state[index]
-  var target_character_KD = parseInt(character_state.KD_points[target_character_number])
-  var target_character = character_detailed_info[target_character_number]
-  var attacking_character = character_detailed_info[attack.attacker_id]
-  var weapon = weapon_detailed_info[attack.weapon_id]
-  var attack_roll = Math.floor(Math.random() * 21)
-  if (weapon.type == "ranged") {
-    attack_roll = attack_roll + parseInt(attacking_character.intelligence)
-  } else if (weapon.type == "melee") {
-    attack_roll = attack_roll + parseInt(attacking_character.agility)
-  }
+  var x2 = Math.floor(index2/game_state.size)
+  var y2 = index2 % game_state.size
 
-  var toSend = {};
-  toSend.command = 'resolve_attack';
-  toSend.room_number = my_room;
-  toSend.attacker_id = attack.attacker_id
-  toSend.target_id = target_character_number
-  toSend.attack_roll = attack_roll
-
-  if (attack_roll > target_character_KD) {// Есть пробитие
-    if (character_state.can_evade[target_character_number] == 1) {
-      var evade_roll = Math.floor(Math.random() * 21) + parseInt(target_character.agility)
-      toSend.evade_roll = evade_roll
-      if (evade_roll > attack_roll) { //succesfully evaded
-        toSend.outcome = "evaded"
-      } else {
-        var damage_roll = compute_damage(weapon, attacking_character)
-        toSend.damage_roll = damage_roll
-        toSend.outcome = "damage_after_evasion"
-      }
-    } else {
-      var damage_roll = compute_damage(weapon, attacking_character)
-      toSend.damage_roll = damage_roll
-      toSend.outcome = "damage_without_evasion"
-    }
-  } else {
-    toSend.outcome = "KD_block"
-  }
-
-  stop_attack()
-  socket.sendMessage(toSend);
-
+  var distance = (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2)
+  return distance <= range*range
 }
 
-function compute_damage(weapon, character) {
+function roll_x(x) {
+  return Math.floor(Math.random() * x) + 1
+}
+
+function perform_attack(index, cell) {
+  var weapon = weapon_detailed_info[attack.weapon_id]
+
+  if (isInRange(index, attack.attacker_position, weapon.range)) {
+
+    var target_character_number = game_state.board_state[index]
+    var target_character_KD = parseInt(character_state.KD_points[target_character_number])
+    var target_character = character_detailed_info[target_character_number]
+    var attacking_character = character_detailed_info[attack.attacker_id]
+    var attack_roll = roll_x(20)
+
+    var toSend = {};
+    toSend.command = 'resolve_attack';
+    toSend.room_number = my_room;
+    toSend.attacker_id = attack.attacker_id
+    toSend.target_id = target_character_number
+
+    if (attack_roll < 20) {// no crit
+      if (weapon.type == "ranged") {
+        var cumulative_attack_roll = attack_roll + parseInt(attacking_character.intelligence)
+      } else if (weapon.type == "melee") {
+        var cumulative_attack_roll = attack_roll + parseInt(attacking_character.agility)
+      }
+
+      toSend.attack_roll = cumulative_attack_roll
+
+      if (cumulative_attack_roll > target_character_KD) {// Есть пробитие
+        if (character_state.can_evade[target_character_number] == 1) {
+          var evade_roll = roll_x(20) + parseInt(target_character.agility)
+          toSend.evade_roll = evade_roll
+          if (evade_roll > cumulative_attack_roll) { //succesfully evaded
+            toSend.outcome = "evaded"
+          } else {
+            var damage_roll = compute_damage(weapon, attacking_character, attack_roll)
+            toSend.damage_roll = damage_roll
+            toSend.outcome = "damage_after_evasion"
+          }
+        } else {
+          var damage_roll = compute_damage(weapon, attacking_character, attack_roll)
+          toSend.damage_roll = damage_roll
+          toSend.outcome = "damage_without_evasion"
+        }
+      } else {
+        toSend.outcome = "KD_block"
+      }
+    } else { // full crit
+      toSend.attack_roll = attack_roll
+      var damage_roll = compute_damage(weapon, attacking_character, attack_roll)
+      toSend.damage_roll = damage_roll
+      toSend.outcome = "full_crit"
+    }
+    socket.sendMessage(toSend);
+
+  } else {
+    alert("Далековато...")
+  }
+  stop_attack()
+}
+
+
+function compute_damage(weapon, character, attack_roll) {
   var damage = 0
-  for (let i = 0; i < weapon.damage[0]; i++) {
-    damage = damage + Math.floor(Math.random() * (weapon.damage[1] + 1))
+
+  if (attack_roll < 19) {
+    for (let i = 0; i < weapon.damage[0]; i++) {
+      damage = damage + roll_x(weapon.damage[1])
+    }
+  } else {
+    damage = weapon.damage[1] * weapon.damage[0]
   }
   if (weapon.type == 'melee') {
     damage = damage + strength_damage_map[parseInt(character.strength)]
+  }
+
+  if (attack_roll == 20) {
+    if (character.special_type == "sniper") {
+      damage = damage * 5
+    } else {
+      damage = damage * 2
+    }
   }
   return damage
 }
@@ -507,6 +550,11 @@ function select_character(index, cell) {
   avatar_display.style.width = '250px';
   avatar_display.style.height = '250px';
 
+  container.appendChild(name_display);
+  container.appendChild(avatar_display);
+
+  if (my_role == "gm" || character_state.visibility[character_number] == 1) {
+
   var strength_display = document.createElement("h2");
   strength_display.innerHTML = "Cила: " + character.strength;
 
@@ -526,9 +574,6 @@ function select_character(index, cell) {
   var initiative_display = document.createElement("h2");
   initiative_display.innerHTML = "Инициатива: " + character_state.initiative[character_number];
 
-
-  container.appendChild(name_display);
-  container.appendChild(avatar_display);
   container.appendChild(strength_display);
   container.appendChild(stamina_display);
   container.appendChild(agility_display);
@@ -555,6 +600,12 @@ function select_character(index, cell) {
     delete_button.cell = cell;
     delete_button.onclick = function(event) {
       delete_object(event);
+    }
+
+    var change_character_visibility_button = document.createElement("button");
+    change_character_visibility_button.innerHTML = "Изменить видимость";
+    change_character_visibility_button.onclick = function(event) {
+      change_character_visibility(character_number);
     }
 
     var damage_button = document.createElement("button");
@@ -589,6 +640,18 @@ function select_character(index, cell) {
   search_button.index = index;
   search_button.onclick = function(event) {
     search_action(event.target);
+  }
+
+  var simple_roll_button = document.createElement("button");
+  simple_roll_button.innerHTML = "Просто d20";
+  simple_roll_button.onclick = function(event) {
+    var roll = roll_x(20)
+    var toSend = {}
+    toSend.command = "simple_roll"
+    toSend.character_name = character.name
+    toSend.room_number = my_room
+    toSend.roll = roll
+    socket.sendMessage(toSend);
   }
 
   var weapon_select = document.createElement("select");
@@ -674,31 +737,53 @@ function select_character(index, cell) {
   var line4 = document.createElement("li");
   var line5 = document.createElement("li");
   var line6 = document.createElement("li");
+  var line7 = document.createElement("li");
+  var line8 = document.createElement("li");
 
   line1.appendChild(move_button);
   if (my_role == "gm") {
     line2.appendChild(delete_button);
     line3.appendChild(damage_button);
     line3.appendChild(damage_field);
+    line8.appendChild(change_character_visibility_button);
   }
   line4.appendChild(search_button);
   line5.appendChild(pick_weapon_button);
   line5.appendChild(weapon_select);
   line6.appendChild(attack_button);
+  line7.appendChild(simple_roll_button);
 
   button_list.appendChild(line1);
   if (my_role == "gm") {
     button_list.appendChild(line2);
     button_list.appendChild(line3);
+    button_list.appendChild(line8);
   }
   button_list.appendChild(line4);
   button_list.appendChild(line5);
   button_list.appendChild(line6);
+  button_list.appendChild(line7);
 
   container.appendChild(button_list);
 
+}
+
   tiny_animation(container);
 
+}
+
+function change_character_visibility(character_number) {
+  var toSend = {};
+  toSend.command = "change_character_visibility";
+  toSend.character_number = character_number
+  toSend.room_number = my_room;
+
+  if (character_state.visibility[character_number] == 0) {
+    toSend.new_value = 1
+  } else {
+    toSend.new_value = 0
+  }
+  socket.sendMessage(toSend);
 }
 
 function search_action(search_button) {
@@ -722,7 +807,7 @@ function search_action(search_button) {
 }
 
 function rollSearch(intelligence, mod) {
-  return intelligence + Math.floor(Math.random() * 21) + mod;
+  return intelligence + roll_x(20) + mod;
 }
 
 function delete_object(event) {
@@ -833,7 +918,7 @@ function saveBoard() {
 }
 
 function computeInitiative(agility) {
-  return agility + Math.floor(Math.random() * 21);
+  return agility*2 + roll_x(20);
 }
 
 function rollInitiative() {
@@ -959,6 +1044,14 @@ function changeChatVisibility() {
     notifications_container.style.display = 'none';
   }
 }
+
+function start_new_round() {
+  var toSend = {};
+  toSend.command = 'new_round';
+  toSend.room_number = my_room;
+  socket.sendMessage(toSend);
+}
+
 // {board_state: [], HP_state: [], initiative_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: []};
 function mirror_board() {
   var left_index;
@@ -1032,6 +1125,7 @@ socket.registerMessageHandler((data) => {
         save_name_input.show();
         board_size_input.show();
         mirror_button.show();
+        next_round_button.show();
       }
       character_list = data.character_list;
       obstacle_list = data.obstacle_list;
@@ -1052,6 +1146,7 @@ socket.registerMessageHandler((data) => {
       character_state.initiative[data.character_number] = character.agility;
       character_state.KD_points[data.character_number] = character.KD_points;
       character_state.can_evade[data.character_number] = 1;
+      character_state.visibility[data.character_number] = 0;
       character_state.current_weapon[data.character_number] = character.inventory[0]
     } else if (data.command == 'add_obstacle_response') {
       var obstacle = data.obstacle_info;
@@ -1115,6 +1210,18 @@ socket.registerMessageHandler((data) => {
 		} else if (data.command == 'assign_zone_response') {
       game_state.zone_state[data.index] = data.zone_number;
       game_state.search_modificator_state[data.index] = data.modificator;
+    } else if (data.command == 'change_character_visibility_response') {
+      character_state.visibility[data.character_number] = data.new_value;
+    } else if (data.command == 'simple_roll_response') {
+      var message = data.character_name + " бросает " + data.roll
+      pushToList(message)
+    } else if (data.command == 'new_round_response') {
+      console.log("new round")
+      for (let i = 1; i < character_state.can_evade.length; i++) {
+        character_state.can_evade[i] = 1
+      }
+      var message = "Начало нового раунда!"
+      pushToList(message)
     } else if (data.command == 'resolve_attack_response') {
       var attacker = character_detailed_info[data.attacker_id]
       var target = character_detailed_info[data.target_id]
@@ -1138,6 +1245,11 @@ socket.registerMessageHandler((data) => {
           pushToList(message)
           character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
           character_state.can_evade[data.target_id] = 0
+          break;
+        case "full_crit":
+          var message = attacker.name + " критически атакует " + target.name + ", не оставляя возможности увернуться. Атака наносит " + data.damage_roll + " урона."
+          pushToList(message)
+          character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
           break;
         default:
           console.log("fucked up resolving damage")
@@ -1181,6 +1293,10 @@ chat_button.on('click', changeChatVisibility);
 var mirror_button = $(MIRROR_BUTTON_SELECTOR);
 mirror_button.on('click', mirror_board);
 mirror_button.hide();
+
+var next_round_button = $(NEXT_ROUND_BUTTON_SELECTOR);
+next_round_button.on('click', start_new_round);
+next_round_button.hide();
 
 var fog_zone_button = $(FOG_ZONE_BUTTON_SELECTOR);
 fog_zone_button.on('click', fogCurrentZone);
