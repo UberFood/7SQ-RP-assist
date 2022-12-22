@@ -11,6 +11,7 @@ var ZONE_BUTTON_SELECTOR = '[data-name="zone_button"]';
 var CHAT_BUTTON_SELECTOR = '[data-name="chat_button"]';
 var MIRROR_BUTTON_SELECTOR = '[data-name="mirror_button"]';
 var NEXT_ROUND_BUTTON_SELECTOR = '[data-name="next_round_button"]';
+var BATTLE_MOD_BUTTON_SELECTOR = '[data-name="battle_mod_button"]';
 var FOG_ZONE_BUTTON_SELECTOR = '[data-name="fog_zone_button"]';
 var UNFOG_ZONE_BUTTON_SELECTOR = '[data-name="unfog_zone_button"]';
 
@@ -32,8 +33,9 @@ var character_list = [];
 var character_detailed_info = [];
 var obstacle_list = [];
 var obstacle_detailed_info = [];
-var weapon_list = []
+var weapon_list = [];
 var weapon_detailed_info = [];
+var skill_list = [];
 
 var TINY_EFFECT_CLASS = 'is-tiny';
 
@@ -44,17 +46,26 @@ var QUESTION_IMAGE = "./images/question.jpg";
 var MAX_ZONES = 25;
 var CHAT_CASH = 10;
 
+var stamina_move_cost = 1
+var stamina_attack_cost = 1
+
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
+const stamina_values = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195];
 const strength_damage_map = [-2, 0, 1, 2, 3, 5, 7, 10, 13, 17, 21]
+const move_action_map = [1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3]
+const bonus_action_map= [0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3]
+const main_action_map = [1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]
+
 
 let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: []};
-let character_state = {HP: [], initiative: [], can_evade: [], KD_points: [], current_weapon: [], visibility: []}
+let character_state = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], KD_points: [], current_weapon: [], visibility: [], attack_bonus: [], damage_bonus: [], special_effects: []}
 
 let character_base = [];
 let obstacle_base = [];
 
 let gm_control_mod = 0; // normal mode
+let battle_mod = 0
 
 let field_chosen = 0;
 let chosen_index;
@@ -304,6 +315,10 @@ function perform_attack(index, cell) {
         var cumulative_attack_roll = attack_roll + parseInt(attacking_character.agility)
       }
 
+      var attack_bonus = character_state.attack_bonus[attack.attacker_id]
+      console.log(attack_bonus)
+      cumulative_attack_roll = cumulative_attack_roll + attack_bonus
+
       toSend.attack_roll = cumulative_attack_roll
 
       if (cumulative_attack_roll > target_character_KD) {// Есть пробитие
@@ -313,12 +328,12 @@ function perform_attack(index, cell) {
           if (evade_roll > cumulative_attack_roll) { //succesfully evaded
             toSend.outcome = "evaded"
           } else {
-            var damage_roll = compute_damage(weapon, attacking_character, attack_roll)
+            var damage_roll = compute_damage(weapon, attack.attacker_id, attack_roll)
             toSend.damage_roll = damage_roll
             toSend.outcome = "damage_after_evasion"
           }
         } else {
-          var damage_roll = compute_damage(weapon, attacking_character, attack_roll)
+          var damage_roll = compute_damage(weapon, attack.attacker_id, attack_roll)
           toSend.damage_roll = damage_roll
           toSend.outcome = "damage_without_evasion"
         }
@@ -327,7 +342,7 @@ function perform_attack(index, cell) {
       }
     } else { // full crit
       toSend.attack_roll = attack_roll
-      var damage_roll = compute_damage(weapon, attacking_character, attack_roll)
+      var damage_roll = compute_damage(weapon, attack.attacker_id, attack_roll)
       toSend.damage_roll = damage_roll
       toSend.outcome = "full_crit"
     }
@@ -340,8 +355,9 @@ function perform_attack(index, cell) {
 }
 
 
-function compute_damage(weapon, character, attack_roll) {
+function compute_damage(weapon, character_number, attack_roll) {
   var damage = 0
+  var character = character_detailed_info[character_number]
 
   if (attack_roll < 19) {
     for (let i = 0; i < weapon.damage[0]; i++) {
@@ -353,6 +369,7 @@ function compute_damage(weapon, character, attack_roll) {
   if (weapon.type == 'melee') {
     damage = damage + strength_damage_map[parseInt(character.strength)]
   }
+  damage = damage + character_state.damage_bonus[character_number]
 
   if (attack_roll == 20) {
     if (character.special_type == "sniper") {
@@ -571,6 +588,10 @@ function select_character(index, cell) {
   HP_display.id = "HP_display";
   HP_display.innerHTML = "ХП: " + character_state.HP[character_number];
 
+  var tired_display = document.createElement("h2");
+  tired_display.id = "tired_display";
+  tired_display.innerHTML = "Выносливость: " + character_state.stamina[character_number];
+
   var initiative_display = document.createElement("h2");
   initiative_display.innerHTML = "Инициатива: " + character_state.initiative[character_number];
 
@@ -579,6 +600,7 @@ function select_character(index, cell) {
   container.appendChild(agility_display);
   container.appendChild(intelligence_display);
   container.appendChild(HP_display);
+  container.appendChild(tired_display);
   container.appendChild(initiative_display);
 
   var move_button = document.createElement("button");
@@ -586,10 +608,18 @@ function select_character(index, cell) {
   move_button.index = index;
   move_button.cell = cell;
   move_button.onclick = function(event) {
-    var container = document.getElementById("character-info-container");
-    container.innerHTML = "";
-    var character_picked = event.target;
-    choose_character_to_move(character_picked.index, character_picked.cell);
+    var character_picked = event.target
+    var character_number = game_state.board_state[character_picked.index];
+    var move_actions_left = character_state.move_action[character_number]
+    if (move_actions_left > 0) {
+      var container = document.getElementById("character-info-container");
+      container.innerHTML = "";
+      var weapon_container = document.getElementById("weapon-info-container");
+      weapon_container.innerHTML = "";
+      choose_character_to_move(character_picked.index, character_picked.cell);
+    } else {
+      alert("Вы потратили все перемещения на этом ходу!")
+    }
   }
 
   if (my_role == "gm") {
@@ -719,13 +749,38 @@ function select_character(index, cell) {
   var attack_button = document.createElement("button");
   attack_button.innerHTML = "Атаковать";
   attack_button.onclick = function(event) {
-    attack.in_process = 1
-    attack.weapon_id = character_state.current_weapon[character_number]
-    attack.attacker_id = character_number
-    attack.attacker_position = index
-    field_chosen = 0
+    var main_actions_left = character_state.main_action[character_number]
+    if (main_actions_left > 0) {
+      attack.in_process = 1
+      attack.weapon_id = character_state.current_weapon[character_number]
+      attack.attacker_id = character_number
+      attack.attacker_position = index
+      field_chosen = 0
 
-    cell.src = "./images/attack_placeholder.jpg";
+      cell.src = "./images/attack_placeholder.jpg";
+    } else {
+      alert("У вас не осталось действий!")
+    }
+  }
+
+  var skill_select = document.createElement("select");
+  skill_select.id = "skill_chosen";
+
+  var skillset = character.skillset
+
+  for (let i = 0; i < skillset.length; i++) {
+    var current_option = document.createElement("option");
+    current_option.innerHTML = skill_list[skillset[i]];
+    current_option.value = skillset[i];
+    skill_select.appendChild(current_option);
+  }
+
+  var skill_button = document.createElement("button");
+  skill_button.innerHTML = "Использовать умение";
+  skill_button.onclick = function(event) {
+    var skill_select = document.getElementById("skill_chosen")
+    var skill_index = skill_select.value
+    use_skill(skill_index, character_number, index)
   }
 
 
@@ -739,6 +794,7 @@ function select_character(index, cell) {
   var line6 = document.createElement("li");
   var line7 = document.createElement("li");
   var line8 = document.createElement("li");
+  var line9 = document.createElement("li");
 
   line1.appendChild(move_button);
   if (my_role == "gm") {
@@ -752,6 +808,8 @@ function select_character(index, cell) {
   line5.appendChild(weapon_select);
   line6.appendChild(attack_button);
   line7.appendChild(simple_roll_button);
+  line9.appendChild(skill_button);
+  line9.appendChild(skill_select);
 
   button_list.appendChild(line1);
   if (my_role == "gm") {
@@ -762,6 +820,7 @@ function select_character(index, cell) {
   button_list.appendChild(line4);
   button_list.appendChild(line5);
   button_list.appendChild(line6);
+  button_list.appendChild(line9);
   button_list.appendChild(line7);
 
   container.appendChild(button_list);
@@ -869,8 +928,8 @@ function choose_character_to_move(index, cell) {
 
 function undo_selection() {
   field_chosen = 0;
-  var old_cell = document.getElementById("cell_" + attack.attacker_position);
-  old_cell.src = character_detailed_info[attack.attacker_id].avatar;
+  var old_cell = document.getElementById("cell_" + chosen_index);
+  old_cell.src = character_detailed_info[chosen_character_index].avatar;
 }
 
 function stop_attack() {
@@ -1052,6 +1111,42 @@ function start_new_round() {
   socket.sendMessage(toSend);
 }
 
+function use_skill(skill_index, character_number, position) {
+  skill_index = parseInt(skill_index)
+  console.log(skill_index)
+  switch(skill_index) {
+    case 0:
+      if (character_state.bonus_action[character_number] > 0) {
+        var toSend = {};
+        toSend.command = 'skill';
+        toSend.room_number = my_room;
+        toSend.skill_index = skill_index
+        toSend.character_number = character_number
+        socket.sendMessage(toSend);
+      } else {
+        alert("Не хватает действий!")
+      }
+      break;
+
+    default:
+      alert("Не знаем это умение")
+  }
+}
+
+function change_battle_mod() {
+  if (battle_mod == 1) {
+    var new_value = 0
+  } else {
+    var new_value = 1
+  }
+
+  var toSend = {};
+  toSend.command = 'battle_mod';
+  toSend.room_number = my_room;
+  toSend.value = new_value
+  socket.sendMessage(toSend);
+}
+
 // {board_state: [], HP_state: [], initiative_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: []};
 function mirror_board() {
   var left_index;
@@ -1126,11 +1221,13 @@ socket.registerMessageHandler((data) => {
         board_size_input.show();
         mirror_button.show();
         next_round_button.show();
+        battle_mod_button.show();
       }
       character_list = data.character_list;
       obstacle_list = data.obstacle_list;
       weapon_list = data.weapon_list
       weapon_detailed_info = data.weapon_detailed_info
+      skill_list = data.skill_list
 
     } else if (data.command == 'construct_board_response') {
       construct_board(data.game_state);
@@ -1143,11 +1240,20 @@ socket.registerMessageHandler((data) => {
       }
       game_state.board_state[data.cell_id] = data.character_number;
       character_state.HP[data.character_number] = HP_values[character.stamina];
+      character_state.stamina[data.character_number] = stamina_values[character.stamina];
+      character_state.move_action[data.character_number] = move_action_map[character.agility];
+      character_state.bonus_action[data.character_number] = bonus_action_map[character.agility];
+      character_state.main_action[data.character_number] = main_action_map[character.agility];
       character_state.initiative[data.character_number] = character.agility;
       character_state.KD_points[data.character_number] = character.KD_points;
       character_state.can_evade[data.character_number] = 1;
       character_state.visibility[data.character_number] = 0;
       character_state.current_weapon[data.character_number] = character.inventory[0]
+      character_state.attack_bonus[data.character_number] = 0
+      character_state.damage_bonus[data.character_number] = 0
+      character_state.special_effects[data.character_number] = {}
+
+
     } else if (data.command == 'add_obstacle_response') {
       var obstacle = data.obstacle_info;
       obstacle_detailed_info[data.obstacle_number] = obstacle;
@@ -1160,6 +1266,29 @@ socket.registerMessageHandler((data) => {
       var to_index = data.to_index;
       var from_index = data.from_index;
       game_state.board_state[to_index] = data.character_number;
+
+      if (battle_mod == 1) {
+        character_state.stamina[data.character_number] = character_state.stamina[data.character_number] - stamina_move_cost
+        character_state.move_action[data.character_number] = character_state.move_action[data.character_number] - 1
+        var character = character_detailed_info[data.character_number]
+        if (character.special_type == "sniper") {
+          var effects_object = character_state.special_effects[data.character_number]
+          if (effects_object.hasOwnProperty("sniper_passive")) {
+            var current_attack_bonus = effects_object.sniper_passive.attack_bonus
+            var current_damage_bonus = effects_object.sniper_passive.damage_bonus
+            character_state.attack_bonus[data.character_number] = character_state.attack_bonus[data.character_number] - current_attack_bonus - 5
+            character_state.damage_bonus[data.character_number] = character_state.damage_bonus[data.character_number] - current_damage_bonus
+            character_state.special_effects[data.character_number].sniper_passive.attack_bonus = -5
+            character_state.special_effects[data.character_number].sniper_passive.damage_bonus = 0
+          } else {
+            var sniper_passive_object = {}
+            sniper_passive_object.attack_bonus = -5
+            sniper_passive_object.damage_bonus = 0
+            character_state.special_effects[data.character_number].sniper_passive = sniper_passive_object
+            character_state.attack_bonus[data.character_number] = character_state.attack_bonus[data.character_number] - 5
+          }
+        }
+      }
 
       if (!((my_role == 'player')&&(game_state.fog_state[to_index] == 1))) {
         var to_cell = document.getElementById('cell_' + to_index);
@@ -1215,16 +1344,67 @@ socket.registerMessageHandler((data) => {
     } else if (data.command == 'simple_roll_response') {
       var message = data.character_name + " бросает " + data.roll
       pushToList(message)
+    } else if (data.command == 'skill_response') {
+      switch(data.skill_index) {
+        case 0:
+            character_state.bonus_action[data.character_number] = character_state.bonus_action[data.character_number] - 1
+            character_state.move_action[data.character_number] = character_state.move_action[data.character_number] + 1
+            break;
+
+        default:
+          alert("Received unknown skill command")
+      }
     } else if (data.command == 'new_round_response') {
       console.log("new round")
       for (let i = 1; i < character_state.can_evade.length; i++) {
-        character_state.can_evade[i] = 1
+        character = character_detailed_info[i]
+        if (character !== undefined) {
+          character_state.can_evade[i] = 1
+          character_state.move_action[i] = move_action_map[character.agility];
+          character_state.bonus_action[i] = bonus_action_map[character.agility];
+          character_state.main_action[i] = main_action_map[character.agility];
+          if (character.special_type == 'sniper') {
+            var effects_object = character_state.special_effects[i]
+            if (effects_object.hasOwnProperty("sniper_passive")) {
+              var current_attack_bonus = effects_object.sniper_passive.attack_bonus
+              var current_damage_bonus = effects_object.sniper_passive.damage_bonus
+              if (current_attack_bonus == -5) {
+                var new_attack_bonus = 0
+                var new_damage_bonus = 0
+              } else {
+                var new_attack_bonus = Math.min(current_attack_bonus + 1, 4)
+                var new_damage_bonus = Math.min(current_damage_bonus + 2, 8)
+              }
+              character_state.attack_bonus[i] = character_state.attack_bonus[i] - current_attack_bonus + new_attack_bonus
+              character_state.damage_bonus[i] = character_state.damage_bonus[i] - current_damage_bonus + new_damage_bonus
+              character_state.special_effects[i].sniper_passive.attack_bonus = new_attack_bonus
+              character_state.special_effects[i].sniper_passive.damage_bonus = new_damage_bonus
+            } else {
+              var sniper_passive_object = {}
+              sniper_passive_object.attack_bonus = 0
+              sniper_passive_object.damage_bonus = 0
+              character_state.special_effects[i].sniper_passive = sniper_passive_object
+            }
+          }
+        }
       }
       var message = "Начало нового раунда!"
+      pushToList(message)
+    } else if (data.command == 'battle_mod_response') {
+      battle_mod = data.value
+      if (battle_mod == 0) {
+        var message = "Бой окончен! Наступил мир во всем мире"
+      } else {
+        var message = "Начало боя! Люди умирают, если их убить"
+      }
       pushToList(message)
     } else if (data.command == 'resolve_attack_response') {
       var attacker = character_detailed_info[data.attacker_id]
       var target = character_detailed_info[data.target_id]
+      if (battle_mod == 1) {
+        character_state.stamina[data.attacker_id] = character_state.stamina[data.attacker_id] - stamina_attack_cost
+        character_state.main_action[data.attacker_id] = character_state.main_action[data.attacker_id] - 1
+      }
       switch (data.outcome) {
         case "KD_block":
           var message = attacker.name + " атакует " + target.name + " (" + data.attack_roll + "), но не пробивает броню."
@@ -1297,6 +1477,10 @@ mirror_button.hide();
 var next_round_button = $(NEXT_ROUND_BUTTON_SELECTOR);
 next_round_button.on('click', start_new_round);
 next_round_button.hide();
+
+var battle_mod_button = $(BATTLE_MOD_BUTTON_SELECTOR);
+battle_mod_button.on('click', change_battle_mod);
+battle_mod_button.hide();
 
 var fog_zone_button = $(FOG_ZONE_BUTTON_SELECTOR);
 fog_zone_button.on('click', fogCurrentZone);

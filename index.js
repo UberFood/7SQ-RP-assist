@@ -3,7 +3,7 @@ var fs = require('fs');
 var extract = require('./extract');
 var mime = require('mime');
 
-var GM_PASSWORD = 'KoroVa';
+var GM_PASSWORD = '123';
 
 var handleError = function(err, res) {
   res.writeHead(404);
@@ -81,6 +81,10 @@ wss.on('connection', (ws) => {
       var weapon_list_unparsed = fs.readFileSync('./app/weapons/weapon_list.json');
       var weapon_list = JSON.parse(weapon_list_unparsed);
       answer.weapon_list = weapon_list;
+
+      var skill_list_unparsed = fs.readFileSync('./app/skills/skill_list.json');
+      var skill_list = JSON.parse(skill_list_unparsed);
+      answer.skill_list = skill_list;
 
       weapon_detailed_info = []
       for (weapon_name of weapon_list) {
@@ -271,6 +275,18 @@ wss.on('connection', (ws) => {
       });
     } else if (data.command == 'new_round') {
       data.command = 'new_round_response';
+      data.to_name = 'all';
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(data));
+      });
+    } else if (data.command == 'battle_mod') {
+      data.command = 'battle_mod_response';
+      data.to_name = 'all';
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(data));
+      });
+    } else if (data.command == 'skill') {
+      data.command = 'skill_response';
       data.to_name = 'all';
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(data));
