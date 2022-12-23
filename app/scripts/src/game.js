@@ -46,10 +46,13 @@ var QUESTION_IMAGE = "./images/question.jpg";
 var MAX_ZONES = 25;
 var CHAT_CASH = 10;
 
+var stamina_weakspot_cost = 1
 var stamina_move_cost = 1
 var stamina_attack_cost = 1
 var stamina_cut_limb_cost = 3
+
 var cooldown_cut_limb = 1
+
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
@@ -509,9 +512,12 @@ function select_character(index, cell) {
   var intelligence_display = document.createElement("h2");
   intelligence_display.innerHTML = "Интеллект: " + character.intelligence;
 
+  var hp_percent = parseFloat(character_state.HP[character_number])/parseFloat(HP_values[character.stamina])
+  hp_percent = Math.floor(hp_percent*100)
+
   var HP_display = document.createElement("h2");
   HP_display.id = "HP_display";
-  HP_display.innerHTML = "ХП: " + character_state.HP[character_number];
+  HP_display.innerHTML = "ХП: " + character_state.HP[character_number] + " (" + hp_percent + "%)";
 
   var tired_display = document.createElement("h2");
   tired_display.id = "tired_display";
@@ -1075,12 +1081,12 @@ function perform_attack(index, cell) {
           if (evade_roll > cumulative_attack_roll) { //succesfully evaded
             toSend.outcome = "evaded"
           } else {
-            var damage_roll = compute_damage(weapon, attack.attacker_id, attack_roll)
+            var damage_roll = compute_damage(weapon, attack.attacker_id, attack_roll, target_character_number)
             toSend.damage_roll = damage_roll
             toSend.outcome = "damage_after_evasion"
           }
         } else {
-          var damage_roll = compute_damage(weapon, attack.attacker_id, attack_roll)
+          var damage_roll = compute_damage(weapon, attack.attacker_id, attack_roll, target_character_number)
           toSend.damage_roll = damage_roll
           toSend.outcome = "damage_without_evasion"
         }
@@ -1089,7 +1095,7 @@ function perform_attack(index, cell) {
       }
     } else { // full crit
       toSend.attack_roll = attack_roll
-      var damage_roll = compute_damage(weapon, attack.attacker_id, attack_roll)
+      var damage_roll = compute_damage(weapon, attack.attacker_id, attack_roll, target_character_number)
       toSend.damage_roll = damage_roll
       toSend.outcome = "full_crit"
     }
@@ -1101,36 +1107,245 @@ function perform_attack(index, cell) {
   stop_attack()
 }
 
-function compute_damage(weapon, character_number, attack_roll) {
+function compute_damage(weapon, character_number, attack_roll, target_number) {
   var damage = 0
   var character = character_detailed_info[character_number]
 
-  if (attack_roll < 19) {
-    for (let i = 0; i < weapon.damage[0]; i++) {
-      damage = damage + roll_x(weapon.damage[1])
+  if (character.special_type == "sniper") {
+    if (attack_roll < 16) {
+      for (let i = 0; i < weapon.damage[0]; i++) {
+        damage = damage + roll_x(weapon.damage[1])
+      }
+      if (weapon.type == 'melee') {
+        damage = damage + strength_damage_map[parseInt(character.strength)]
+      }
+      damage = damage + character_state.damage_bonus[character_number]
+    } else {
+      if (character_state.special_effects[target_number].hasOwnProperty("weakspot") && character_state.special_effects[target_number].weakspot.hunter_id == character_number) {
+        switch (attack_roll) {
+          case 18:
+            damage = weapon.damage[1] * weapon.damage[0]
+            if (weapon.type == 'melee') {
+              damage = damage + strength_damage_map[parseInt(character.strength)]
+            }
+            damage = damage + character_state.damage_bonus[character_number]
+            damage = damage*2
+            break;
+          case 19:
+          damage = weapon.damage[1] * weapon.damage[0]
+          if (weapon.type == 'melee') {
+            damage = damage + strength_damage_map[parseInt(character.strength)]
+          }
+          damage = damage + character_state.damage_bonus[character_number]
+          damage = damage*2
+          break;
+          case 20:
+          damage = weapon.damage[1] * weapon.damage[0]
+          if (weapon.type == 'melee') {
+            damage = damage + strength_damage_map[parseInt(character.strength)]
+          }
+          damage = damage + character_state.damage_bonus[character_number]
+          damage = damage*5
+          break;
+          default:
+            damage = weapon.damage[1] * weapon.damage[0]
+            if (weapon.type == 'melee') {
+              damage = damage + strength_damage_map[parseInt(character.strength)]
+            }
+            damage = damage + character_state.damage_bonus[character_number]
+        }
+      } else {
+        switch (attack_roll) {
+          case 18:
+            damage = weapon.damage[1] * weapon.damage[0]
+            if (weapon.type == 'melee') {
+              damage = damage + strength_damage_map[parseInt(character.strength)]
+            }
+            damage = damage + character_state.damage_bonus[character_number]
+            break;
+          case 19:
+          damage = weapon.damage[1] * weapon.damage[0]
+          if (weapon.type == 'melee') {
+            damage = damage + strength_damage_map[parseInt(character.strength)]
+          }
+          damage = damage + character_state.damage_bonus[character_number]
+          damage = damage*2
+          break;
+          case 20:
+          damage = weapon.damage[1] * weapon.damage[0]
+          if (weapon.type == 'melee') {
+            damage = damage + strength_damage_map[parseInt(character.strength)]
+          }
+          damage = damage + character_state.damage_bonus[character_number]
+          damage = damage*3
+          break;
+          default:
+          for (let i = 0; i < weapon.damage[0]; i++) {
+            damage = damage + roll_x(weapon.damage[1])
+          }
+          if (weapon.type == 'melee') {
+            damage = damage + strength_damage_map[parseInt(character.strength)]
+          }
+          damage = damage + character_state.damage_bonus[character_number]
+        }
+      }
     }
   } else {
-    damage = weapon.damage[1] * weapon.damage[0]
-  }
-  if (weapon.type == 'melee') {
-    damage = damage + strength_damage_map[parseInt(character.strength)]
-  }
-  damage = damage + character_state.damage_bonus[character_number]
-
-  if (attack_roll == 20) {
-    if (character.special_type == "sniper") {
-      damage = damage * 5
+    if (attack_roll < 19) {
+      for (let i = 0; i < weapon.damage[0]; i++) {
+        damage = damage + roll_x(weapon.damage[1])
+      }
     } else {
+      damage = weapon.damage[1] * weapon.damage[0]
+    }
+    if (weapon.type == 'melee') {
+      damage = damage + strength_damage_map[parseInt(character.strength)]
+    }
+    damage = damage + character_state.damage_bonus[character_number]
+
+    if (attack_roll == 20) {
       damage = damage * 2
     }
   }
+
   return damage
 }
+
 
 function stop_skill() {
   targeted_skill.in_process = 0
   var old_cell = document.getElementById("cell_" + targeted_skill.attacker_position);
   old_cell.src = character_detailed_info[targeted_skill.attacker_id].avatar;
+}
+
+function weak_spot(index, cell) {
+  var target_character_number = game_state.board_state[index]
+  var attacking_character = character_detailed_info[targeted_skill.attacker_id]
+
+  var toSend = {};
+  toSend.command = 'skill';
+  toSend.skill_index = targeted_skill.skill_id
+  toSend.room_number = my_room;
+  toSend.attacker_id = targeted_skill.attacker_id
+  toSend.target_id = target_character_number
+
+  var int_check = roll_x(20) + parseInt(attacking_character.intelligence)
+  if (int_check >= 15) {
+    toSend.outcome = "success"
+  } else {
+    toSend.outcome = "fail"
+  }
+
+  socket.sendMessage(toSend);
+}
+
+function heal(index, cell) {
+  var target_character_number = game_state.board_state[index]
+  var healer_character = character_detailed_info[targeted_skill.attacker_id]
+  var target_character = character_detailed_info[target_character_number]
+
+  var target_hp = character_state.HP[target_character_number]
+  var target_full_hp = HP_values[target_character.stamina]
+  var ratio = parseFloat(target_hp)/parseFloat(target_full_hp)
+
+  var heal_roll = roll_x(20) + parseInt(healer_character.intelligence)
+  if (healer_character.special_type == "med") {
+    heal_roll = heal_roll + parseInt(healer_character.intelligence)
+  }
+  var toSend = {};
+  toSend.command = 'skill';
+  toSend.skill_index = targeted_skill.skill_id
+  toSend.room_number = my_room;
+  toSend.healer_id = targeted_skill.attacker_id
+  toSend.target_id = target_character_number
+  toSend.heal_roll = heal_roll
+
+  var threshold = 0
+  var critical_threshold = 0
+
+  if (ratio > 0.9) {
+    threshold = 10
+    if (heal_roll > threshold) {
+      toSend.outcome = "success"
+      toSend.new_hp = target_full_hp
+    } else {
+      toSend.outcome = "fail"
+    }
+  } else if (ratio > 0.75) {
+    threshold = 15
+    critical_threshold = 25
+    if (heal_roll > threshold) {
+      if (heal_roll > critical_threshold && healer_character.special_type == "med") {
+        toSend.outcome = "critical success"
+        toSend.new_hp = target_full_hp
+      } else {
+        toSend.outcome = "success"
+        toSend.new_hp = Math.floor(target_full_hp * 0.95)
+      }
+    } else {
+      toSend.outcome = "fail"
+    }
+  } else if (ratio > 0.5) {
+    threshold = 20
+    critical_threshold = 29
+    if (heal_roll > threshold) {
+      if (heal_roll > critical_threshold && healer_character.special_type == "med") {
+        toSend.outcome = "critical success"
+        toSend.new_hp = Math.floor(target_full_hp * 0.95)
+      } else {
+        toSend.outcome = "success"
+        toSend.new_hp = Math.floor(target_full_hp * 0.82)
+      }
+    } else {
+      toSend.outcome = "fail"
+    }
+  } else if (ratio > 0.3) {
+    threshold = 23
+    critical_threshold = 32
+    if (heal_roll > threshold) {
+      if (heal_roll > critical_threshold && healer_character.special_type == "med") {
+        toSend.outcome = "critical success"
+        toSend.new_hp = Math.floor(target_full_hp * 0.82)
+      } else {
+        toSend.outcome = "success"
+        toSend.new_hp = Math.floor(target_full_hp * 0.62)
+      }
+    } else {
+      toSend.outcome = "fail"
+    }
+  } else if (ratio > 0.15) {
+    threshold = 26
+    critical_threshold = 35
+    if (heal_roll > threshold) {
+      if (heal_roll > critical_threshold && healer_character.special_type == "med") {
+        toSend.outcome = "critical success"
+        toSend.new_hp = Math.floor(target_full_hp * 0.62)
+      } else {
+        toSend.outcome = "success"
+        toSend.new_hp = Math.floor(target_full_hp * 0.4)
+      }
+    } else {
+      toSend.outcome = "fail"
+    }
+  } else if (ratio > 0.05) {
+    threshold = 30
+    critical_threshold = 40
+    if (heal_roll > threshold) {
+      if (heal_roll > critical_threshold && healer_character.special_type == "med") {
+        toSend.outcome = "critical success"
+        toSend.new_hp = Math.floor(target_full_hp * 0.4)
+      } else {
+        toSend.outcome = "success"
+        toSend.new_hp = Math.floor(target_full_hp * 0.22)
+      }
+    } else {
+      toSend.outcome = "fail"
+    }
+  } else {
+    toSend.outcome = "fail"
+  }
+
+  socket.sendMessage(toSend);
 }
 
 // increase attack roll by agility bonus (2*mod)
@@ -1168,7 +1383,7 @@ function cut_limbs(index, cell) {
           if (evade_roll > cumulative_attack_roll) { //succesfully evaded
             toSend.outcome = "evaded"
           } else {
-            var damage_roll = compute_damage(weapon, targeted_skill.attacker_id, attack_roll)
+            var damage_roll = compute_damage(weapon, targeted_skill.attacker_id, attack_roll, target_character_number)
             var flat_damage = damage_roll - strength_damage_map[parseInt(character_detailed_info[targeted_skill.attacker_id].strength)] - character_state.damage_bonus[targeted_skill.attacker_id]
             var full_damage = weapon.damage[1] * weapon.damage[0]
             if (flat_damage > full_damage/2) {
@@ -1180,7 +1395,7 @@ function cut_limbs(index, cell) {
             toSend.outcome = "damage_after_evasion"
           }
         } else {
-          var damage_roll = compute_damage(weapon, targeted_skill.attacker_id, attack_roll)
+          var damage_roll = compute_damage(weapon, targeted_skill.attacker_id, attack_roll, target_character_number)
           var flat_damage = damage_roll - strength_damage_map[parseInt(character_detailed_info[targeted_skill.attacker_id].strength)] - character_state.damage_bonus[targeted_skill.attacker_id]
           var full_damage = weapon.damage[1] * weapon.damage[0]
           if (flat_damage > full_damage/2) {
@@ -1196,7 +1411,7 @@ function cut_limbs(index, cell) {
       }
     } else { // full crit
       toSend.attack_roll = attack_roll
-      var damage_roll = compute_damage(weapon, targeted_skill.attacker_id, attack_roll)
+      var damage_roll = compute_damage(weapon, targeted_skill.attacker_id, attack_roll, target_character_number)
       toSend.skill_outcome = "success"
       toSend.damage_roll = damage_roll
       toSend.outcome = "full_crit"
@@ -1206,13 +1421,22 @@ function cut_limbs(index, cell) {
   } else {
     alert("Далековато...")
   }
-  stop_skill()
+
 }
 
 function perform_skill(index, cell) {
   switch(targeted_skill.skill_id) {
     case 2: // Подрезать сухожилия
       cut_limbs(index, cell)
+      stop_skill()
+      break;
+    case 3: // Слабое место
+      weak_spot(index, cell)
+      stop_skill()
+      break;
+    case 4: // Лечение
+      heal(index, cell)
+      stop_skill()
       break;
 
     default:
@@ -1254,6 +1478,34 @@ function use_skill(skill_index, character_number, position, cell) {
       break;
     case 2: // Подрезать сухожилия
     if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
+      field_chosen = 0
+      attack.in_process = 0
+      targeted_skill.in_process = 1
+      targeted_skill.skill_id = skill_index
+      targeted_skill.attacker_id = character_number
+      targeted_skill.attacker_position = position
+      cell.src = "./images/Chidori.webp";
+    } else {
+      alert("Не хватает действий!")
+    }
+    break;
+
+    case 3: // Слабое место
+    if (character_state.bonus_action[character_number] > 0) {
+      field_chosen = 0
+      attack.in_process = 0
+      targeted_skill.in_process = 1
+      targeted_skill.skill_id = skill_index
+      targeted_skill.attacker_id = character_number
+      targeted_skill.attacker_position = position
+      cell.src = "./images/Chidori.webp";
+    } else {
+      alert("Не хватает действий!")
+    }
+    break;
+
+    case 4: // Лечение
+    if (character_state.bonus_action[character_number] > 0) {
       field_chosen = 0
       attack.in_process = 0
       targeted_skill.in_process = 1
@@ -1483,15 +1735,16 @@ socket.registerMessageHandler((data) => {
       var message = data.character_name + " бросает " + data.roll
       pushToList(message)
     } else if (data.command == 'skill_response') {
-      character = character_detailed_info[data.character_number]
       switch(data.skill_index) {
         case 0:
+            character = character_detailed_info[data.character_number]
             character_state.bonus_action[data.character_number] = character_state.bonus_action[data.character_number] - 1
             character_state.move_action[data.character_number] = character_state.move_action[data.character_number] + 1
             var message = character.name + " совершает рывок"
             pushToList(message)
             break;
           case 1:
+            character = character_detailed_info[data.character_number]
             var extra_actions = data.extra_actions
             while (extra_actions > 0) {
               if (extra_actions % 2 == 0) {
@@ -1509,52 +1762,52 @@ socket.registerMessageHandler((data) => {
             pushToList(message)
             break;
           case 2:
-          var attacker = character_detailed_info[data.attacker_id]
-          var target = character_detailed_info[data.target_id]
-          if (battle_mod == 1) {
-            character_state.stamina[data.attacker_id] = character_state.stamina[data.attacker_id] - stamina_cut_limb_cost
-            character_state.main_action[data.attacker_id] = character_state.main_action[data.attacker_id] - 1
-            character_state.bonus_action[data.attacker_id] = character_state.bonus_action[data.attacker_id] - 1
-          }
-          switch (data.outcome) {
-            case "KD_block":
-              var message = attacker.name + " пытается подрезать " + target.name + " (" + data.attack_roll + "), но не пробивает броню."
-              pushToList(message)
-              break;
-            case "evaded":
-              var message = attacker.name + " пытается подрезать " + target.name + " (" + data.attack_roll + "), однако " + target.name + " удалось увернуться (" + data.evade_roll + ")."
-              pushToList(message)
-              if (target.special_type != 'rogue') {
+            var attacker = character_detailed_info[data.attacker_id]
+            var target = character_detailed_info[data.target_id]
+            if (battle_mod == 1) {
+              character_state.stamina[data.attacker_id] = character_state.stamina[data.attacker_id] - stamina_cut_limb_cost
+              character_state.main_action[data.attacker_id] = character_state.main_action[data.attacker_id] - 1
+              character_state.bonus_action[data.attacker_id] = character_state.bonus_action[data.attacker_id] - 1
+            }
+            switch (data.outcome) {
+              case "KD_block":
+                var message = attacker.name + " пытается подрезать " + target.name + " (" + data.attack_roll + "), но не пробивает броню."
+                pushToList(message)
+                break;
+              case "evaded":
+                var message = attacker.name + " пытается подрезать " + target.name + " (" + data.attack_roll + "), однако " + target.name + " удалось увернуться (" + data.evade_roll + ")."
+                pushToList(message)
+                if (target.special_type != 'rogue') {
+                  character_state.can_evade[data.target_id] = 0
+                }
+                break;
+              case "damage_without_evasion":
+                if (data.skill_outcome == "success") {
+                  var limb_cut_object = {}
+                  limb_cut_object.cooldown = cooldown_cut_limb
+                  character_state.special_effects[data.target_id].cut_limb = limb_cut_object
+                  character_state.move_action[data.target_id] = -10
+                  var message = attacker.name + " успешно подрезает " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться. Атака наносит " + data.damage_roll + " урона."
+                } else {
+                  var message = attacker.name + " безуспешно пытается подрезать " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться. Атака наносит " + data.damage_roll + " урона."
+                }
+                pushToList(message)
+                character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+                break;
+              case "damage_after_evasion":
+                if (data.skill_outcome == "success") {
+                  var limb_cut_object = {}
+                  limb_cut_object.cooldown = cooldown_cut_limb
+                  character_state.special_effects[data.target_id].cut_limb = limb_cut_object
+                  character_state.move_action[data.target_id] = -10
+                  var message = attacker.name + " успешно подрезает " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + "). Атака наносит " + data.damage_roll + " урона."
+                } else {
+                  var message = attacker.name + " безуспешно пытается подрезать " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + "). Атака наносит " + data.damage_roll + " урона."
+                }
+                pushToList(message)
+                character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
                 character_state.can_evade[data.target_id] = 0
-              }
-              break;
-            case "damage_without_evasion":
-              if (data.skill_outcome == "success") {
-                var limb_cut_object = {}
-                limb_cut_object.cooldown = cooldown_cut_limb
-                character_state.special_effects[data.target_id] = limb_cut_object
-                character_state.move_action[data.target_id] = -10
-                var message = attacker.name + " успешно подрезает " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться. Атака наносит " + data.damage_roll + " урона."
-              } else {
-                var message = attacker.name + " безуспешно пытается подрезать " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться. Атака наносит " + data.damage_roll + " урона."
-              }
-              pushToList(message)
-              character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
-              break;
-            case "damage_after_evasion":
-              if (data.skill_outcome == "success") {
-                var limb_cut_object = {}
-                limb_cut_object.cooldown = cooldown_cut_limb
-                character_state.special_effects[data.target_id] = limb_cut_object
-                character_state.move_action[data.target_id] = -10
-                var message = attacker.name + " успешно подрезает " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + "). Атака наносит " + data.damage_roll + " урона."
-              } else {
-                var message = attacker.name + " безуспешно пытается подрезать " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + "). Атака наносит " + data.damage_roll + " урона."
-              }
-              pushToList(message)
-              character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
-              character_state.can_evade[data.target_id] = 0
-              break;
+                break;
             case "full_crit":
               var limb_cut_object = {}
               limb_cut_object.cooldown = cooldown_cut_limb + 1
@@ -1569,6 +1822,46 @@ socket.registerMessageHandler((data) => {
               break;
           }
             break;
+        case 3:
+          var attacker = character_detailed_info[data.attacker_id]
+          character_state.bonus_action[data.attacker_id] = character_state.bonus_action[data.attacker_id] - 1
+          character_state.stamina[data.attacker_id] = character_state.stamina[data.attacker_id] - stamina_weakspot_cost
+          var target = character_detailed_info[data.target_id]
+          if (data.outcome = "success") {
+            var weakspot_object = {}
+            weakspot_object.hunter_id = data.attacker_id
+            character_state.special_effects[data.target_id].weakspot = weakspot_object
+            var message = attacker.name + " успешно обнаружил слабое место " + target.name
+          } else {
+            var message = attacker.name + " не удалось обнаружить слабое место " + target.name
+          }
+          pushToList(message)
+          break;
+
+        case 4:
+        var healer = character_detailed_info[data.healer_id]
+        var target = character_detailed_info[data.target_id]
+        character_state.bonus_action[data.healer_id] = character_state.bonus_action[data.healer_id] - 1
+        character_state.stamina[data.healer_id] = character_state.stamina[data.healer_id] - 1
+          switch (data.outcome) {
+            case "fail":
+              var message = "У " + healer.name + " не получилось вылечить " + target.name + " (" + data.heal_roll + ")"
+              pushToList(message)
+              break;
+            case "success":
+              var message = "У " + healer.name + " получилось успешно вылечить " + target.name + " (" + data.heal_roll + ")"
+              pushToList(message)
+              character_state.HP[data.target_id] = data.new_hp
+              break;
+            case "critical success":
+              var message = "У " + healer.name + " получилось критически (2 степени) вылечить " + target.name + " (" + data.heal_roll + ")"
+              pushToList(message)
+              character_state.HP[data.target_id] = data.new_hp
+              break;
+            default:
+              console.log("Ошибка при разборе отхила")
+          }
+          break;
         default:
           alert("Received unknown skill command")
       }
