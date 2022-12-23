@@ -2091,7 +2091,7 @@ socket.registerMessageHandler((data) => {
       pushToList(message)
       for (let i = 1; i < character_state.can_evade.length; i++) {
         character = character_detailed_info[i]
-        if (character !== undefined) {
+        if (character !== undefined && character !== null) {
           character_state.can_evade[i] = 1
           character_state.move_action[i] = move_action_map[character.agility];
           character_state.bonus_action[i] = bonus_action_map[character.agility];
