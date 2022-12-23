@@ -50,8 +50,12 @@ var stamina_weakspot_cost = 1
 var stamina_move_cost = 1
 var stamina_attack_cost = 1
 var stamina_cut_limb_cost = 3
+var shield_up_stamina_cost = 2
 
 var cooldown_cut_limb = 1
+var cooldown_big_bro = 1
+
+var shield_up_KD = 3
 
 
 // This is a constant, will be moved to database later
@@ -64,7 +68,7 @@ const main_action_map = [1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]
 
 
 let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: []};
-let character_state = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], KD_points: [], current_weapon: [], visibility: [], attack_bonus: [], damage_bonus: [], special_effects: []}
+let character_state = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], KD_points: [], current_weapon: [], visibility: [], attack_bonus: [], damage_bonus: [], bonus_KD: [], special_effects: []}
 
 let character_base = [];
 let obstacle_base = [];
@@ -127,11 +131,6 @@ function send_construct_command(new_game_state) {
 }
 
 function no_shift_onclick(my_role, gm_control_mod, game_state, field_chosen, cell, index) {
-  var character_profile_container = document.getElementById("character-info-container");
-  character_profile_container.innerHTML = "";
-  var weapon_container = document.getElementById("weapon-info-container");
-  weapon_container.innerHTML = "";
-
   if (my_role == 'gm') {
     // gm side
     if (gm_control_mod == 0) {
@@ -512,6 +511,10 @@ function select_character(index, cell) {
   var intelligence_display = document.createElement("h2");
   intelligence_display.innerHTML = "Интеллект: " + character.intelligence;
 
+  var KD_value = parseInt(character_state.KD_points[character_number]) + parseInt(character_state.bonus_KD[character_number])
+  var KD_display = document.createElement("h2");
+  KD_display.innerHTML = "КД: " + KD_value;
+
   var hp_percent = parseFloat(character_state.HP[character_number])/parseFloat(HP_values[character.stamina])
   hp_percent = Math.floor(hp_percent*100)
 
@@ -530,6 +533,7 @@ function select_character(index, cell) {
   container.appendChild(stamina_display);
   container.appendChild(agility_display);
   container.appendChild(intelligence_display);
+  container.appendChild(KD_display);
   container.appendChild(HP_display);
   container.appendChild(tired_display);
   container.appendChild(initiative_display);
@@ -1050,7 +1054,7 @@ function perform_attack(index, cell) {
   if (isInRange(index, attack.attacker_position, weapon.range)) {
 
     var target_character_number = game_state.board_state[index]
-    var target_character_KD = parseInt(character_state.KD_points[target_character_number])
+    var target_character_KD = parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
     var target_character = character_detailed_info[target_character_number]
     var attacking_character = character_detailed_info[attack.attacker_id]
     var attack_roll = roll_x(20)
@@ -1348,6 +1352,24 @@ function heal(index, cell) {
   socket.sendMessage(toSend);
 }
 
+function big_bro(index, cell) {
+  var target_character_number = game_state.board_state[index]
+
+  var shield_KD = parseInt(character_state.KD_points[targeted_skill.attacker_id]) + parseInt(character_state.bonus_KD[targeted_skill.attacker_id])
+  var target_KD = parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
+
+  var bonus_KD = Math.max(shield_KD -  target_KD, 0)
+
+  var toSend = {};
+  toSend.command = 'skill';
+  toSend.skill_index = targeted_skill.skill_id
+  toSend.room_number = my_room;
+  toSend.shield_id = targeted_skill.attacker_id
+  toSend.target_id = target_character_number
+  toSend.bonus_KD = bonus_KD
+  socket.sendMessage(toSend);
+}
+
 // increase attack roll by agility bonus (2*mod)
 function cut_limbs(index, cell) {
   var weapon = weapon_detailed_info[character_state.current_weapon[targeted_skill.attacker_id]]
@@ -1356,7 +1378,7 @@ function cut_limbs(index, cell) {
   if (isInRange(index, targeted_skill.attacker_position, cut_range)) {
 
     var target_character_number = game_state.board_state[index]
-    var target_character_KD = parseInt(character_state.KD_points[target_character_number])
+    var target_character_KD = parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
     var target_character = character_detailed_info[target_character_number]
     var attacking_character = character_detailed_info[targeted_skill.attacker_id]
     var attack_roll = roll_x(20)
@@ -1386,7 +1408,7 @@ function cut_limbs(index, cell) {
             var damage_roll = compute_damage(weapon, targeted_skill.attacker_id, attack_roll, target_character_number)
             var flat_damage = damage_roll - strength_damage_map[parseInt(character_detailed_info[targeted_skill.attacker_id].strength)] - character_state.damage_bonus[targeted_skill.attacker_id]
             var full_damage = weapon.damage[1] * weapon.damage[0]
-            if (flat_damage > full_damage/2) {
+            if (flat_damage > full_damage/3) {
               toSend.skill_outcome = "success"
             } else {
               toSend.skill_outcome = "fail"
@@ -1398,7 +1420,7 @@ function cut_limbs(index, cell) {
           var damage_roll = compute_damage(weapon, targeted_skill.attacker_id, attack_roll, target_character_number)
           var flat_damage = damage_roll - strength_damage_map[parseInt(character_detailed_info[targeted_skill.attacker_id].strength)] - character_state.damage_bonus[targeted_skill.attacker_id]
           var full_damage = weapon.damage[1] * weapon.damage[0]
-          if (flat_damage > full_damage/2) {
+          if (flat_damage > full_damage/3) {
             toSend.skill_outcome = "success"
           } else {
             toSend.skill_outcome = "fail"
@@ -1424,6 +1446,59 @@ function cut_limbs(index, cell) {
 
 }
 
+function devour(index, cell) {
+  if (isInRange(index, targeted_skill.attacker_position, 1)) {
+    var target_character_number = game_state.board_state[index]
+    var stacks = 0
+    if (character_state.special_effects[target_character_number].hasOwnProperty("Markus_stacks")) {
+      stacks = character_state.special_effects[target_character_number].Markus_stacks
+    }
+    var damage = stacks*5 + roll_x(10)
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.skill_index = targeted_skill.skill_id
+    toSend.room_number = my_room;
+    toSend.attacker_id = targeted_skill.attacker_id
+    toSend.target_id = target_character_number
+    toSend.damage = damage
+    socket.sendMessage(toSend);
+  } else {
+    alert("Далековато")
+  }
+}
+
+function absolute_recovery(index, cell) {
+  if (isInRange(index, targeted_skill.attacker_position, 1)) {
+    var target_character_number = game_state.board_state[index]
+    var heal_amount = 0
+
+    var damage_field = document.getElementById("damage_field");
+    if (!(damage_field.value === "")) {
+      heal_amount = parseInt(damage_field.value);
+    }
+
+    var biopool = 0
+    if (character_state.special_effects[targeted_skill.attacker_id].hasOwnProperty("biopool")) {
+      biopool = character_state.special_effects[targeted_skill.attacker_id].biopool
+    }
+
+    if (heal_amount > 0 && biopool >= heal_amount) {
+      var toSend = {};
+      toSend.command = 'skill';
+      toSend.skill_index = targeted_skill.skill_id
+      toSend.room_number = my_room;
+      toSend.healer_id = targeted_skill.attacker_id
+      toSend.target_id = target_character_number
+      toSend.heal_amount = heal_amount
+      socket.sendMessage(toSend);
+    } else {
+      alert("Невозможное значение лечения")
+    }
+  } else {
+    alert("Далековато")
+  }
+}
+
 function perform_skill(index, cell) {
   switch(targeted_skill.skill_id) {
     case 2: // Подрезать сухожилия
@@ -1438,6 +1513,18 @@ function perform_skill(index, cell) {
       heal(index, cell)
       stop_skill()
       break;
+    case 5: // Лечение
+      big_bro(index, cell)
+      stop_skill()
+      break;
+    case 7: // пожирание
+      devour(index, cell)
+      stop_skill()
+      break;
+    case 9:
+      absolute_recovery(index, cell)
+      stop_skill()
+      break;
 
     default:
       alert("Unknown targeted skill")
@@ -1446,7 +1533,6 @@ function perform_skill(index, cell) {
 
 function use_skill(skill_index, character_number, position, cell) {
   skill_index = parseInt(skill_index)
-  console.log(skill_index)
   switch(skill_index) {
     case 0: //Рывок
       if (character_state.bonus_action[character_number] > 0) {
@@ -1517,6 +1603,75 @@ function use_skill(skill_index, character_number, position, cell) {
       alert("Не хватает действий!")
     }
     break;
+
+    case 5: // Большой брат
+    if (character_state.bonus_action[character_number] > 0) {
+      field_chosen = 0
+      attack.in_process = 0
+      targeted_skill.in_process = 1
+      targeted_skill.skill_id = skill_index
+      targeted_skill.attacker_id = character_number
+      targeted_skill.attacker_position = position
+      cell.src = "./images/Chidori.webp";
+    } else {
+      alert("Не хватает действий!")
+    }
+    break;
+
+    case 6: // Поднять щиты
+    if (character_state.main_action[character_number] > 0) {
+      var toSend = {};
+      toSend.command = 'skill';
+      toSend.room_number = my_room;
+      toSend.skill_index = skill_index
+      toSend.character_number = character_number
+
+      if (character_state.special_effects[character_number].hasOwnProperty("shield_up")) {
+        toSend.outcome = "shield_down"
+      } else {
+        toSend.outcome = "shield_up"
+      }
+      socket.sendMessage(toSend);
+    } else {
+      alert("Не хватает действий!")
+    }
+    break;
+
+    case 7: // пожирание сущности
+    if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
+      field_chosen = 0
+      attack.in_process = 0
+      targeted_skill.in_process = 1
+      targeted_skill.skill_id = skill_index
+      targeted_skill.attacker_id = character_number
+      targeted_skill.attacker_position = position
+      cell.src = "./images/Chidori.webp";
+    } else {
+      alert("Не хватает действий!")
+    }
+    break;
+
+    case 8: // узнать биопул
+      if (character_state.special_effects[character_number].hasOwnProperty("biopool")) {
+        alert("Накопленный биопул: " + character_state.special_effects[character_number].biopool)
+      } else {
+        alert("Накопленный биопул отсутствует")
+      }
+      break;
+
+    case 9: // безупречное восстановление
+      if (character_state.bonus_action[character_number] > 0) {
+        field_chosen = 0
+        attack.in_process = 0
+        targeted_skill.in_process = 1
+        targeted_skill.skill_id = skill_index
+        targeted_skill.attacker_id = character_number
+        targeted_skill.attacker_position = position
+        cell.src = "./images/Chidori.webp";
+      } else {
+        alert("Не хватает действий!")
+      }
+      break;
 
     default:
       alert("Не знаем это умение")
@@ -1636,6 +1791,7 @@ socket.registerMessageHandler((data) => {
       character_state.main_action[data.character_number] = main_action_map[character.agility];
       character_state.initiative[data.character_number] = character.agility;
       character_state.KD_points[data.character_number] = character.KD_points;
+      character_state.bonus_KD[data.character_number] = 0;
       character_state.can_evade[data.character_number] = 1;
       character_state.visibility[data.character_number] = 0;
       character_state.current_weapon[data.character_number] = character.inventory[0]
@@ -1862,6 +2018,69 @@ socket.registerMessageHandler((data) => {
               console.log("Ошибка при разборе отхила")
           }
           break;
+        case 5:
+          character_state.bonus_action[data.shield_id] = character_state.bonus_action[data.shield_id] - 1
+          character_state.stamina[data.shield_id] = character_state.stamina[data.shield_id] - 1
+          var shield = character_detailed_info[data.shield_id]
+          var target = character_detailed_info[data.target_id]
+          var message = shield.name + " защитил " +  target.name + " (+" + data.bonus_KD + "кд)"
+          pushToList(message)
+          character_state.bonus_KD[data.target_id] = character_state.bonus_KD[data.target_id] + data.bonus_KD
+          var big_bro_object = {}
+          big_bro_object.cooldown = cooldown_big_bro
+          big_bro_object.bonus_KD = data.bonus_KD
+          character_state.special_effects[data.target_id].big_bro = big_bro_object
+          break;
+        case 6:
+          var shield = character_detailed_info[data.character_number]
+          character_state.main_action[data.character_number] = character_state.main_action[data.character_number] - 1
+          if (data.outcome == "shield_up") {
+            character_state.bonus_KD[data.character_number] = character_state.bonus_KD[data.character_number] + shield_up_KD
+            var shield_up_object = {}
+            shield_up_object.stamina_cost = shield_up_stamina_cost
+            shield_up_object.KD = shield_up_KD
+            character_state.special_effects[data.character_number].shield_up = shield_up_object
+            var message = shield.name + " поднял щиты за чат"
+            pushToList(message)
+          } else {
+            character_state.bonus_KD[data.character_number] = character_state.bonus_KD[data.character_number] - shield_up_KD
+            delete character_state.special_effects[data.character_number].shield_up
+            var message = shield.name + " опустил щит. Чат прости("
+            pushToList(message)
+          }
+          break;
+        case 7:
+          var attacker = character_detailed_info[data.attacker_id]
+          var target = character_detailed_info[data.target_id]
+          character_state.main_action[data.attacker_id] = character_state.main_action[data.attacker_id] - 1
+          character_state.bonus_action[data.attacker_id] = character_state.bonus_action[data.attacker_id] - 1
+
+          character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage
+          if (character_state.special_effects[data.target_id].hasOwnProperty("Markus_stacks")) {
+            character_state.special_effects[data.target_id].Markus_stacks = character_state.special_effects[data.target_id].Markus_stacks + 2
+          } else {
+            character_state.special_effects[data.target_id].Markus_stacks = 2
+          }
+          if (character_state.special_effects[data.attacker_id].hasOwnProperty("biopool")) {
+            character_state.special_effects[data.attacker_id].biopool = character_state.special_effects[data.attacker_id].biopool + data.damage
+          } else {
+            character_state.special_effects[data.attacker_id].biopool = data.damage
+          }
+          var message = attacker.name + " наносит " + target.name + " " + data.damage + " урона от которого невозможно увернуться"
+          pushToList(message)
+          break;
+        case 9:
+          var healer = character_detailed_info[data.healer_id]
+          var target = character_detailed_info[data.target_id]
+          character_state.bonus_action[data.healer_id] = character_state.bonus_action[data.healer_id] - 1
+          character_state.stamina[data.healer_id] = character_state.stamina[data.healer_id] - 1
+
+          character_state.HP[data.target_id] = character_state.HP[data.target_id] + data.heal_amount
+          character_state.special_effects[data.healer_id].biopool = character_state.special_effects[data.healer_id].biopool - data.heal_amount
+          var message = healer.name + " воостаналивает " + target.name + " " + data.heal_amount + " хп"
+          pushToList(message)
+          break;
+
         default:
           alert("Received unknown skill command")
       }
@@ -1901,6 +2120,28 @@ socket.registerMessageHandler((data) => {
               delete character_state.special_effects[i].cut_limb
               var message = "Сухожилия " + character.name + " восстановятся на следующем ходу."
               pushToList(message)
+            }
+          }
+          if (character_state.special_effects[i].hasOwnProperty("Markus_stacks")) {
+            character_state.special_effects[i].Markus_stacks = character_state.special_effects[i].Markus_stacks - 1
+            if (character_state.special_effects[i].Markus_stacks == 0) {
+              delete character_state.special_effects[i].Markus_stacks
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("shield_up")) {
+            character_state.stamina[i] = character_state.stamina[i] - character_state.special_effects[i].shield_up.stamina_cost
+            var message = character.name + " продолжает держать щит (спасибо)"
+            pushToList(message)
+          }
+          if (character_state.special_effects[i].hasOwnProperty("big_bro")) {
+            if (character_state.special_effects[i].big_bro.cooldown == 0) {
+              character_state.bonus_KD[i] = character_state.bonus_KD[i] - character_state.special_effects[i].big_bro.bonus_KD
+              delete character_state.special_effects[i].big_bro
+              var message = character.name + " теряет защиту Большого Брата"
+              pushToList(message)
+            } else {
+              character_state.special_effects[i].big_bro.cooldown = character_state.special_effects[i].big_bro.cooldown - 1
             }
           }
           if (character.special_type == 'sniper') {
