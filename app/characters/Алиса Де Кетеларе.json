@@ -1,1 +1,1 @@
-{"name":"Алиса Де Кетеларе","avatar":"/images/alice.png","strength":"3","stamina":"3","agility":"5","intelligence":"12"}
+{"name":"Алиса Де Кетеларе","avatar":"/images/alice.png","strength":"3","stamina":"3","agility":"5","intelligence":"12", "KD_points": "10", "special_type": "supernatural", "inventory": [6, 3], "skillset": [4]}

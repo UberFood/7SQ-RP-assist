@@ -1,1 +1,1 @@
-{"name":"Йорк","avatar":"./images/york.jpg","strength":"3","stamina":"3","agility":"2","intelligence":"2"}
+{"name":"Йорк","avatar":"./images/york.jpg","strength":"3","stamina":"3","agility":"2","intelligence":"2", "KD_points": "10", "special_type": "tank", "inventory": [6, 3], "skillset": [4]}

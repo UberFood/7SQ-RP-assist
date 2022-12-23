@@ -1070,6 +1070,8 @@ function perform_attack(index, cell) {
         var cumulative_attack_roll = attack_roll + parseInt(attacking_character.intelligence)
       } else if (weapon.type == "melee") {
         var cumulative_attack_roll = attack_roll + parseInt(attacking_character.agility)
+      } else if (weapon.type == "energy") {
+        var cumulative_attack_roll = attack_roll + 2*parseInt(attacking_character.intelligence)
       }
 
       var attack_bonus = character_state.attack_bonus[attack.attacker_id]

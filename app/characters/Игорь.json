@@ -1,1 +1,1 @@
-{"name":"Игорь","avatar":"/images/igor.png","strength":"8","stamina":"10","agility":"3","intelligence":"4"}
+{"name":"Игорь","avatar":"/images/igor.png","strength":"8","stamina":"10","agility":"3","intelligence":"4", "KD_points": "14", "special_type": "tank", "inventory": [6, 3], "skillset": [5,4,6]}
