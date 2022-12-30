@@ -12,6 +12,7 @@ var CHAT_BUTTON_SELECTOR = '[data-name="chat_button"]';
 var MIRROR_BUTTON_SELECTOR = '[data-name="mirror_button"]';
 var NEXT_ROUND_BUTTON_SELECTOR = '[data-name="next_round_button"]';
 var BATTLE_MOD_BUTTON_SELECTOR = '[data-name="battle_mod_button"]';
+var SYNC_BUTTON_SELECTOR = '[data-name="sync_button"]';
 var FOG_ZONE_BUTTON_SELECTOR = '[data-name="fog_zone_button"]';
 var UNFOG_ZONE_BUTTON_SELECTOR = '[data-name="unfog_zone_button"]';
 
@@ -159,6 +160,23 @@ function no_shift_onclick(my_role, gm_control_mod, game_state, field_chosen, cel
   }
 }
 
+function shift_onclick(index) {
+  var toSend = {};
+  toSend.command = 'add_obstacle';
+  toSend.cell_id = index;
+  toSend.obstacle_number = last_obstacle;
+  toSend.obstacle_name = obstacle_list[last_obstacle - 1];
+  toSend.room_number = my_room;
+  socket.sendMessage(toSend);
+}
+
+function ctrl_onclick(index) {
+  var fog_value = game_state.fog_state[index]
+  var mod = 1 - fog_value
+  var zone = game_state.zone_state[index]
+  fogParseZone(mod, zone)
+}
+
 function construct_board(new_game_state) {
   game_state.board_state = new_game_state.board_state;
   game_state.size = new_game_state.size;
@@ -193,13 +211,9 @@ function construct_board(new_game_state) {
         var index = cell.row * game_state.size + cell.column;
 
         if (event.shiftKey) {
-          var toSend = {};
-          toSend.command = 'add_obstacle';
-          toSend.cell_id = index;
-          toSend.obstacle_number = last_obstacle;
-          toSend.obstacle_name = obstacle_list[last_obstacle - 1];
-          toSend.room_number = my_room;
-          socket.sendMessage(toSend);
+          shift_onclick(index)
+        } else if (event.ctrlKey) {
+          ctrl_onclick(index)
         } else {
           no_shift_onclick(my_role, gm_control_mod, game_state, field_chosen, cell, index)
         }
@@ -994,15 +1008,15 @@ function zoneModeChange() {
 }
 
 function fogCurrentZone() {
-  fogParseZone(1);
+  var current_zone = zone_number_select.val();
+  fogParseZone(1, current_zone);
 }
 
 function unfogCurrentZone() {
-  fogParseZone(0);
+  fogParseZone(0, current_zone);
 }
 
-function fogParseZone(mod) {
-  var current_zone = zone_number_select.val();
+function fogParseZone(mod, current_zone) {
   var toSend = {};
   toSend.command = 'update_fog';
   toSend.room_number = my_room;
@@ -1734,6 +1748,26 @@ function mirror_board() {
   }
 }
 
+function sync_board() {
+  var full_game_state = {
+    size: game_state.size,
+    board_state: game_state.board_state,
+    fog_state: game_state.fog_state,
+    zone_state: game_state.zone_state,
+    search_modificator_state: game_state.search_modificator_state,
+    character_detailed_info: character_detailed_info,
+    obstacle_detailed_info: obstacle_detailed_info,
+    character_state: character_state
+  };
+
+  var toSend = {};
+  toSend.command = 'sync_board';
+  toSend.full_game_state = full_game_state;
+  toSend.from_name = my_name;
+  toSend.room_number = my_room;
+  socket.sendMessage(toSend);
+}
+
 //socket.init('ws://localhost:3001');
 socket.init(SERVER_ADDRESS);
 
@@ -1769,6 +1803,15 @@ socket.registerMessageHandler((data) => {
         mirror_button.show();
         next_round_button.show();
         battle_mod_button.show();
+        sync_button.show();
+
+        document.onkeydown = function (e) {
+            var keyCode = e.keyCode;
+            // q
+            if(keyCode == 81) {
+                fogModeChange();
+            }
+        };
       }
       character_list = data.character_list;
       obstacle_list = data.obstacle_list;
@@ -1874,6 +1917,12 @@ socket.registerMessageHandler((data) => {
       } else {
         alert('Failed to load game ' + data.save_name);
       }
+    } else if (data.command == 'sync_board_response') {
+      var full_game_state = data.full_game_state;
+      character_state = full_game_state.character_state;
+      character_detailed_info = full_game_state.character_detailed_info;
+      obstacle_detailed_info = full_game_state.obstacle_detailed_info;
+      construct_board(full_game_state);
     } else if (data.command == 'update_fog_response') {
 				var index = data.index;
 				var cell = document.getElementById('cell_' + index);
@@ -2264,6 +2313,10 @@ next_round_button.hide();
 var battle_mod_button = $(BATTLE_MOD_BUTTON_SELECTOR);
 battle_mod_button.on('click', change_battle_mod);
 battle_mod_button.hide();
+
+var sync_button = $(SYNC_BUTTON_SELECTOR);
+sync_button.on('click', sync_board);
+sync_button.hide();
 
 var fog_zone_button = $(FOG_ZONE_BUTTON_SELECTOR);
 fog_zone_button.on('click', fogCurrentZone);

@@ -235,6 +235,13 @@ wss.on('connection', (ws) => {
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(response));
       });
+    } else if (data.command == 'sync_board') {
+      data.command = 'sync_board_response';
+      data.to_name = 'all';
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(data));
+      });
+
     } else if (data.command == 'update_fog') {
       var response = {};
       response.room_number = data.room_number;
