@@ -48,7 +48,7 @@ var MAX_ZONES = 25;
 var CHAT_CASH = 10;
 
 var stamina_weakspot_cost = 1
-var stamina_move_cost = 1
+var stamina_move_cost = 0
 var stamina_attack_cost = 1
 var stamina_cut_limb_cost = 3
 var shield_up_stamina_cost = 2
@@ -58,14 +58,17 @@ var cooldown_big_bro = 1
 
 var shield_up_KD = 3
 
+var adrenaline_move_increase = 4
+var charge_move_increase = 4
+
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
 const stamina_values = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195];
-const strength_damage_map = [-2, 0, 1, 2, 3, 5, 7, 10, 13, 17, 21]
-const move_action_map = [1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3]
-const bonus_action_map= [0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3]
-const main_action_map = [1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]
+const strength_damage_map = [-2, 0, 1, 3, 6, 10, 15, 21, 28, 36, 45, 55]
+const move_action_map = [1, 3, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]
+const bonus_action_map= [0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3]
+const main_action_map = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
 
 
 let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: []};
@@ -161,20 +164,24 @@ function no_shift_onclick(my_role, gm_control_mod, game_state, field_chosen, cel
 }
 
 function shift_onclick(index) {
-  var toSend = {};
-  toSend.command = 'add_obstacle';
-  toSend.cell_id = index;
-  toSend.obstacle_number = last_obstacle;
-  toSend.obstacle_name = obstacle_list[last_obstacle - 1];
-  toSend.room_number = my_room;
-  socket.sendMessage(toSend);
+  if (my_role == 'gm') {
+    var toSend = {};
+    toSend.command = 'add_obstacle';
+    toSend.cell_id = index;
+    toSend.obstacle_number = last_obstacle;
+    toSend.obstacle_name = obstacle_list[last_obstacle - 1];
+    toSend.room_number = my_room;
+    socket.sendMessage(toSend);
+  }
 }
 
 function ctrl_onclick(index) {
-  var fog_value = game_state.fog_state[index]
-  var mod = 1 - fog_value
-  var zone = game_state.zone_state[index]
-  fogParseZone(mod, zone)
+  if (my_role == 'gm') {
+    var fog_value = game_state.fog_state[index]
+    var mod = 1 - fog_value
+    var zone = game_state.zone_state[index]
+    fogParseZone(mod, zone)
+  }
 }
 
 function construct_board(new_game_state) {
@@ -305,6 +312,18 @@ function standard_cell_onClick(index, cell, role) {
 			undo_selection();
 		}
 	}
+}
+
+function findDistance(index1, index2) {
+  var x1 = Math.floor(index1/game_state.size)
+  var y1 = index1 % game_state.size
+
+  var x2 = Math.floor(index2/game_state.size)
+  var y2 = index2 % game_state.size
+
+  var distance_squared = (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2)
+  var distance = Math.sqrt(distance_squared)
+  return Math.ceil(distance)
 }
 
 function isInRange(index1, index2, range) {
@@ -459,14 +478,23 @@ function add_character(board_index) {
 
 function move_character(to_index, to_cell) {
   field_chosen = 0;
-  var toSend = {};
-  toSend.command = 'move_character';
-  toSend.from_index = chosen_index;
-  toSend.to_index = to_index;
-  toSend.character_number = chosen_character_index;
-  toSend.character_avatar = character_detailed_info[chosen_character_index].avatar;
-  toSend.room_number = my_room;
-  socket.sendMessage(toSend);
+  var distance = findDistance(to_index, chosen_index)
+  var max_distance = character_state.move_action[chosen_character_index]
+
+  if (distance <= max_distance) {
+    var toSend = {};
+    toSend.command = 'move_character';
+    toSend.from_index = chosen_index;
+    toSend.to_index = to_index;
+    toSend.character_number = chosen_character_index;
+    toSend.character_avatar = character_detailed_info[chosen_character_index].avatar;
+    toSend.room_number = my_room;
+    toSend.distance = distance
+    socket.sendMessage(toSend);
+  } else {
+    alert("Полегче, мсье Болт")
+    undo_selection()
+  }
 }
 
 function displayFog() {
@@ -867,7 +895,6 @@ function select_obstacle(index, cell) {
 
 }
 
-
 function choose_character_to_move(index, cell) {
   field_chosen = 1;
   attack.in_process = 0
@@ -1083,7 +1110,7 @@ function perform_attack(index, cell) {
       if (weapon.type == "ranged") {
         var cumulative_attack_roll = attack_roll + parseInt(attacking_character.intelligence)
       } else if (weapon.type == "melee") {
-        var cumulative_attack_roll = attack_roll + parseInt(attacking_character.agility)
+        var cumulative_attack_roll = attack_roll + parseInt(attacking_character.strength)
       } else if (weapon.type == "energy") {
         var cumulative_attack_roll = attack_roll + 2*parseInt(attacking_character.intelligence)
       }
@@ -1230,7 +1257,6 @@ function compute_damage(weapon, character_number, attack_roll, target_number) {
 
   return damage
 }
-
 
 function stop_skill() {
   targeted_skill.in_process = 0
@@ -1607,7 +1633,7 @@ function use_skill(skill_index, character_number, position, cell) {
     break;
 
     case 4: // Лечение
-    if (character_state.bonus_action[character_number] > 0) {
+    if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
       field_chosen = 0
       attack.in_process = 0
       targeted_skill.in_process = 1
@@ -1860,7 +1886,7 @@ socket.registerMessageHandler((data) => {
 
       if (battle_mod == 1) {
         character_state.stamina[data.character_number] = character_state.stamina[data.character_number] - stamina_move_cost
-        character_state.move_action[data.character_number] = character_state.move_action[data.character_number] - 1
+        character_state.move_action[data.character_number] = character_state.move_action[data.character_number] - data.distance
         var character = character_detailed_info[data.character_number]
         if (character.special_type == "sniper") {
           var effects_object = character_state.special_effects[data.character_number]
@@ -1946,7 +1972,7 @@ socket.registerMessageHandler((data) => {
         case 0:
             character = character_detailed_info[data.character_number]
             character_state.bonus_action[data.character_number] = character_state.bonus_action[data.character_number] - 1
-            character_state.move_action[data.character_number] = character_state.move_action[data.character_number] + 1
+            character_state.move_action[data.character_number] = character_state.move_action[data.character_number] + charge_move_increase
             var message = character.name + " совершает рывок"
             pushToList(message)
             break;
@@ -1955,7 +1981,7 @@ socket.registerMessageHandler((data) => {
             var extra_actions = data.extra_actions
             while (extra_actions > 0) {
               if (extra_actions % 2 == 0) {
-                character_state.move_action[data.character_number] = character_state.move_action[data.character_number] + 1
+                character_state.move_action[data.character_number] = character_state.move_action[data.character_number] + adrenaline_move_increase
               } else {
                 character_state.main_action[data.character_number] = character_state.main_action[data.character_number] + 1
               }
@@ -2049,7 +2075,21 @@ socket.registerMessageHandler((data) => {
         var healer = character_detailed_info[data.healer_id]
         var target = character_detailed_info[data.target_id]
         character_state.bonus_action[data.healer_id] = character_state.bonus_action[data.healer_id] - 1
+        character_state.main_action[data.healer_id] = character_state.main_action[data.healer_id] - 1
         character_state.stamina[data.healer_id] = character_state.stamina[data.healer_id] - 1
+        var cooldown = 0
+        if (character_state.initiative[data.healer_id] > character_state.initiative[data.target_id]) {
+          // пациент не ходит в этот же ход
+          character_state.main_action[data.target_id] = 0
+          character_state.bonus_action[data.target_id] = 0
+          character_state.move_action[data.target_id] = 0
+          cooldown = 0
+        } else {
+          cooldown = 1
+        }
+        var healed_object = {}
+        healed_object.cooldown = cooldown
+        character_state.special_effects[data.target_id].healed = healed_object
           switch (data.outcome) {
             case "fail":
               var message = "У " + healer.name + " не получилось вылечить " + target.name + " (" + data.heal_roll + ")"
@@ -2150,7 +2190,7 @@ socket.registerMessageHandler((data) => {
               var minus_actions = character_state.special_effects[i].adrenaline.minus_actions
               while (minus_actions > 0) {
                 if (minus_actions % 2 == 0) {
-                  character_state.move_action[i] = character_state.move_action[i] - 1
+                  character_state.move_action[i] = character_state.move_action[i] - adrenaline_move_increase
                 } else {
                   character_state.main_action[i] = character_state.main_action[i] - 1
                 }
@@ -2173,6 +2213,18 @@ socket.registerMessageHandler((data) => {
               pushToList(message)
             }
           }
+
+          if (character_state.special_effects[i].hasOwnProperty("healed")) {
+            if (character_state.special_effects[i].healed.cooldown > 0) {
+              character_state.move_action[i] = 0
+              character_state.main_action[i] = 0
+              character_state.bonus_action[i] = 0
+              character_state.special_effects[i].healed.cooldown = character_state.special_effects[i].healed.cooldown - 1
+            } else {
+              delete character_state.special_effects[i].healed
+            }
+          }
+
           if (character_state.special_effects[i].hasOwnProperty("Markus_stacks")) {
             character_state.special_effects[i].Markus_stacks = character_state.special_effects[i].Markus_stacks - 1
             if (character_state.special_effects[i].Markus_stacks == 0) {
@@ -2181,6 +2233,7 @@ socket.registerMessageHandler((data) => {
           }
 
           if (character_state.special_effects[i].hasOwnProperty("shield_up")) {
+            character_state.move_action[i] = Math.ceil(character_state.move_action[i]/2)
             character_state.stamina[i] = character_state.stamina[i] - character_state.special_effects[i].shield_up.stamina_cost
             var message = character.name + " продолжает держать щит (спасибо)"
             pushToList(message)
