@@ -72,7 +72,7 @@ const main_action_map = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
 
 
 let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: []};
-let character_state = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], KD_points: [], current_weapon: [], visibility: [], attack_bonus: [], damage_bonus: [], bonus_KD: [], special_effects: []}
+let character_state = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], KD_points: [], current_weapon: [], visibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: []}
 
 let character_base = [];
 let obstacle_base = [];
@@ -86,7 +86,6 @@ let chosen_character_index;
 
 let attack = {in_process: 0, weapon_id: 0, attacker_id: 0, attacker_position: 0};
 let targeted_skill = {in_process: 0, skill_id: 0, attacker_id: 0, attacker_position: 0}
-
 
 let last_obstacle = 1;
 
@@ -341,7 +340,6 @@ function roll_x(x) {
   return Math.floor(Math.random() * x) + 1
 }
 
-
 function applyFog(index, cell) {
 	if (game_state.fog_state[index] == 1) {
 		// send update message
@@ -564,9 +562,12 @@ function select_character(index, cell) {
   HP_display.id = "HP_display";
   HP_display.innerHTML = "ХП: " + character_state.HP[character_number] + " (" + hp_percent + "%)";
 
+  var tired_percent = parseFloat(character_state.stamina[character_number])/parseFloat(stamina_values[character.stamina])
+  tired_percent = Math.floor(tired_percent*100)
+
   var tired_display = document.createElement("h2");
   tired_display.id = "tired_display";
-  tired_display.innerHTML = "Выносливость: " + character_state.stamina[character_number];
+  tired_display.innerHTML = "Выносливость: " + character_state.stamina[character_number] + " (" + tired_percent + "%)";
 
   var initiative_display = document.createElement("h2");
   initiative_display.innerHTML = "Инициатива: " + character_state.initiative[character_number];
@@ -1116,14 +1117,15 @@ function perform_attack(index, cell) {
       }
 
       var attack_bonus = character_state.attack_bonus[attack.attacker_id]
-      console.log(attack_bonus)
-      cumulative_attack_roll = cumulative_attack_roll + attack_bonus
+      var universal_bonus = character_state.universal_bonus[attack.attacker_id]
+
+      cumulative_attack_roll = cumulative_attack_roll + attack_bonus + universal_bonus
 
       toSend.attack_roll = cumulative_attack_roll
 
       if (cumulative_attack_roll > target_character_KD) {// Есть пробитие
         if (character_state.can_evade[target_character_number] == 1) {
-          var evade_roll = roll_x(20) + parseInt(target_character.agility)
+          var evade_roll = roll_x(20) + parseInt(target_character.agility) + character_state.universal_bonus[target_character_number]
           toSend.evade_roll = evade_roll
           if (evade_roll > cumulative_attack_roll) { //succesfully evaded
             toSend.outcome = "evaded"
@@ -1275,7 +1277,7 @@ function weak_spot(index, cell) {
   toSend.attacker_id = targeted_skill.attacker_id
   toSend.target_id = target_character_number
 
-  var int_check = roll_x(20) + parseInt(attacking_character.intelligence)
+  var int_check = roll_x(20) + parseInt(attacking_character.intelligence) + character_state.universal_bonus[targeted_skill.attacker_id]
   if (int_check >= 15) {
     toSend.outcome = "success"
   } else {
@@ -1294,7 +1296,7 @@ function heal(index, cell) {
   var target_full_hp = HP_values[target_character.stamina]
   var ratio = parseFloat(target_hp)/parseFloat(target_full_hp)
 
-  var heal_roll = roll_x(20) + parseInt(healer_character.intelligence)
+  var heal_roll = roll_x(20) + parseInt(healer_character.intelligence) + character_state.universal_bonus[targeted_skill.attacker_id]
   if (healer_character.special_type == "med") {
     heal_roll = heal_roll + parseInt(healer_character.intelligence)
   }
@@ -1436,13 +1438,13 @@ function cut_limbs(index, cell) {
       var cumulative_attack_roll = attack_roll + 2*parseInt(attacking_character.agility)
 
       var attack_bonus = character_state.attack_bonus[targeted_skill.attacker_id]
-      cumulative_attack_roll = cumulative_attack_roll + attack_bonus
+      cumulative_attack_roll = cumulative_attack_roll + attack_bonus + character_state.universal_bonus[targeted_skill.attacker_id]
 
       toSend.attack_roll = cumulative_attack_roll
 
       if (cumulative_attack_roll > target_character_KD) {// Есть пробитие
         if (character_state.can_evade[target_character_number] == 1) {
-          var evade_roll = roll_x(20) + parseInt(target_character.agility)
+          var evade_roll = roll_x(20) + parseInt(target_character.agility) + character_state.universal_bonus[target_character_number]
           toSend.evade_roll = evade_roll
           if (evade_roll > cumulative_attack_roll) { //succesfully evaded
             toSend.outcome = "evaded"
@@ -1715,6 +1717,19 @@ function use_skill(skill_index, character_number, position, cell) {
       }
       break;
 
+      case 10: // обычное в бонусное
+        if (character_state.main_action[character_number] > 0) {
+          var toSend = {};
+          toSend.command = 'skill';
+          toSend.room_number = my_room;
+          toSend.skill_index = skill_index
+          toSend.character_number = character_number
+          socket.sendMessage(toSend);
+        } else {
+          alert("Не хватает основных действий, чтобы превратить в бонусные!")
+        }
+        break;
+
     default:
       alert("Не знаем это умение")
   }
@@ -1868,6 +1883,7 @@ socket.registerMessageHandler((data) => {
       character_state.current_weapon[data.character_number] = character.inventory[0]
       character_state.attack_bonus[data.character_number] = 0
       character_state.damage_bonus[data.character_number] = 0
+      character_state.universal_bonus[data.character_number] = 0
       character_state.special_effects[data.character_number] = {}
 
 
@@ -2171,6 +2187,13 @@ socket.registerMessageHandler((data) => {
           var message = healer.name + " воостаналивает " + target.name + " " + data.heal_amount + " хп"
           pushToList(message)
           break;
+        case 10:
+            character = character_detailed_info[data.character_number]
+            character_state.main_action[data.character_number] = character_state.main_action[data.character_number] - 1
+            character_state.bonus_action[data.character_number] = character_state.bonus_action[data.character_number] + 1
+            var message = character.name + " меняет обычное на бонусное действие"
+            pushToList(message)
+            break;
 
         default:
           alert("Received unknown skill command")
@@ -2185,6 +2208,47 @@ socket.registerMessageHandler((data) => {
           character_state.move_action[i] = move_action_map[character.agility];
           character_state.bonus_action[i] = bonus_action_map[character.agility];
           character_state.main_action[i] = main_action_map[character.agility];
+
+          if (character_state.special_effects[i].hasOwnProperty("tired")) { // Убрать бонусы от усталости прошлого хода (чтобы когда будут накаладываться новые не штрафовать дважды)
+            character_state.universal_bonus[i] = character_state.universal_bonus[i] - character_state.special_effects[i].tired.bonus
+          }
+
+          if (character_state.stamina[i] < stamina_values[character.stamina] * 0.67) {
+            if (character_state.stamina[i] < stamina_values[character.stamina] * 0.34) {
+              if (character_state.stamina[i] <= 0) { // 3я стадия
+                var tired_object = {}
+                tired_object.bonus = -3
+                tired_object.stage = 3
+                character_state.special_effects[i].tired = tired_object
+                character_state.universal_bonus[i] = character_state.universal_bonus[i] - 3
+                character_state.move_action[i] = Math.ceil(character_state.move_action[i]*0.25)
+                if ((character_state.main_action[i] == 1)&&(character_state.bonus_action[i] == 1)) {
+                  character_state.bonus_action[i] = 0
+                } else {
+                  character_state.bonus_action[i] = 1
+                  character_state.main_action[i] = 1
+                }
+              } else { // 2я стадия
+                var tired_object = {}
+                tired_object.bonus = -2
+                tired_object.stage = 2
+                character_state.special_effects[i].tired = tired_object
+                character_state.universal_bonus[i] = character_state.universal_bonus[i] - 2
+                character_state.move_action[i] = Math.ceil(character_state.move_action[i]*0.5)
+              }
+            } else { // 1я стадия
+              var tired_object = {}
+              tired_object.bonus = -1
+              tired_object.stage = 1
+              character_state.special_effects[i].tired = tired_object
+              character_state.universal_bonus[i] = character_state.universal_bonus[i] - 1
+              character_state.move_action[i] = Math.ceil(character_state.move_action[i]*0.75)
+            }
+          } else if (character_state.special_effects[i].hasOwnProperty("tired")) { // не устал -> убрать устлалость если была
+            delete character_state.special_effects[i].tired
+          }
+
+
           if (character_state.special_effects[i].hasOwnProperty("adrenaline")) {
             if (character_state.special_effects[i].adrenaline.cooldown == 3) {
               var minus_actions = character_state.special_effects[i].adrenaline.minus_actions
