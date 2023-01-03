@@ -2015,11 +2015,7 @@ function mirror_board() {
 
 function sync_board() {
   var full_game_state = {
-    size: game_state.size,
-    board_state: game_state.board_state,
-    fog_state: game_state.fog_state,
-    zone_state: game_state.zone_state,
-    search_modificator_state: game_state.search_modificator_state,
+    game_state: game_state,
     character_detailed_info: character_detailed_info,
     obstacle_detailed_info: obstacle_detailed_info,
     character_state: character_state
@@ -2194,7 +2190,7 @@ socket.registerMessageHandler((data) => {
       character_state = full_game_state.character_state;
       character_detailed_info = full_game_state.character_detailed_info;
       obstacle_detailed_info = full_game_state.obstacle_detailed_info;
-      construct_board(full_game_state);
+      construct_board(full_game_state.game_state);
     } else if (data.command == 'update_fog_response') {
 				var index = data.index;
 				var cell = document.getElementById('cell_' + index);
