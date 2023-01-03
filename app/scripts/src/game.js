@@ -67,6 +67,9 @@ var gas_bomb_threshold = 15
 var gas_bomb_move_reduction = 2
 var gas_bomb_stamina_cost = 3
 
+var light_sound_bomb_radius = 4
+var light_sound_bomb_threshold = 15
+
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
@@ -78,7 +81,7 @@ const main_action_map = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
 
 
 let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: []};
-let character_state = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: []}
+let character_state = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: []}
 
 let character_base = [];
 let obstacle_base = [];
@@ -1117,7 +1120,59 @@ function start_new_round() {
   var toSend = {};
   toSend.command = 'new_round';
   toSend.room_number = my_room;
+  var save_roll = []
+
+  for (let i = 1; i < character_state.can_evade.length; i++) {
+    var character = character_detailed_info[i]
+    if (character !== undefined && character !== null) {
+      if (character_state.special_effects[i].hasOwnProperty("gas_bomb_poison")) {
+        save_roll[i] = roll_x(20) + parseInt(character.stamina)
+      }
+    }
+  }
+  toSend.save_roll_list = save_roll
+
   socket.sendMessage(toSend);
+}
+
+function roll_attack(type, attacker, target) {
+  var advantage = 0
+  if ((type == "ranged")||(type == "energy")) {
+    advantage = character_state.ranged_advantage[attacker]
+  } else if (type == "melee") {
+    advantage = character_state.melee_advantage[attacker]
+  }
+  advantage = advantage - character_state.defensive_advantage[target]
+  var roll = 0
+
+  if (advantage >= 2) { // Дикое преимущество = 4 куба
+    console.log("Дикое преимущество")
+    var roll1 = roll_x(20)
+    var roll2 = roll_x(20)
+    var roll3 = roll_x(20)
+    var roll4 = roll_x(20)
+    roll = Math.max(roll1, roll2, roll3, roll4)
+  } else if (advantage == 1) {
+    console.log("Преимущество")
+    var roll1 = roll_x(20)
+    var roll2 = roll_x(20)
+    roll = Math.max(roll1, roll2)
+  } else if (advantage == 0) {
+    roll = roll_x(20)
+  } else if (advantage == -1) {
+    console.log("Помеха")
+    var roll1 = roll_x(20)
+    var roll2 = roll_x(20)
+    roll = Math.min(roll1, roll2)
+  } else {
+    console.log("Дикая помеха")
+    var roll1 = roll_x(20)
+    var roll2 = roll_x(20)
+    var roll3 = roll_x(20)
+    var roll4 = roll_x(20)
+    roll = Math.min(roll1, roll2, roll3, roll4)
+  }
+  return roll
 }
 
 function perform_attack(index, cell) {
@@ -1129,13 +1184,15 @@ function perform_attack(index, cell) {
     var target_character_KD = parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
     var target_character = character_detailed_info[target_character_number]
     var attacking_character = character_detailed_info[attack.attacker_id]
-    var attack_roll = roll_x(20)
+
+    var attack_roll = roll_attack(weapon.type, attack.attacker_id, target_character_number)
 
     var toSend = {};
     toSend.command = 'resolve_attack';
     toSend.room_number = my_room;
     toSend.attacker_id = attack.attacker_id
     toSend.target_id = target_character_number
+    toSend.attack_type = weapon.type
 
     if (attack_roll < 20) {// no crit
       if (weapon.type == "ranged") {
@@ -1584,6 +1641,42 @@ function gas_bomb(index, cell) {
   socket.sendMessage(toSend);
 }
 
+function light_sound_bomb(index, cell) {
+  var toSend = {};
+  toSend.command = 'skill';
+  toSend.skill_index = targeted_skill.skill_id
+  toSend.room_number = my_room;
+  toSend.user_index = targeted_skill.attacker_id
+  toSend.position = index
+
+  var character_list = []
+  var outcome_list = []
+
+  var radius = light_sound_bomb_radius
+
+  var candidate_cells = index_in_radius(index, radius)
+  console.log(candidate_cells)
+  for (let i = 0; i < candidate_cells.length; i++) {
+    var target_character_number = game_state.board_state[candidate_cells[i]]
+    if (target_character_number > 0) {// персонаж в радиусе бомбы
+      var character = character_detailed_info[target_character_number]
+      if (character.special_type !== "drone") {
+        character_list.push(target_character_number)
+        var save_roll = roll_x(20) + character_state.universal_bonus[target_character_number] + parseInt(character.intelligence)
+        if (save_roll > light_sound_bomb_threshold) {
+          outcome_list.push(0)
+        } else {
+          outcome_list.push(1)
+        }
+      }
+    }
+  }
+  toSend.character_list = character_list
+  toSend.outcome_list = outcome_list
+
+  socket.sendMessage(toSend);
+}
+
 function perform_skill(index, cell) {
   switch(targeted_skill.skill_id) {
     case 2: // Подрезать сухожилия
@@ -1612,6 +1705,10 @@ function perform_skill(index, cell) {
       break;
     case 12:
       gas_bomb(index, cell)
+      stop_skill()
+      break;
+    case 13:
+      light_sound_bomb(index, cell)
       stop_skill()
       break;
 
@@ -1803,6 +1900,19 @@ function use_skill(skill_index, character_number, position, cell) {
               alert("Не хватает действий!")
             }
             break;
+        case 13: // светошумовая граната
+              if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
+                field_chosen = 0
+                attack.in_process = 0
+                targeted_skill.in_process = 1
+                targeted_skill.skill_id = skill_index
+                targeted_skill.attacker_id = character_number
+                targeted_skill.attacker_position = position
+                cell.src = "./images/Chidori.webp";
+              } else {
+                alert("Не хватает действий!")
+              }
+              break;
 
     default:
       alert("Не знаем это умение")
@@ -1829,6 +1939,23 @@ function apply_bomb(position, radius) {
       character_state.move_action[target_character_number] = character_state.move_action[target_character_number] - gas_bomb_move_reduction
       character_state.main_action[target_character_number] = character_state.main_action[target_character_number] - 1
     }
+  }
+}
+
+function melee_penalty(data) {
+  if (data.attack_type == "melee") {
+    if (!character_state.special_effects[data.target_id].hasOwnProperty("meleed")) { // иначе эффект уже наложен, не повторяем
+      character_state.ranged_advantage[data.target_id] = character_state.ranged_advantage[data.target_id] - 1
+      var meleed_object = {}
+      meleed_object.cooldown = 0
+      character_state.special_effects[data.target_id].meleed = meleed_object
+    }
+    if (character_state.has_moved[data.target_id] == 1) {
+      var cooldown = 1
+    } else {
+      var cooldown = 0
+    }
+    character_state.special_effects[data.target_id].meleed.cooldown = cooldown
   }
 }
 
@@ -1982,6 +2109,9 @@ socket.registerMessageHandler((data) => {
       character_state.attack_bonus[data.character_number] = 0
       character_state.damage_bonus[data.character_number] = 0
       character_state.universal_bonus[data.character_number] = 0
+      character_state.ranged_advantage[data.character_number] = 0
+      character_state.melee_advantage[data.character_number] = 0
+      character_state.defensive_advantage[data.character_number] = 0
       character_state.special_effects[data.character_number] = {}
 
 
@@ -2328,13 +2458,35 @@ socket.registerMessageHandler((data) => {
 
             break;
 
+        case 13:
+            for (let i = 0; i < data.outcome_list.length; i++) {
+              var character_number = data.character_list[i]
+              var character = character_detailed_info[character_number]
+              if (data.outcome_list[i] == 0) { // Прошел спасбросок
+                var message = character.name + "успел прикрыть глаза"
+                pushToList(message)
+              } else {
+                var message = character.name + " ослеп на 2 хода"
+                pushToList(message)
+                if (character_state.special_effects[character_number].hasOwnProperty("blind")) {// не накладывваем еще штраф
+                  character_state.special_effects[character_number].blind.cooldown = 2
+                } else {
+                  var blind_object = {}
+                  blind_object.cooldown = 2
+                  character_state.special_effects[character_number].blind = blind_object
+                  character_state.ranged_advantage[character_number] = character_state.ranged_advantage[character_number] - 2
+                  character_state.melee_advantage[character_number] = character_state.melee_advantage[character_number] - 1
+                }
+              }
+            }
+            break;
+
         default:
           alert("Received unknown skill command")
       }
     } else if (data.command == 'new_round_response') {
       var message = "Начало нового раунда!"
       pushToList(message)
-
 
       for (let i = 0; i < game_state.terrain_effects.length; i++) {
         if (game_state.terrain_effects[i] !== null && game_state.terrain_effects[i] !== undefined) {
@@ -2441,6 +2593,18 @@ socket.registerMessageHandler((data) => {
             }
           }
 
+          if (character_state.special_effects[i].hasOwnProperty("blind")) {
+            if (character_state.special_effects[i].blind.cooldown > 0) {
+              character_state.special_effects[i].blind.cooldown = character_state.special_effects[i].blind.cooldown - 1
+            } else {
+              delete character_state.special_effects[i].blind
+              character_state.ranged_advantage[i] = character_state.ranged_advantage[i] + 2
+              character_state.melee_advantage[i] = character_state.melee_advantage[i] + 1
+              var message = "Зрение " + character.name + " восстановилось"
+              pushToList(message)
+            }
+          }
+
           if (character_state.special_effects[i].hasOwnProperty("Markus_stacks")) {
             character_state.special_effects[i].Markus_stacks = character_state.special_effects[i].Markus_stacks - 1
             if (character_state.special_effects[i].Markus_stacks == 0) {
@@ -2475,7 +2639,7 @@ socket.registerMessageHandler((data) => {
               }
               count = count - 1
             }
-            var save_roll = roll_x(20) + parseInt(character.stamina)
+            var save_roll = data.save_roll_list[i]
             if (save_roll >= character_state.special_effects[i].gas_bomb_poison.threshold) {
               character_state.special_effects[i].gas_bomb_poison.poison_level = character_state.special_effects[i].gas_bomb_poison.poison_level - 1
               var message = character.name + " успешно кидает спасбросок и уменьшает стадию отравления (теперь " + character_state.special_effects[i].gas_bomb_poison.poison_level + ")"
@@ -2488,6 +2652,15 @@ socket.registerMessageHandler((data) => {
               delete character_state.special_effects[i].gas_bomb_poison
               var message = character.name + " больше не отравлен!"
               pushToList(message)
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("meleed")) {
+            if (character_state.special_effects[i].meleed.cooldown <= 0) {
+              delete character_state.special_effects[i].meleed
+              character_state.ranged_advantage[i] = character_state.ranged_advantage[i] + 1
+            } else {
+              character_state.special_effects[i].meleed.cooldown = character_state.special_effects[i].meleed.cooldown - 1
             }
           }
 
@@ -2549,17 +2722,21 @@ socket.registerMessageHandler((data) => {
           var message = attacker.name + " успешно атакует " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться. Атака наносит " + data.damage_roll + " урона."
           pushToList(message)
           character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+          melee_penalty(data)
           break;
         case "damage_after_evasion":
           var message = attacker.name + " успешно атакует " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + "). Атака наносит " + data.damage_roll + " урона."
           pushToList(message)
           character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
           character_state.can_evade[data.target_id] = 0
+          melee_penalty(data)
           break;
         case "full_crit":
           var message = attacker.name + " критически атакует " + target.name + ", не оставляя возможности увернуться. Атака наносит " + data.damage_roll + " урона."
           pushToList(message)
           character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+          character_state.can_evade[data.target_id] = 0
+          melee_penalty(data)
           break;
         default:
           console.log("fucked up resolving damage")
