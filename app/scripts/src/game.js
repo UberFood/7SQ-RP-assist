@@ -66,11 +66,17 @@ var charge_move_increase = 4
 var gas_bomb_threshold = 12
 var gas_bomb_move_reduction = 2
 var gas_bomb_stamina_cost = 3
+var gas_bomb_obstacle = 15
 
 var light_sound_bomb_radius = 4
 var light_sound_bomb_threshold = 15
 
 var weak_spot_threshold = 15
+
+var shocked_cooldown = 0
+
+var pich_pich_cooldown = 4
+var pich_pich_move_increase = 4
 
 
 // This is a constant, will be moved to database later
@@ -435,6 +441,16 @@ function tiny_animation(container) {
   }, 50);
 }
 
+function add_obstacle_command(index, obstacle_number) {
+  var toSend = {};
+  toSend.command = 'add_obstacle';
+  toSend.cell_id = index;
+  toSend.obstacle_number = obstacle_number + 1;
+  toSend.obstacle_name = obstacle_list[obstacle_number];
+  toSend.room_number = my_room;
+  socket.sendMessage(toSend);
+}
+
 function add_obstacle(board_index) {
   var container = document.getElementById("character-info-container");
   container.innerHTML = "";
@@ -456,13 +472,7 @@ function add_obstacle(board_index) {
     var button = event.target;
     var obstacle_number = parseInt(document.getElementById("obstacle_chosen").value);
 
-    var toSend = {};
-    toSend.command = 'add_obstacle';
-    toSend.cell_id = button.board_index;
-    toSend.obstacle_number = obstacle_number + 1;
-    toSend.obstacle_name = obstacle_list[obstacle_number];
-    toSend.room_number = my_room;
-    socket.sendMessage(toSend);
+    add_obstacle_command(button.board_index, obstacle_number)
 
     var container = document.getElementById("character-info-container");
     container.innerHTML = "";
@@ -887,15 +897,19 @@ function rollSearch(intelligence, mod) {
   return intelligence + roll_x(20) + mod;
 }
 
+function delete_object_command(index) {
+  var toSend = {};
+  toSend.command = 'delete_character';
+  toSend.room_number = my_room;
+  toSend.index = index;
+  socket.sendMessage(toSend);
+}
+
 function delete_object(event) {
   var container = document.getElementById("character-info-container");
   container.innerHTML = "";
 
-  var toSend = {};
-  toSend.command = 'delete_character';
-  toSend.room_number = my_room;
-  toSend.index = event.target.index;
-  socket.sendMessage(toSend);
+  delete_object_command(event.target.index)
 }
 
 function select_obstacle(index, cell) {
@@ -1503,31 +1517,24 @@ function big_bro(index, cell) {
   socket.sendMessage(toSend);
 }
 
-// increase attack roll by agility bonus (2*mod)
-function cut_limbs(index, cell) {
-  var weapon = weapon_detailed_info[character_state.current_weapon[targeted_skill.attacker_id]]
-  var cut_range = 1
+function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, bonus_attack, weapon) {
+  if (isInRange(target_pos, user_pos, range)) {
 
-  if (isInRange(index, targeted_skill.attacker_position, cut_range)) {
-
-    var target_character_number = game_state.board_state[index]
+    var target_character_number = game_state.board_state[target_pos]
     var target_character_KD = parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
     var target_character = character_detailed_info[target_character_number]
-    var attacking_character = character_detailed_info[targeted_skill.attacker_id]
-    var attack_roll = roll_x(20)
+    var attacking_character = character_detailed_info[user_id]
+    var attack_roll = roll_attack(weapon.type, user_id, target_character_number)
 
     var toSend = {};
     toSend.command = 'skill';
-    toSend.skill_index = targeted_skill.skill_id
+    toSend.skill_index = skill_id
     toSend.room_number = my_room;
-    toSend.user_index = targeted_skill.attacker_id
+    toSend.user_index = user_id
     toSend.target_id = target_character_number
 
     if (attack_roll < 20) {// no crit
-      var cumulative_attack_roll = attack_roll + 2*parseInt(attacking_character.agility)
-
-      var attack_bonus = character_state.attack_bonus[targeted_skill.attacker_id]
-      cumulative_attack_roll = cumulative_attack_roll + attack_bonus + character_state.universal_bonus[targeted_skill.attacker_id]
+      var cumulative_attack_roll = attack_roll + bonus_attack
 
       toSend.attack_roll = cumulative_attack_roll
 
@@ -1538,26 +1545,12 @@ function cut_limbs(index, cell) {
           if (evade_roll > cumulative_attack_roll) { //succesfully evaded
             toSend.outcome = "evaded"
           } else {
-            var damage_roll = compute_damage(weapon, targeted_skill.attacker_id, attack_roll, target_character_number)
-            var flat_damage = damage_roll - strength_damage_map[parseInt(character_detailed_info[targeted_skill.attacker_id].strength)] - character_state.damage_bonus[targeted_skill.attacker_id]
-            var full_damage = weapon.damage[1] * weapon.damage[0]
-            if (flat_damage > full_damage/3) {
-              toSend.skill_outcome = "success"
-            } else {
-              toSend.skill_outcome = "fail"
-            }
+            var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number)
             toSend.damage_roll = damage_roll
             toSend.outcome = "damage_after_evasion"
           }
         } else {
-          var damage_roll = compute_damage(weapon, targeted_skill.attacker_id, attack_roll, target_character_number)
-          var flat_damage = damage_roll - strength_damage_map[parseInt(character_detailed_info[targeted_skill.attacker_id].strength)] - character_state.damage_bonus[targeted_skill.attacker_id]
-          var full_damage = weapon.damage[1] * weapon.damage[0]
-          if (flat_damage > full_damage/3) {
-            toSend.skill_outcome = "success"
-          } else {
-            toSend.skill_outcome = "fail"
-          }
+          var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number)
           toSend.damage_roll = damage_roll
           toSend.outcome = "damage_without_evasion"
         }
@@ -1566,17 +1559,66 @@ function cut_limbs(index, cell) {
       }
     } else { // full crit
       toSend.attack_roll = attack_roll
-      var damage_roll = compute_damage(weapon, targeted_skill.attacker_id, attack_roll, target_character_number)
-      toSend.skill_outcome = "success"
+      var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number)
       toSend.damage_roll = damage_roll
       toSend.outcome = "full_crit"
     }
-    socket.sendMessage(toSend);
+    return toSend
 
   } else {
-    alert("Далековато...")
+    return null
+  }
+}
+
+// increase attack roll by agility bonus (2*mod)
+function cut_limbs(index, cell) {
+  var weapon = weapon_detailed_info[character_state.current_weapon[targeted_skill.attacker_id]]
+  if (weapon.type == "melee") {
+    var attacking_character = character_detailed_info[targeted_skill.attacker_id]
+    var bonus_attack = 2*parseInt(attacking_character.agility) + character_state.attack_bonus[targeted_skill.attacker_id] + character_state.universal_bonus[targeted_skill.attacker_id]
+
+    var toSend = damage_skill_template(index, targeted_skill.attacker_position, weapon.range, targeted_skill.attacker_id, targeted_skill.skill_id, bonus_attack, weapon)
+    if (toSend == null) {
+      alert("Далековато")
+    } else {
+      if (toSend.outcome == "damage_after_evasion" || toSend.outcome == "damage_without_evasion" || toSend.outcome == "full_crit") {
+        var damage_roll = toSend.damage_roll
+        var flat_damage = damage_roll - strength_damage_map[parseInt(attacking_character.strength)] - character_state.damage_bonus[targeted_skill.attacker_id]
+        var full_damage = weapon.damage[1] * weapon.damage[0]
+        if (flat_damage > full_damage/3) {
+          toSend.skill_outcome = "success"
+        }  else {
+          toSend.skill_outcome = "fail"
+        }
+      } else {
+        toSend.skill_outcome = "fail"
+      }
+      socket.sendMessage(toSend);
+    }
+
+  } else {
+    alert("Вы не можете подрезать сухожилья этим оружием")
   }
 
+
+}
+
+function shock_wave(index, cell) {
+  var weapon = weapon_detailed_info[character_state.current_weapon[targeted_skill.attacker_id]]
+  var attacking_character = character_detailed_info[targeted_skill.attacker_id]
+  var bonus_attack = parseInt(attacking_character.intelligence) + character_state.attack_bonus[targeted_skill.attacker_id] + character_state.universal_bonus[targeted_skill.attacker_id]
+
+  var toSend = damage_skill_template(index, targeted_skill.attacker_position, weapon.range, targeted_skill.attacker_id, targeted_skill.skill_id, bonus_attack, weapon)
+  if (toSend == null) {
+    alert("Далековато")
+  } else {
+    if (toSend.outcome == "damage_after_evasion" || toSend.outcome == "damage_without_evasion" || toSend.outcome == "full_crit") {
+      toSend.skill_outcome = "success"
+    } else {
+      toSend.skill_outcome = "fail"
+    }
+    socket.sendMessage(toSend);
+  }
 }
 
 function devour(index, cell) {
@@ -1641,6 +1683,8 @@ function gas_bomb(index, cell) {
   toSend.position = index
   toSend.threshold = gas_bomb_threshold
   socket.sendMessage(toSend);
+
+  add_obstacle_command(index, gas_bomb_obstacle)
 }
 
 function light_sound_bomb(index, cell) {
@@ -1679,8 +1723,51 @@ function light_sound_bomb(index, cell) {
   socket.sendMessage(toSend);
 }
 
+function adrenaline(index, cell) {
+  var target_number = game_state.board_state[index]
+  var adrenaline_range = 1
+  if (isInRange(index, targeted_skill.attacker_position, adrenaline_range)) {
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.room_number = my_room;
+    toSend.skill_index = targeted_skill.skill_id
+    toSend.user_index = targeted_skill.attacker_id
+    toSend.target_index = target_number
+    var extra_actions = roll_x(4)
+    var minus_actions = roll_x(4)
+    toSend.extra_actions = extra_actions
+    toSend.minus_actions = minus_actions
+    socket.sendMessage(toSend);
+  } else {
+    alert("Далековато")
+  }
+}
+
+function pich_pich_go(index, cell) {
+  var user = character_detailed_info[targeted_skill.attacker_id]
+  var target_number = game_state.board_state[index]
+  var target = character_detailed_info[target_number]
+  if (target.special_type == "drone") {
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.room_number = my_room;
+    toSend.skill_index = targeted_skill.skill_id
+    toSend.user_index = targeted_skill.attacker_id
+    toSend.target_index = target_number
+    var extra_actions = Math.ceil(parseFloat(user.intelligence)/2)
+    toSend.extra_actions = extra_actions
+    socket.sendMessage(toSend);
+  } else {
+    alert("Вы не можете пыщ-пыщ кого попало!")
+  }
+}
+
 function perform_skill(index, cell) {
   switch(targeted_skill.skill_id) {
+    case 1:
+      adrenaline(index, cell)
+      stop_skill()
+      break;
     case 2: // Подрезать сухожилия
       cut_limbs(index, cell)
       stop_skill()
@@ -1713,6 +1800,14 @@ function perform_skill(index, cell) {
       light_sound_bomb(index, cell)
       stop_skill()
       break;
+    case 14:
+      shock_wave(index, cell)
+      stop_skill()
+      break;
+    case 15:
+      pich_pich_go(index, cell)
+      stop_skill()
+      break;
 
     default:
       alert("Unknown targeted skill")
@@ -1735,19 +1830,16 @@ function use_skill(skill_index, character_number, position, cell) {
       }
       break;
     case 1: //Прилив Адреналина
-      if (character_state.special_effects[character_number].hasOwnProperty("adrenaline")) {
+      if (character_state.special_effects[character_number].hasOwnProperty("adrenaline_user")) {
         alert("Умение все еще на кулдауне")
       } else {
-        var toSend = {};
-        toSend.command = 'skill';
-        toSend.room_number = my_room;
-        toSend.skill_index = skill_index
-        toSend.user_index = character_number
-        var extra_actions = roll_x(4)
-        var minus_actions = roll_x(4)
-        toSend.extra_actions = extra_actions
-        toSend.minus_actions = minus_actions
-        socket.sendMessage(toSend);
+        field_chosen = 0
+        attack.in_process = 0
+        targeted_skill.in_process = 1
+        targeted_skill.skill_id = skill_index
+        targeted_skill.attacker_id = character_number
+        targeted_skill.attacker_position = position
+        cell.src = "./images/Chidori.webp";
       }
       break;
     case 2: // Подрезать сухожилия
@@ -1861,7 +1953,7 @@ function use_skill(skill_index, character_number, position, cell) {
       }
       break;
 
-      case 10: // обычное в бонусное
+    case 10: // обычное в бонусное
         if (character_state.main_action[character_number] > 0) {
           var toSend = {};
           toSend.command = 'skill';
@@ -1872,9 +1964,9 @@ function use_skill(skill_index, character_number, position, cell) {
         } else {
           alert("Не хватает основных действий, чтобы превратить в бонусные!")
         }
-        break;
+      break;
 
-        case 11: // отдых
+    case 11: // отдых
           if (character_state.has_moved[character_number] == 0) {
             var new_stamina = Math.min(character_state.stamina[character_number] + rest_stamina_gain, stamina_values[character_detailed_info[character_number].stamina])
             var toSend = {};
@@ -1887,9 +1979,9 @@ function use_skill(skill_index, character_number, position, cell) {
           } else {
             alert("Вы уже совершали действия на этом ходу, так что не можете отдохнуть")
           }
-          break;
+        break;
 
-        case 12: // газовая граната
+    case 12: // газовая граната
             if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
               field_chosen = 0
               attack.in_process = 0
@@ -1901,8 +1993,8 @@ function use_skill(skill_index, character_number, position, cell) {
             } else {
               alert("Не хватает действий!")
             }
-            break;
-        case 13: // светошумовая граната
+          break;
+    case 13: // светошумовая граната
               if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
                 field_chosen = 0
                 attack.in_process = 0
@@ -1914,7 +2006,37 @@ function use_skill(skill_index, character_number, position, cell) {
               } else {
                 alert("Не хватает действий!")
               }
-              break;
+          break;
+    case 14: // Шоковый импульс
+      if (character_state.main_action[character_number] > 0) {
+        field_chosen = 0
+        attack.in_process = 0
+        targeted_skill.in_process = 1
+        targeted_skill.skill_id = skill_index
+        targeted_skill.attacker_id = character_number
+        targeted_skill.attacker_position = position
+        cell.src = "./images/Chidori.webp";
+      } else {
+        alert("Не хватает действий!")
+      }
+        break;
+    case 15: // Пыщ-пыщ-го
+      if (!character_state.special_effects[character_number].hasOwnProperty("pich_pich_user")) {
+        if (character_state.bonus_action[character_number] > 0) {
+          field_chosen = 0
+          attack.in_process = 0
+          targeted_skill.in_process = 1
+          targeted_skill.skill_id = skill_index
+          targeted_skill.attacker_id = character_number
+          targeted_skill.attacker_position = position
+          cell.src = "./images/Chidori.webp";
+        } else {
+          alert("Не хватает действий!")
+        }
+      } else {
+        alert("Пыщ пыщ еще на перезарядке!")
+      }
+        break;
 
     default:
       alert("Не знаем это умение")
@@ -1941,6 +2063,17 @@ function apply_bomb(position, radius) {
       character_state.move_action[target_character_number] = character_state.move_action[target_character_number] - gas_bomb_move_reduction
       character_state.main_action[target_character_number] = character_state.main_action[target_character_number] - 1
     }
+  }
+}
+
+function shocked_effect(target) {
+  if (!character_state.special_effects[target].hasOwnProperty("shocked")) {
+    var shocked_object = {}
+    shocked_object.cooldown = shocked_cooldown
+    character_state.special_effects[target].shocked = shocked_object
+    character_state.defensive_advantage[target] = character_state.defensive_advantage[target] - 1
+  } else {
+    character_state.special_effects[target].shocked.cooldown = shocked_cooldown
   }
 }
 
@@ -2223,21 +2356,27 @@ socket.registerMessageHandler((data) => {
             pushToList(message)
             break;
           case 1:
-            character = character_detailed_info[user_index]
+            var user = character_detailed_info[user_index]
+            var target_index = data.target_index
+            var target = character_detailed_info[target_index]
             var extra_actions = data.extra_actions
             while (extra_actions > 0) {
               if (extra_actions % 2 == 0) {
-                character_state.move_action[user_index] = character_state.move_action[user_index] + adrenaline_move_increase
+                character_state.move_action[target_index] = character_state.move_action[target_index] + adrenaline_move_increase
               } else {
-                character_state.main_action[user_index] = character_state.main_action[user_index] + 1
+                character_state.main_action[target_index] = character_state.main_action[target_index] + 1
               }
               extra_actions = extra_actions - 1
             }
-            var adrenaline_object = {}
-            adrenaline_object.cooldown = 3
-            adrenaline_object.minus_actions = data.minus_actions
-            character_state.special_effects[user_index].adrenaline = adrenaline_object
-            var message = character.name + " использует прилив адреналина и получает " + data.extra_actions + " действий. Это будет стоить " + data.minus_actions + " действий на следующий ход."
+            var adrenaline_object_target = {}
+            adrenaline_object_target.minus_actions = data.minus_actions
+            character_state.special_effects[target_index].adrenaline_target = adrenaline_object_target
+
+            var adrenaline_object_user = {}
+            adrenaline_object_user.cooldown = 3
+            character_state.special_effects[user_index].adrenaline_user = adrenaline_object_user
+
+            var message = user.name + " использует прилив адреналина. "  + target.name + " получает " + data.extra_actions + " действий. Это будет стоить " + data.minus_actions + " действий на следующий ход."
             pushToList(message)
             break;
           case 2:
@@ -2479,6 +2618,80 @@ socket.registerMessageHandler((data) => {
             }
             break;
 
+        case 14:
+          var attacker = character_detailed_info[user_index]
+          var target = character_detailed_info[data.target_id]
+          if (battle_mod == 1) {
+            character_state.main_action[user_index] = character_state.main_action[user_index] - 1
+          }
+        switch (data.outcome) {
+          case "KD_block":
+            var message = attacker.name + " стреляет в " + target.name + " (" + data.attack_roll + "), но не пробивает броню."
+            pushToList(message)
+            break;
+          case "evaded":
+            var message = attacker.name + " стреляет в " + target.name + " (" + data.attack_roll + "), однако " + target.name + " удалось увернуться (" + data.evade_roll + ")."
+            pushToList(message)
+            if (target.special_type != 'rogue') {
+              character_state.can_evade[data.target_id] = 0
+            }
+            break;
+          case "damage_without_evasion":
+            shocked_effect(data.target_id)
+
+            var message = attacker.name + " стреляет в " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться и шокирует цель (уязвимость). Атака наносит " + data.damage_roll + " урона."
+            pushToList(message)
+            character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+            character_state.can_evade[data.target_id] = 0
+            break;
+          case "damage_after_evasion":
+            shocked_effect(data.target_id)
+            var message = attacker.name + " стреляет в " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + ") и шокирует цель (уязвимость). Атака наносит " + data.damage_roll + " урона."
+            pushToList(message)
+            character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+            character_state.can_evade[data.target_id] = 0
+            break;
+        case "full_crit":
+          shocked_effect(data.target_id)
+          var message = attacker.name + " критически попадает в " + target.name + ", не оставляя возможности увернуться и шокирует цель. Атака наносит " + data.damage_roll + " урона."
+          pushToList(message)
+          character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+          character_state.can_evade[data.target_id] = 0
+          break;
+        default:
+          console.log("fucked up resolving damage")
+          break;
+      }
+          break;
+
+        case 15:
+          var user = character_detailed_info[user_index]
+          var target_index = data.target_index
+          var target = character_detailed_info[target_index]
+          var extra_actions = data.extra_actions
+          if (battle_mod == 1) {
+            character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+          }
+          while (extra_actions > 0) {
+            if (extra_actions % 2 == 0) {
+              character_state.move_action[target_index] = character_state.move_action[target_index] + pich_pich_move_increase
+            } else {
+              character_state.main_action[target_index] = character_state.main_action[target_index] + 1
+            }
+            extra_actions = extra_actions - 1
+          }
+          var pich_pich_object_target = {}
+          pich_pich_object_target.extra_actions = data.extra_actions
+          character_state.special_effects[target_index].pich_pich_target = pich_pich_object_target
+
+          var pich_pich_object_user = {}
+          pich_pich_object_user.cooldown = pich_pich_cooldown
+          character_state.special_effects[user_index].pich_pich_user = pich_pich_object_user
+
+          var message = user.name + " использует Пыщ-Пыщ-Гоу. "  + target.name + " получает " + data.extra_actions + " доп действий на этот и следующий ход."
+          pushToList(message)
+          break;
+
         default:
           alert("Received unknown skill command")
       }
@@ -2492,6 +2705,9 @@ socket.registerMessageHandler((data) => {
             case "gas_bomb":
                 apply_bomb(game_state.terrain_effects[i].position, game_state.terrain_effects[i].radius)
                 if (game_state.terrain_effects[i].radius >= 4) {
+                  if (my_role == "gm") {
+                    delete_object_command(game_state.terrain_effects[i].position)
+                  }
                   game_state.terrain_effects[i] = null
                 } else {
                   game_state.terrain_effects[i].radius = game_state.terrain_effects[i].radius + 1
@@ -2551,9 +2767,43 @@ socket.registerMessageHandler((data) => {
             delete character_state.special_effects[i].tired
           }
 
-          if (character_state.special_effects[i].hasOwnProperty("adrenaline")) {
-            if (character_state.special_effects[i].adrenaline.cooldown == 3) {
-              var minus_actions = character_state.special_effects[i].adrenaline.minus_actions
+          if (character_state.special_effects[i].hasOwnProperty("pich_pich_user")) {
+            if (character_state.special_effects[i].pich_pich_user.cooldown == 0) {
+              delete character_state.special_effects[i].pich_pich_user
+              var message = "Умение Пыщ-Пыщ у " + character.name + " снова доступно."
+              pushToList(message)
+            } else {
+              if (character_state.special_effects[i].pich_pich_user.cooldown == pich_pich_cooldown) {
+                character_state.bonus_action[i] = 0
+              }
+              character_state.special_effects[i].pich_pich_user.cooldown = character_state.special_effects[i].pich_pich_user.cooldown - 1
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("pich_pich_target")) {
+              var extra_actions = character_state.special_effects[i].pich_pich_target.extra_actions
+              while (extra_actions > 0) {
+                if (extra_actions % 2 == 0) {
+                  character_state.move_action[i] = character_state.move_action[i] + adrenaline_move_increase
+                } else {
+                  character_state.main_action[i] = character_state.main_action[i] + 1
+                }
+                extra_actions = extra_actions - 1
+              }
+              delete character_state.special_effects[i].pich_pich_target
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("adrenaline_user")) {
+            character_state.special_effects[i].adrenaline_user.cooldown = character_state.special_effects[i].adrenaline_user.cooldown - 1
+            if (character_state.special_effects[i].adrenaline_user.cooldown == 0) {
+              delete character_state.special_effects[i].adrenaline_user
+              var message = "Умение Прилив Адреналина у " + character.name + " снова доступно."
+              pushToList(message)
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("adrenaline_target")) {
+              var minus_actions = character_state.special_effects[i].adrenaline_target.minus_actions
               while (minus_actions > 0) {
                 if (minus_actions % 2 == 0) {
                   character_state.move_action[i] = character_state.move_action[i] - adrenaline_move_increase
@@ -2562,14 +2812,18 @@ socket.registerMessageHandler((data) => {
                 }
                 minus_actions = minus_actions - 1
               }
-            }
-            character_state.special_effects[i].adrenaline.cooldown = character_state.special_effects[i].adrenaline.cooldown - 1
-            if (character_state.special_effects[i].adrenaline.cooldown == 0) {
-              delete character_state.special_effects[i].adrenaline
-              var message = "Умение Прилив Адреналина у " + character.name + " снова доступно."
-              pushToList(message)
+              delete character_state.special_effects[i].adrenaline_target
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("shocked")) {
+            if (character_state.special_effects[i].shocked.cooldown == 0) {
+              character_state.defensive_advantage[i] = character_state.defensive_advantage[i] + 1
+              delete character_state.special_effects[i].shocked
+            } else {
+              character_state.special_effects[i].shocked.cooldown = character_state.special_effects[i].shocked.cooldown - 1
             }
           }
+
           if (character_state.special_effects[i].hasOwnProperty("cut_limb")) {
             character_state.move_action[i] = -10
             character_state.special_effects[i].cut_limb.cooldown = character_state.special_effects[i].cut_limb.cooldown - 1
