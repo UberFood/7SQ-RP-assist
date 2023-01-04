@@ -63,12 +63,14 @@ var shield_up_KD = 3
 var adrenaline_move_increase = 4
 var charge_move_increase = 4
 
-var gas_bomb_threshold = 15
+var gas_bomb_threshold = 12
 var gas_bomb_move_reduction = 2
 var gas_bomb_stamina_cost = 3
 
 var light_sound_bomb_radius = 4
 var light_sound_bomb_threshold = 15
+
+var weak_spot_threshold = 15
 
 
 // This is a constant, will be moved to database later
@@ -1365,7 +1367,7 @@ function weak_spot(index, cell) {
   toSend.target_id = target_character_number
 
   var int_check = roll_x(20) + parseInt(attacking_character.intelligence) + character_state.universal_bonus[targeted_skill.attacker_id]
-  if (int_check >= 15) {
+  if (int_check >= weak_spot_threshold) {
     toSend.outcome = "success"
   } else {
     toSend.outcome = "fail"
@@ -2304,7 +2306,7 @@ socket.registerMessageHandler((data) => {
           character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
           character_state.stamina[user_index] = character_state.stamina[user_index] - stamina_weakspot_cost
           var target = character_detailed_info[data.target_id]
-          if (data.outcome = "success") {
+          if (data.outcome == "success") {
             var weakspot_object = {}
             weakspot_object.hunter_id = user_index
             character_state.special_effects[data.target_id].weakspot = weakspot_object
@@ -2826,4 +2828,4 @@ save_name_input.hide();
 var notifications_container = document.getElementById("notifications-container");
 notifications_container.style.display = 'none';
 
-setInterval(reconnect, 30*1000)
+setInterval(reconnect, 15*1000)
