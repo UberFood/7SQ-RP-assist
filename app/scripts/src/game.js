@@ -2600,7 +2600,7 @@ socket.registerMessageHandler((data) => {
               var character_number = data.character_list[i]
               var character = character_detailed_info[character_number]
               if (data.outcome_list[i] == 0) { // Прошел спасбросок
-                var message = character.name + "успел прикрыть глаза"
+                var message = character.name + " успел прикрыть глаза"
                 pushToList(message)
               } else {
                 var message = character.name + " ослеп на 2 хода"
