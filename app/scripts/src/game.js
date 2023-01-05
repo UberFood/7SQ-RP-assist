@@ -67,9 +67,11 @@ var gas_bomb_threshold = 12
 var gas_bomb_move_reduction = 2
 var gas_bomb_stamina_cost = 3
 var gas_bomb_obstacle = 15
+var gas_bomb_skill_cooldown = 5
 
 var light_sound_bomb_radius = 4
 var light_sound_bomb_threshold = 15
+var light_sound_bomb_skill_cooldown = 5
 
 var weak_spot_threshold = 15
 
@@ -2060,6 +2062,7 @@ function use_skill(skill_index, character_number, position, cell) {
         break;
 
     case 12: // газовая граната
+          if (!character_state.special_effects[character_number].hasOwnProperty("gas_bomb_user")) {
             if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
               field_chosen = 0
               attack.in_process = 0
@@ -2071,8 +2074,12 @@ function use_skill(skill_index, character_number, position, cell) {
             } else {
               alert("Не хватает действий!")
             }
+          } else {
+            alert("У гранаты кулдаун (газ эээ заваривается, хз)")
+          }
           break;
     case 13: // светошумовая граната
+          if (!character_state.special_effects[character_number].hasOwnProperty("light_sound_bomb_user")) {
               if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
                 field_chosen = 0
                 attack.in_process = 0
@@ -2084,6 +2091,9 @@ function use_skill(skill_index, character_number, position, cell) {
               } else {
                 alert("Не хватает действий!")
               }
+            } else {
+              alert("Граната еще не готова")
+            }
           break;
     case 14: // Шоковый импульс
       if (character_state.main_action[character_number] > 0) {
@@ -2716,6 +2726,10 @@ socket.registerMessageHandler((data) => {
             bomb_object.radius = 3
             game_state.terrain_effects.push(bomb_object)
 
+            var gas_bomb_user = {}
+            gas_bomb_user.cooldown = gas_bomb_skill_cooldown
+            character_state.special_effects[user_index].gas_bomb_user = gas_bomb_user
+
             var initial_radius = 2
 
             apply_bomb(data.position, initial_radius)
@@ -2723,6 +2737,10 @@ socket.registerMessageHandler((data) => {
             break;
 
         case 13:
+            var light_sound_bomb_user = {}
+            light_sound_bomb_user.cooldown = light_sound_bomb_skill_cooldown
+            character_state.special_effects[user_index].light_sound_bomb_user = light_sound_bomb_user
+
             for (let i = 0; i < data.outcome_list.length; i++) {
               var character_number = data.character_list[i]
               var character = character_detailed_info[character_number]
@@ -2925,6 +2943,26 @@ socket.registerMessageHandler((data) => {
             }
           } else if (character_state.special_effects[i].hasOwnProperty("tired")) { // не устал -> убрать устлалость если была
             delete character_state.special_effects[i].tired
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("light_sound_bomb_user")) {
+            if (character_state.special_effects[i].light_sound_bomb_user.cooldown == 0) {
+              delete character_state.special_effects[i].light_sound_bomb_user
+              var message = "Светошумовая граната у" + character.name + " готова к использованию."
+              pushToList(message)
+            } else {
+              character_state.special_effects[i].light_sound_bomb_user.cooldown = character_state.special_effects[i].light_sound_bomb_user.cooldown - 1
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("gas_bomb_user")) {
+            if (character_state.special_effects[i].gas_bomb_user.cooldown == 0) {
+              delete character_state.special_effects[i].gas_bomb_user
+              var message = "Газовая граната у" + character.name + " готова к использованию."
+              pushToList(message)
+            } else {
+              character_state.special_effects[i].gas_bomb_user.cooldown = character_state.special_effects[i].gas_bomb_user.cooldown - 1
+            }
           }
 
           if (character_state.special_effects[i].hasOwnProperty("force_field_user")) {
