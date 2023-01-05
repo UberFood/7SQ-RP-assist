@@ -67,9 +67,11 @@ var gas_bomb_threshold = 12
 var gas_bomb_move_reduction = 2
 var gas_bomb_stamina_cost = 3
 var gas_bomb_obstacle = 15
+var gas_bomb_skill_cooldown = 5
 
 var light_sound_bomb_radius = 4
 var light_sound_bomb_threshold = 15
+var light_sound_bomb_skill_cooldown = 5
 
 var weak_spot_threshold = 15
 
@@ -78,6 +80,16 @@ var shocked_cooldown = 0
 var pich_pich_cooldown = 4
 var pich_pich_move_increase = 4
 
+var force_field_radius = 1.6
+var force_field_stamina_cost = 5
+var force_field_cooldown = 8
+var force_field_obstacle = 24
+
+var big_bro_range = 2
+var heal_range = 1
+var throw_base_range = 2
+var light_sound_bomb_range = 5
+var force_field_range = 1
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
@@ -363,8 +375,8 @@ function index_in_radius(index, range) {
 
   //console.log("x: " + x + " y: " + y + " index: " + index)
 
-  for (let i = -1 * range; i <= range; i++) {
-    for (let j = -1 * range; j <= range; j++) {
+  for (let i = Math.floor(-1 * range); i <= Math.ceil(range); i++) {
+    for (let j = Math.floor(-1 * range); j <= Math.ceil(range); j++) {
       var cand_x = x + i
       var cand_y = y + j
       //console.log("cand_x: " + cand_x + " cand_y: " + cand_y)
@@ -537,6 +549,15 @@ function move_character(to_index, to_cell) {
     toSend.character_avatar = character_detailed_info[chosen_character_index].avatar;
     toSend.room_number = my_room;
     toSend.distance = distance
+    toSend.left_shield = 0
+
+    if (character_state.special_effects[chosen_character_index].hasOwnProperty("force_field_target")) {
+      var shield_index = character_state.special_effects[chosen_character_index].force_field_target.shield_index
+      if(!game_state.terrain_effects[shield_index].cells_protected.includes(to_index)) {// покинул зону защиты
+        toSend.left_shield = 1
+        toSend.shield_index = shield_index
+      }
+    }
     socket.sendMessage(toSend);
   } else {
     alert("Полегче, мсье Болт")
@@ -1391,6 +1412,8 @@ function weak_spot(index, cell) {
 }
 
 function heal(index, cell) {
+    if (isInRange(index, targeted_skill.attacker_position, heal_range)) {
+
   var target_character_number = game_state.board_state[index]
   var healer_character = character_detailed_info[targeted_skill.attacker_id]
   var target_character = character_detailed_info[target_character_number]
@@ -1497,9 +1520,14 @@ function heal(index, cell) {
   }
 
   socket.sendMessage(toSend);
+
+  } else {
+    alert("Нужно подойти ближе к цели чтобы вылечить")
+  }
 }
 
 function big_bro(index, cell) {
+  if (isInRange(index, targeted_skill.attacker_position, big_bro_range)) {
   var target_character_number = game_state.board_state[index]
 
   var shield_KD = parseInt(character_state.KD_points[targeted_skill.attacker_id]) + parseInt(character_state.bonus_KD[targeted_skill.attacker_id])
@@ -1515,6 +1543,9 @@ function big_bro(index, cell) {
   toSend.target_id = target_character_number
   toSend.bonus_KD = bonus_KD
   socket.sendMessage(toSend);
+} else {
+  alert("Большой брат не достает до малого!")
+}
 }
 
 function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, bonus_attack, weapon) {
@@ -1675,19 +1706,26 @@ function absolute_recovery(index, cell) {
 }
 
 function gas_bomb(index, cell) {
-  var toSend = {};
-  toSend.command = 'skill';
-  toSend.skill_index = targeted_skill.skill_id
-  toSend.room_number = my_room;
-  toSend.user_index = targeted_skill.attacker_id
-  toSend.position = index
-  toSend.threshold = gas_bomb_threshold
-  socket.sendMessage(toSend);
+  var character = character_detailed_info[targeted_skill.attacker_id]
+  var throw_range = throw_base_range + parseInt(character.strength)*2
+  if (isInRange(index, targeted_skill.attacker_position, throw_range)) {
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.skill_index = targeted_skill.skill_id
+    toSend.room_number = my_room;
+    toSend.user_index = targeted_skill.attacker_id
+    toSend.position = index
+    toSend.threshold = gas_bomb_threshold
+    socket.sendMessage(toSend);
 
-  add_obstacle_command(index, gas_bomb_obstacle)
+    add_obstacle_command(index, gas_bomb_obstacle)
+  } else {
+    alert("Мало каши ели для такого броска")
+  }
 }
 
 function light_sound_bomb(index, cell) {
+  if (isInRange(index, targeted_skill.attacker_position, light_sound_bomb_range)) {
   var toSend = {};
   toSend.command = 'skill';
   toSend.skill_index = targeted_skill.skill_id
@@ -1721,6 +1759,44 @@ function light_sound_bomb(index, cell) {
   toSend.outcome_list = outcome_list
 
   socket.sendMessage(toSend);
+} else {
+  alert("Дрон не докинет")
+}
+}
+
+function force_field(index, cell) {
+  if (isInRange(index, targeted_skill.attacker_position, force_field_range)) {
+  var toSend = {};
+  toSend.command = 'skill';
+  toSend.skill_index = targeted_skill.skill_id
+  toSend.room_number = my_room;
+  toSend.user_index = targeted_skill.attacker_id
+  toSend.position = index
+
+  var user = character_detailed_info[targeted_skill.attacker_id]
+
+  var shield = Math.ceil(parseFloat(HP_values[user.stamina])/2)
+  toSend.shield = shield
+
+  var character_list = []
+
+  var radius = force_field_radius
+
+  var candidate_cells = index_in_radius(index, radius)
+  for (let i = 0; i < candidate_cells.length; i++) {
+    var target_character_number = game_state.board_state[candidate_cells[i]]
+    if (target_character_number > 0) {// персонаж в радиусе щита
+        character_list.push(target_character_number)
+    }
+  }
+  toSend.cells_protected = candidate_cells
+  toSend.character_list = character_list
+  socket.sendMessage(toSend);
+
+  add_obstacle_command(index, force_field_obstacle)
+} else {
+  alert("Генератор должен быть установлен поближе")
+}
 }
 
 function adrenaline(index, cell) {
@@ -1806,6 +1882,10 @@ function perform_skill(index, cell) {
       break;
     case 15:
       pich_pich_go(index, cell)
+      stop_skill()
+      break;
+    case 16:
+      force_field(index, cell)
       stop_skill()
       break;
 
@@ -1982,6 +2062,7 @@ function use_skill(skill_index, character_number, position, cell) {
         break;
 
     case 12: // газовая граната
+          if (!character_state.special_effects[character_number].hasOwnProperty("gas_bomb_user")) {
             if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
               field_chosen = 0
               attack.in_process = 0
@@ -1993,8 +2074,12 @@ function use_skill(skill_index, character_number, position, cell) {
             } else {
               alert("Не хватает действий!")
             }
+          } else {
+            alert("У гранаты кулдаун (газ эээ заваривается, хз)")
+          }
           break;
     case 13: // светошумовая граната
+          if (!character_state.special_effects[character_number].hasOwnProperty("light_sound_bomb_user")) {
               if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
                 field_chosen = 0
                 attack.in_process = 0
@@ -2006,6 +2091,9 @@ function use_skill(skill_index, character_number, position, cell) {
               } else {
                 alert("Не хватает действий!")
               }
+            } else {
+              alert("Граната еще не готова")
+            }
           break;
     case 14: // Шоковый импульс
       if (character_state.main_action[character_number] > 0) {
@@ -2036,6 +2124,24 @@ function use_skill(skill_index, character_number, position, cell) {
       } else {
         alert("Пыщ пыщ еще на перезарядке!")
       }
+        break;
+
+    case 16: // Силовое поле
+        if (!character_state.special_effects[character_number].hasOwnProperty("force_field_user")) {
+          if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
+            field_chosen = 0
+            attack.in_process = 0
+            targeted_skill.in_process = 1
+            targeted_skill.skill_id = skill_index
+            targeted_skill.attacker_id = character_number
+            targeted_skill.attacker_position = position
+            cell.src = "./images/Chidori.webp";
+          } else {
+            alert("Не хватает действий!")
+          }
+        } else {
+          alert("Генератор силового поля еще не зарядился!")
+        }
         break;
 
     default:
@@ -2091,6 +2197,28 @@ function melee_penalty(data) {
       var cooldown = 0
     }
     character_state.special_effects[data.target_id].meleed.cooldown = cooldown
+  }
+}
+
+function do_damage(character_number, damage) {
+  if (!character_state.special_effects[character_number].hasOwnProperty("force_field_target")) {
+    character_state.HP[character_number] = character_state.HP[character_number] - damage
+  } else {
+    var shield_index = character_state.special_effects[character_number].force_field_target.shield_index
+    game_state.terrain_effects[shield_index].shield = game_state.terrain_effects[shield_index].shield - damage
+    var message = "Щит принял урон на себя! Оставшаяся прочность: " + game_state.terrain_effects[shield_index].shield
+    pushToList(message)
+    if (game_state.terrain_effects[shield_index].shield <= 0) {// щит уничтожен
+      var message = "Press F Щиту..."
+      pushToList(message)
+      var char_list = game_state.terrain_effects[shield_index].character_list
+      for (let i = 0; i < char_list.length; i++) {
+        var character_number = char_list[i]
+        delete character_state.special_effects[character_number].force_field_target
+      }
+      delete_object_command(game_state.terrain_effects[shield_index].position)
+      delete game_state.terrain_effects[shield_index]
+    }
   }
 }
 
@@ -2259,6 +2387,15 @@ socket.registerMessageHandler((data) => {
       var from_index = data.from_index;
       game_state.board_state[to_index] = data.character_number;
 
+      // remove shielded property from character and remove character from shielded list
+      if (data.left_shield == 1) {
+        delete character_state.special_effects[data.character_number].force_field_target
+        var index = game_state.terrain_effects[data.shield_index].character_list.indexOf(data.character_number)
+        if (index !== -1) {
+          game_state.terrain_effects[data.shield_index].character_list.splice(index, 1);
+        }
+      }
+
       character_state.has_moved[data.character_number] = 1
 
       if (battle_mod == 1) {
@@ -2410,7 +2547,7 @@ socket.registerMessageHandler((data) => {
                   var message = attacker.name + " безуспешно пытается подрезать " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться. Атака наносит " + data.damage_roll + " урона."
                 }
                 pushToList(message)
-                character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+                do_damage(data.target_id, data.damage_roll)
                 break;
               case "damage_after_evasion":
                 if (data.skill_outcome == "success") {
@@ -2423,7 +2560,7 @@ socket.registerMessageHandler((data) => {
                   var message = attacker.name + " безуспешно пытается подрезать " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + "). Атака наносит " + data.damage_roll + " урона."
                 }
                 pushToList(message)
-                character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+                do_damage(data.target_id, data.damage_roll)
                 character_state.can_evade[data.target_id] = 0
                 break;
             case "full_crit":
@@ -2433,7 +2570,7 @@ socket.registerMessageHandler((data) => {
               character_state.move_action[data.target_id] = -10
               var message = attacker.name + " критически подрезает " + target.name + ", не оставляя возможности увернуться. Атака наносит " + data.damage_roll + " урона."
               pushToList(message)
-              character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+              do_damage(data.target_id, data.damage_roll)
               break;
             default:
               console.log("fucked up resolving damage")
@@ -2589,6 +2726,10 @@ socket.registerMessageHandler((data) => {
             bomb_object.radius = 3
             game_state.terrain_effects.push(bomb_object)
 
+            var gas_bomb_user = {}
+            gas_bomb_user.cooldown = gas_bomb_skill_cooldown
+            character_state.special_effects[user_index].gas_bomb_user = gas_bomb_user
+
             var initial_radius = 2
 
             apply_bomb(data.position, initial_radius)
@@ -2596,6 +2737,10 @@ socket.registerMessageHandler((data) => {
             break;
 
         case 13:
+            var light_sound_bomb_user = {}
+            light_sound_bomb_user.cooldown = light_sound_bomb_skill_cooldown
+            character_state.special_effects[user_index].light_sound_bomb_user = light_sound_bomb_user
+
             for (let i = 0; i < data.outcome_list.length; i++) {
               var character_number = data.character_list[i]
               var character = character_detailed_info[character_number]
@@ -2641,21 +2786,21 @@ socket.registerMessageHandler((data) => {
 
             var message = attacker.name + " стреляет в " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться и шокирует цель (уязвимость). Атака наносит " + data.damage_roll + " урона."
             pushToList(message)
-            character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+            do_damage(data.target_id, data.damage_roll)
             character_state.can_evade[data.target_id] = 0
             break;
           case "damage_after_evasion":
             shocked_effect(data.target_id)
             var message = attacker.name + " стреляет в " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + ") и шокирует цель (уязвимость). Атака наносит " + data.damage_roll + " урона."
             pushToList(message)
-            character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+            do_damage(data.target_id, data.damage_roll)
             character_state.can_evade[data.target_id] = 0
             break;
         case "full_crit":
           shocked_effect(data.target_id)
           var message = attacker.name + " критически попадает в " + target.name + ", не оставляя возможности увернуться и шокирует цель. Атака наносит " + data.damage_roll + " урона."
           pushToList(message)
-          character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+          do_damage(data.target_id, data.damage_roll)
           character_state.can_evade[data.target_id] = 0
           break;
         default:
@@ -2691,6 +2836,39 @@ socket.registerMessageHandler((data) => {
           var message = user.name + " использует Пыщ-Пыщ-Гоу. "  + target.name + " получает " + data.extra_actions + " доп действий на этот и следующий ход."
           pushToList(message)
           break;
+        case 16:
+            if (battle_mod == 1) {
+              character_state.main_action[user_index] = character_state.main_action[user_index] - 1
+              character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+              character_state.stamina[user_index] = character_state.stamina[user_index] - force_field_stamina_cost
+            }
+            var shield_object = {}
+            shield_object.type = "force_field"
+            shield_object.position = data.position
+            shield_object.radius = force_field_radius
+            shield_object.shield = data.shield
+            shield_object.character_list = data.character_list
+            shield_object.cells_protected = data.cells_protected
+            game_state.terrain_effects.push(shield_object)
+
+            var shield_index = game_state.terrain_effects.length - 1
+            var char_list = data.character_list
+
+            var force_field_target = {}
+            force_field_target.shield_index = shield_index
+
+            for (let i = 0; i < char_list.length; i++) {
+              var character_number = char_list[i]
+              character_state.special_effects[character_number].force_field_target = force_field_target
+            }
+
+            var force_field_user = {}
+            force_field_user.cooldown = force_field_cooldown
+            character_state.special_effects[user_index].force_field_user = force_field_user
+            var character = character_detailed_info[user_index]
+            var message = character.name + " активирует силовое поле"
+            pushToList(message)
+            break;
 
         default:
           alert("Received unknown skill command")
@@ -2765,6 +2943,36 @@ socket.registerMessageHandler((data) => {
             }
           } else if (character_state.special_effects[i].hasOwnProperty("tired")) { // не устал -> убрать устлалость если была
             delete character_state.special_effects[i].tired
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("light_sound_bomb_user")) {
+            if (character_state.special_effects[i].light_sound_bomb_user.cooldown == 0) {
+              delete character_state.special_effects[i].light_sound_bomb_user
+              var message = "Светошумовая граната у" + character.name + " готова к использованию."
+              pushToList(message)
+            } else {
+              character_state.special_effects[i].light_sound_bomb_user.cooldown = character_state.special_effects[i].light_sound_bomb_user.cooldown - 1
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("gas_bomb_user")) {
+            if (character_state.special_effects[i].gas_bomb_user.cooldown == 0) {
+              delete character_state.special_effects[i].gas_bomb_user
+              var message = "Газовая граната у" + character.name + " готова к использованию."
+              pushToList(message)
+            } else {
+              character_state.special_effects[i].gas_bomb_user.cooldown = character_state.special_effects[i].gas_bomb_user.cooldown - 1
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("force_field_user")) {
+            if (character_state.special_effects[i].force_field_user.cooldown == 0) {
+              delete character_state.special_effects[i].force_field_user
+              var message = "Силовое поле у " + character.name + " снова заряжено."
+              pushToList(message)
+            } else {
+              character_state.special_effects[i].force_field_user.cooldown = character_state.special_effects[i].force_field_user.cooldown - 1
+            }
           }
 
           if (character_state.special_effects[i].hasOwnProperty("pich_pich_user")) {
@@ -2973,20 +3181,20 @@ socket.registerMessageHandler((data) => {
         case "damage_without_evasion":
           var message = attacker.name + " успешно атакует " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться. Атака наносит " + data.damage_roll + " урона."
           pushToList(message)
-          character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+          do_damage(data.target_id, data.damage_roll)
           melee_penalty(data)
           break;
         case "damage_after_evasion":
           var message = attacker.name + " успешно атакует " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + "). Атака наносит " + data.damage_roll + " урона."
           pushToList(message)
-          character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+          do_damage(data.target_id, data.damage_roll)
           character_state.can_evade[data.target_id] = 0
           melee_penalty(data)
           break;
         case "full_crit":
           var message = attacker.name + " критически атакует " + target.name + ", не оставляя возможности увернуться. Атака наносит " + data.damage_roll + " урона."
           pushToList(message)
-          character_state.HP[data.target_id] = character_state.HP[data.target_id] - data.damage_roll
+          do_damage(data.target_id, data.damage_roll)
           character_state.can_evade[data.target_id] = 0
           melee_penalty(data)
           break;
