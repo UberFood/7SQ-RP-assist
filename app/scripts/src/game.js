@@ -50,7 +50,7 @@ var CHAT_CASH = 15;
 var stamina_weakspot_cost = 1
 var stamina_move_cost = 0
 var stamina_attack_cost = 1
-var stamina_cut_limb_cost = 3
+var stamina_cut_limb_cost = 4
 var shield_up_stamina_cost = 2
 
 var rest_stamina_gain = 3
@@ -63,7 +63,7 @@ var shield_up_KD = 3
 var adrenaline_move_increase = 4
 var charge_move_increase = 4
 
-var gas_bomb_threshold = 12
+var gas_bomb_threshold = 11
 var gas_bomb_move_reduction = 2
 var gas_bomb_stamina_cost = 3
 var gas_bomb_obstacle = 15
@@ -82,7 +82,7 @@ var pich_pich_move_increase = 4
 
 var force_field_radius = 1.6
 var force_field_stamina_cost = 5
-var force_field_cooldown = 8
+var force_field_cooldown = 10
 var force_field_obstacle = 24
 
 var big_bro_range = 2
