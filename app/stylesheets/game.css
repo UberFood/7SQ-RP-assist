@@ -115,7 +115,7 @@ top:1px;
     font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
 }
 
-#character_chosen {
+select {
     background-color: blue;
     color: white;
     text-decoration: none;
@@ -283,4 +283,8 @@ html, body {
 .is-tiny {
   transform: scale(0.001);
   transition: transform 0ms;
+}
+
+.is-red {
+  background: red
 }

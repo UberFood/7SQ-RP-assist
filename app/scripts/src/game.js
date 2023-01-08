@@ -2,6 +2,10 @@ import socket from './ws-client';
 
 var $ = window.jQuery;
 
+var CHARACTER_INFO_CONTANER_SELECTOR = '[data-name="character-info-container"]';
+var WEAPON_INFO_CONTANER_SELECTOR = '[data-name="weapon-info-container"]';
+var NOTIFICATIONS_CONTANER_SELECTOR = '[data-name="notifications-container"]';
+
 var CREATE_BOARD_BUTTON_SELECTOR = '[data-name="create_board_button"]';
 var SAVE_BOARD_BUTTON_SELECTOR = '[data-name="save_board_button"]';
 var LOAD_BOARD_BUTTON_SELECTOR = '[data-name="load_board_button"]';
@@ -221,8 +225,7 @@ function construct_board(new_game_state) {
   game_state.search_modificator_state = new_game_state.search_modificator_state;
   game_state.terrain_effects = new_game_state.terrain_effects;
 
-  var info_container = document.getElementById("character-info-container");
-  info_container.innerHTML = "";
+  clear_containers()
 
   var board_container = document.getElementById("board-container");
   board_container.innerHTML = "";
@@ -417,12 +420,18 @@ function applyFog(index, cell) {
 	}
 }
 
-function add_object(board_index) {
-  var container = document.getElementById("character-info-container");
-  container.innerHTML = "";
+function clear_containers() {
+  character_info_container.html("")
+  weapon_info_container.html("")
+}
 
-  var weapon_container = document.getElementById("weapon-info-container");
-  weapon_container.innerHTML = "";
+function tiny_animate_containers() {
+  tiny_animation(character_info_container);
+  tiny_animation(weapon_info_container);
+}
+
+function add_object(board_index) {
+  clear_containers()
 
   var button_container = document.createElement("div");
   button_container.className = "add-object-button-container";
@@ -441,15 +450,15 @@ function add_object(board_index) {
 
   button_container.appendChild(button_add_character);
   button_container.appendChild(button_add_obstacle);
-  container.appendChild(button_container);
+  character_info_container.append(button_container);
 
-  tiny_animation(container);
+  tiny_animate_containers()
 }
 
 function tiny_animation(container) {
-  container.classList.add(TINY_EFFECT_CLASS);
+  container.addClass(TINY_EFFECT_CLASS);
   setTimeout(function() {
-    container.classList.remove(TINY_EFFECT_CLASS);
+    container.removeClass(TINY_EFFECT_CLASS);
   }, 50);
 }
 
@@ -464,11 +473,11 @@ function add_obstacle_command(index, obstacle_number) {
 }
 
 function add_obstacle(board_index) {
-  var container = document.getElementById("character-info-container");
-  container.innerHTML = "";
+  clear_containers()
 
   var select = document.createElement("select");
   select.id = "obstacle_chosen";
+  select.className = "object_select"
 
   for (let i = 0; i < obstacle_list.length; i++) {
     var current_option = document.createElement("option");
@@ -486,22 +495,21 @@ function add_obstacle(board_index) {
 
     add_obstacle_command(button.board_index, obstacle_number)
 
-    var container = document.getElementById("character-info-container");
-    container.innerHTML = "";
+    clear_containers()
   }
 
-  container.appendChild(select);
-  container.appendChild(button);
-  tiny_animation(container);
+  character_info_container.append(select);
+  character_info_container.append(button);
+  tiny_animate_containers()
 
 }
 
 function add_character(board_index) {
-  var container = document.getElementById("character-info-container");
-  container.innerHTML = "";
+  clear_containers()
 
   var select = document.createElement("select");
   select.id = "character_chosen";
+  select.className = "object_select"
 
   for (let i = 0; i < character_list.length; i++) {
     var current_option = document.createElement("option");
@@ -525,13 +533,12 @@ function add_character(board_index) {
     toSend.room_number = my_room;
     socket.sendMessage(toSend);
 
-    var container = document.getElementById("character-info-container");
-    container.innerHTML = "";
+    clear_containers(0)
   }
 
-  container.appendChild(select);
-  container.appendChild(button);
-  tiny_animation(container);
+  character_info_container.append(select);
+  character_info_container.append(button);
+  tiny_animate_containers()
 
 }
 
@@ -566,8 +573,7 @@ function move_character(to_index, to_cell) {
 }
 
 function displayFog() {
-	var container = document.getElementById("character-info-container");
-  container.innerHTML = "";
+	clear_containers()
 
 	var info = document.createElement("p");
   info.innerHTML = 'Мы не знаем, что это такое. Если бы мы знали что это такое, но мы не знаем.';
@@ -577,10 +583,20 @@ function displayFog() {
   fog_picture.style.width = '250px';
   fog_picture.style.height = '250px';
 
-	container.appendChild(info);
-	container.appendChild(fog_picture);
+	character_info_container.append(info);
+	character_info_container.append(fog_picture);
 
-  tiny_animation(container);
+tiny_animate_containers()
+}
+
+function delete_character(index, character_number) {
+  clear_containers()
+  var toSend = {};
+  toSend.command = 'delete_character';
+  toSend.room_number = my_room;
+  toSend.index = index;
+  toSend.character_number = character_number
+  socket.sendMessage(toSend);
 }
 
 function select_character(index, cell) {
@@ -590,11 +606,7 @@ function select_character(index, cell) {
   let name = character.name;
   let avatar = character.avatar;
 
-  var container = document.getElementById("character-info-container");
-  container.innerHTML = "";
-
-  var weapon_container = document.getElementById("weapon-info-container");
-  weapon_container.innerHTML = "";
+  clear_containers()
 
   var name_display = document.createElement("h2");
   name_display.innerHTML = name;
@@ -604,8 +616,8 @@ function select_character(index, cell) {
   avatar_display.style.width = '250px';
   avatar_display.style.height = '250px';
 
-  container.appendChild(name_display);
-  container.appendChild(avatar_display);
+  character_info_container.append(name_display);
+  character_info_container.append(avatar_display);
 
   if (my_role == "gm" || character_state.visibility[character_number] == 1) {
 
@@ -642,14 +654,14 @@ function select_character(index, cell) {
   var initiative_display = document.createElement("h2");
   initiative_display.innerHTML = "Инициатива: " + character_state.initiative[character_number];
 
-  container.appendChild(strength_display);
-  container.appendChild(stamina_display);
-  container.appendChild(agility_display);
-  container.appendChild(intelligence_display);
-  container.appendChild(KD_display);
-  container.appendChild(HP_display);
-  container.appendChild(tired_display);
-  container.appendChild(initiative_display);
+  character_info_container.append(strength_display);
+  character_info_container.append(stamina_display);
+  character_info_container.append(agility_display);
+  character_info_container.append(intelligence_display);
+  character_info_container.append(KD_display);
+  character_info_container.append(HP_display);
+  character_info_container.append(tired_display);
+  character_info_container.append(initiative_display);
 
   var move_button = document.createElement("button");
   move_button.innerHTML = "Перемещение";
@@ -660,10 +672,7 @@ function select_character(index, cell) {
     var character_number = game_state.board_state[character_picked.index];
     var move_actions_left = character_state.move_action[character_number]
     if (move_actions_left > 0) {
-      var container = document.getElementById("character-info-container");
-      container.innerHTML = "";
-      var weapon_container = document.getElementById("weapon-info-container");
-      weapon_container.innerHTML = "";
+      clear_containers()
       choose_character_to_move(character_picked.index, character_picked.cell);
     } else {
       alert("Вы потратили все перемещения на этом ходу!")
@@ -677,7 +686,7 @@ function select_character(index, cell) {
     delete_button.index = index;
     delete_button.cell = cell;
     delete_button.onclick = function(event) {
-      delete_object(event);
+      delete_character(index, character_number);
     }
 
     var change_character_visibility_button = document.createElement("button");
@@ -789,10 +798,10 @@ function select_character(index, cell) {
   weapon_name_display.id = "weapon_name_display";
   weapon_name_display.innerHTML = default_weapon.name
 
-  weapon_container.append(weapon_name_display)
-  weapon_container.append(weapon_avatar_display)
-  weapon_container.append(weapon_range_display)
-  weapon_container.append(weapon_damage_display)
+  weapon_info_container.append(weapon_name_display)
+  weapon_info_container.append(weapon_avatar_display)
+  weapon_info_container.append(weapon_range_display)
+  weapon_info_container.append(weapon_damage_display)
 
   var attack_button = document.createElement("button");
   attack_button.innerHTML = "Атаковать";
@@ -872,11 +881,11 @@ function select_character(index, cell) {
   button_list.appendChild(line9);
   button_list.appendChild(line7);
 
-  container.appendChild(button_list);
+  character_info_container.append(button_list);
 
 }
 
-  tiny_animation(container);
+  tiny_animate_containers()
 
 }
 
@@ -927,13 +936,13 @@ function delete_object_command(index) {
 }
 
 function delete_object(event) {
-  var container = document.getElementById("character-info-container");
-  container.innerHTML = "";
+  clear_containers()
 
   delete_object_command(event.target.index)
 }
 
 function select_obstacle(index, cell) {
+  clear_containers()
   var obstacle_id = game_state.board_state[index] * (-1);
   var obstacle = obstacle_detailed_info[obstacle_id];
 
@@ -943,9 +952,6 @@ function select_obstacle(index, cell) {
   let name = obstacle.name;
   let avatar = obstacle.avatar;
 
-  var container = document.getElementById("character-info-container");
-  container.innerHTML = "";
-
   var name_display = document.createElement("h2");
   name_display.innerHTML = name;
 
@@ -954,8 +960,8 @@ function select_obstacle(index, cell) {
   avatar_display.style.width = '250px';
   avatar_display.style.height = '250px';
 
-  container.appendChild(name_display);
-  container.appendChild(avatar_display);
+  character_info_container.append(name_display);
+  character_info_container.append(avatar_display);
 
   var delete_button = document.createElement("button");
   delete_button.innerHTML = "Уничтожить";
@@ -964,9 +970,9 @@ function select_obstacle(index, cell) {
   delete_button.onclick = function(event) {
     delete_object(event);
   }
-  container.appendChild(delete_button);
+  character_info_container.append(delete_button);
 
-  tiny_animation(container);
+  tiny_animate_containers()
 
 }
 
@@ -1141,15 +1147,17 @@ function pushToList(message) {
   var top_element = $('[data-name="notifications_list_element_' + (CHAT_CASH-1) + '"]');
   top_element.text(message);
 
-  chat_button.css('background-color', 'red');
+  chat_button.addClass("is-red")
 }
 
 function changeChatVisibility() {
-  chat_button.css('background-color', 'white');
-  if (notifications_container.style.display == 'none') {
-    notifications_container.style.display = 'block';
+  if (chat_button.hasClass("is-red")) {
+    chat_button.removeClass("is-red")
+  }
+  if (notifications_container.is(":hidden")) {
+    notifications_container.show();
   } else {
-    notifications_container.style.display = 'none';
+    notifications_container.hide();
   }
 }
 
@@ -1161,7 +1169,7 @@ function start_new_round() {
 
   for (let i = 1; i < character_state.can_evade.length; i++) {
     var character = character_detailed_info[i]
-    if (character !== undefined && character !== null) {
+    if (character_state.special_effects[i] !== undefined && character_state.special_effects[i] !== null) {
       if (character_state.special_effects[i].hasOwnProperty("gas_bomb_poison")) {
         save_roll[i] = roll_x(20) + parseInt(character.stamina)
       }
@@ -2292,6 +2300,33 @@ function sync_board() {
   socket.sendMessage(toSend);
 }
 
+function clear_character_state() {
+  character_state = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: []}
+}
+
+function clear_character(number) {
+  character_detailed_info[number] = null
+  character_state.HP[number] = null
+  character_state.main_action[number] = null
+  character_state.bonus_action[number] = null
+  character_state.move_action[number] = null
+  character_state.stamina[number] = null
+  character_state.initiative[number] = null
+  character_state.can_evade[number] = null
+  character_state.has_moved[number] = null
+  character_state.KD_points[number] = null
+  character_state.current_weapon[number] = null
+  character_state.visibility[number] = null
+  character_state.attack_bonus[number] = null
+  character_state.damage_bonus[number] = null
+  character_state.universal_bonus[number] = null
+  character_state.bonus_KD[number] = null
+  character_state.special_effects[number] = null
+  character_state.ranged_advantage[number] = null
+  character_state.melee_advantage[number] = null
+  character_state.defensive_advantage[number] = null
+}
+
 //socket.init('ws://localhost:3001');
 socket.init(SERVER_ADDRESS);
 
@@ -2344,6 +2379,7 @@ socket.registerMessageHandler((data) => {
       skill_list = data.skill_list
 
     } else if (data.command == 'construct_board_response') {
+      clear_character_state()
       construct_board(data.game_state);
     } else if (data.command == 'add_character_response') {
       var character = data.character_info;
@@ -2432,6 +2468,9 @@ socket.registerMessageHandler((data) => {
         old_cell.src = EMPTY_CELL_PIC;
       }
     } else if (data.command == 'delete_character_response') {
+      if (data.hasOwnProperty("character_number")) {
+        clear_character(data.character_number)
+      }
       game_state.board_state[data.index] = 0;
       if (!((my_role == 'player')&&(game_state.fog_state[data.index] == 1))) {
         var cell = document.getElementById('cell_' + data.index);
@@ -3287,7 +3326,11 @@ board_size_input.hide();
 var save_name_input = $(SAVE_NAME_INPUT_SELECTOR);
 save_name_input.hide();
 
-var notifications_container = document.getElementById("notifications-container");
-notifications_container.style.display = 'none';
+var notifications_container = $(NOTIFICATIONS_CONTANER_SELECTOR);
+notifications_container.hide();
+
+var character_info_container = $(CHARACTER_INFO_CONTANER_SELECTOR);
+
+var weapon_info_container = $(WEAPON_INFO_CONTANER_SELECTOR);
 
 setInterval(reconnect, 15*1000)

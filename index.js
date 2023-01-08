@@ -168,13 +168,10 @@ wss.on('connection', (ws) => {
           clientSocket.send(JSON.stringify(data));
         });
     } else if (data.command == 'delete_character') {
-      var response = {};
-      response.room_number = data.room_number;
-      response.command = 'delete_character_response';
-      response.to_name = 'all';
-      response.index = data.index;
+      data.command = 'delete_character_response';
+      data.to_name = 'all';
       wss.clients.forEach(function(clientSocket) {
-        clientSocket.send(JSON.stringify(response));
+        clientSocket.send(JSON.stringify(data));
       });
     } else if (data.command == 'roll_initiative') {
       var response = {};
