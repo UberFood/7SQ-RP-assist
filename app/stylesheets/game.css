@@ -267,6 +267,11 @@ html, body {
   margin-top: 5px;
 }
 
+#weapon_mini_display {
+  float: left;
+  float: top;
+}
+
 .board_cell{
   float: left;
   vertical-align: bottom;

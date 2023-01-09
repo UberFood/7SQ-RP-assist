@@ -122,6 +122,9 @@ let targeted_skill = {in_process: 0, skill_id: 0, attacker_id: 0, attacker_posit
 
 let last_obstacle = 1;
 
+var gunshot_audio = new Audio('sounds/gunshot.mp3');
+var sword_audio = new Audio('sounds/sword.wav');
+
 function reconnect() {
   if (!socket.isReady()) {
     socket.init(SERVER_ADDRESS);
@@ -611,13 +614,18 @@ function select_character(index, cell) {
   var name_display = document.createElement("h2");
   name_display.innerHTML = name;
 
+  var avatar_container = document.createElement("div");
+
+
   var avatar_display = document.createElement("IMG");
   avatar_display.src = avatar;
   avatar_display.style.width = '250px';
   avatar_display.style.height = '250px';
 
+  avatar_container.appendChild(avatar_display)
+
   character_info_container.append(name_display);
-  character_info_container.append(avatar_display);
+  character_info_container.append(avatar_container);
 
   if (my_role == "gm" || character_state.visibility[character_number] == 1) {
 
@@ -762,46 +770,50 @@ function select_character(index, cell) {
     character_state.current_weapon[character_number] = weapon_index
     var weapon = weapon_detailed_info[weapon_index]
 
-    var weapon_range_display = document.getElementById("weapon_range_display")
-    weapon_range_display.innerHTML = "Дальность: " + weapon.range
-
-    var weapon_damage_display = document.getElementById("weapon_damage_display")
-    weapon_damage_display.innerHTML = "Урон: " + weapon.damage[0] + 'd' + weapon.damage[1]
-
-    var weapon_name_display = document.getElementById("weapon_name_display")
-    weapon_name_display.innerHTML = weapon.name
-
-    var weapon_avatar_display = document.getElementById("weapon_avatar_display")
-    weapon_avatar_display.src = weapon.avatar;
-    weapon_avatar_display.style.width = '250px';
-    weapon_avatar_display.style.height = '250px';
+    weapon_mini_display.src = weapon.avatar;
   }
 
   var default_weapon_index = character_state.current_weapon[character_number]
   var default_weapon = weapon_detailed_info[default_weapon_index]
 
-  var weapon_range_display = document.createElement("h2");
-  weapon_range_display.id = "weapon_range_display";
-  weapon_range_display.innerHTML = "Дальность: " + default_weapon.range
+  var weapon_mini_display = document.createElement("IMG");
+  weapon_mini_display.id = "weapon_mini_display"
+  weapon_mini_display.src = default_weapon.avatar;
+  weapon_mini_display.style.width = '80px';
+  weapon_mini_display.style.height = '80px';
+  weapon_mini_display.onmouseenter = function(event) {
+    var default_weapon_index = character_state.current_weapon[character_number]
+    var default_weapon = weapon_detailed_info[default_weapon_index]
 
-  var weapon_damage_display = document.createElement("h2");
-  weapon_damage_display.id = "weapon_damage_display";
-  weapon_damage_display.innerHTML = "Урон: " + default_weapon.damage[0] + 'd' + default_weapon.damage[1]
+    var weapon_range_display = document.createElement("h2");
+    weapon_range_display.id = "weapon_range_display";
+    weapon_range_display.innerHTML = "Дальность: " + default_weapon.range
 
-  var weapon_avatar_display = document.createElement("IMG");
-  weapon_avatar_display.id = "weapon_avatar_display"
-  weapon_avatar_display.src = default_weapon.avatar;
-  weapon_avatar_display.style.width = '250px';
-  weapon_avatar_display.style.height = '250px';
+    var weapon_damage_display = document.createElement("h2");
+    weapon_damage_display.id = "weapon_damage_display";
+    weapon_damage_display.innerHTML = "Урон: " + default_weapon.damage[0] + 'd' + default_weapon.damage[1]
 
-  var weapon_name_display = document.createElement("h2");
-  weapon_name_display.id = "weapon_name_display";
-  weapon_name_display.innerHTML = default_weapon.name
+    var weapon_name_display = document.createElement("h2");
+    weapon_name_display.id = "weapon_name_display";
+    weapon_name_display.innerHTML = default_weapon.name
 
-  weapon_info_container.append(weapon_name_display)
-  weapon_info_container.append(weapon_avatar_display)
-  weapon_info_container.append(weapon_range_display)
-  weapon_info_container.append(weapon_damage_display)
+    var weapon_avatar_display = document.createElement("IMG");
+    weapon_avatar_display.id = "weapon_avatar_display"
+    weapon_avatar_display.src = default_weapon.avatar;
+    weapon_avatar_display.style.width = '250px';
+    weapon_avatar_display.style.height = '250px';
+
+    weapon_info_container.append(weapon_name_display)
+    weapon_info_container.append(weapon_avatar_display)
+    weapon_info_container.append(weapon_range_display)
+    weapon_info_container.append(weapon_damage_display)
+  }
+
+  weapon_mini_display.onmouseleave = function(event) {
+    weapon_info_container.html("")
+  }
+
+  avatar_container.append(weapon_mini_display)
 
   var attack_button = document.createElement("button");
   attack_button.innerHTML = "Атаковать";
@@ -1147,7 +1159,9 @@ function pushToList(message) {
   var top_element = $('[data-name="notifications_list_element_' + (CHAT_CASH-1) + '"]');
   top_element.text(message);
 
-  chat_button.addClass("is-red")
+  if (notifications_container.is(":hidden")) {
+    chat_button.addClass("is-red")
+  }
 }
 
 function changeChatVisibility() {
@@ -2305,7 +2319,7 @@ function clear_character_state() {
 }
 
 function clear_character(number) {
-  character_detailed_info[number] = null
+  //character_detailed_info[number] = null
   character_state.HP[number] = null
   character_state.main_action[number] = null
   character_state.bonus_action[number] = null
@@ -2321,7 +2335,7 @@ function clear_character(number) {
   character_state.damage_bonus[number] = null
   character_state.universal_bonus[number] = null
   character_state.bonus_KD[number] = null
-  character_state.special_effects[number] = null
+  character_state.special_effects[number] = {}
   character_state.ranged_advantage[number] = null
   character_state.melee_advantage[number] = null
   character_state.defensive_advantage[number] = null
@@ -3197,6 +3211,13 @@ socket.registerMessageHandler((data) => {
       }
       pushToList(message)
     } else if (data.command == 'resolve_attack_response') {
+      if (data.attack_type == "ranged") {
+        var audio = gunshot_audio
+      } else if (data.attack_type == "melee") {
+        var audio = sword_audio
+      }
+      audio.play();
+
       var attacker = character_detailed_info[data.attacker_id]
       var target = character_detailed_info[data.target_id]
       character_state.has_moved[data.attacker_id] = 1
