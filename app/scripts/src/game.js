@@ -113,12 +113,8 @@ let obstacle_base = [];
 let gm_control_mod = 0; // normal mode
 let battle_mod = 0
 
-let field_chosen = 0;
-let chosen_index;
-let chosen_character_index;
-
-let attack = {in_process: 0, weapon_id: 0, attacker_id: 0, attacker_position: 0};
-let targeted_skill = {in_process: 0, skill_id: 0, attacker_id: 0, attacker_position: 0}
+// in_process: 0 = nothing, 1 = move, 2 = attack, 3 = skill
+let character_chosen = {in_process: 0, char_id: 0, char_position: 0, weapon_id: 0, skill_id: 0, cell: 0};
 
 let last_obstacle = 1;
 
@@ -258,7 +254,7 @@ function construct_board(new_game_state) {
         } else if (event.ctrlKey) {
           ctrl_onclick(index)
         } else {
-          no_shift_onclick(my_role, gm_control_mod, game_state, field_chosen, cell, index)
+          no_shift_onclick(my_role, gm_control_mod, game_state, character_chosen.in_process, cell, index)
         }
 
       };
@@ -304,49 +300,63 @@ function fogOrPic(cell_id) {
 
 function standard_cell_onClick(index, cell, role) {
 	if (game_state.board_state[index] == 0) { // empty cell clicked
-		if (field_chosen == 0) {
-      if (attack.in_process == 0) {
-        if (targeted_skill.in_process == 0) {
-          if (role == 'gm') {
-			       add_object(index);
-          }
-        } else {
-          perform_skill(index, cell)
+
+    switch(character_chosen.in_process) {
+      case 0: // nothing
+        if (role == 'gm') {
+          add_object(index);
         }
-     } else {
-       stop_attack()
-     }
-		} else {
-			move_character(index, cell);
-		}
-	} else if (game_state.board_state[index] > 0) { // character clicked
-		if (field_chosen == 0) {
-      if (attack.in_process == 0) {
-        if (targeted_skill.in_process == 0) {
-			     select_character(index, cell);
-        } else {
-          perform_skill(index, cell)
-        }
-      } else {
-        perform_attack(index, cell)
-      }
-		} else {
-			undo_selection();
-		}
-	} else { // obstacle clicked
-		if (field_chosen == 0) {
-      if (attack.in_process == 0) {
-        if (targeted_skill.in_process == 0) {
-			     select_obstacle(index, cell);
-        } else {
-          stop_skill()
-        }
-      } else {
+        break;
+      case 1: // move
+        move_character(index, cell);
+        break;
+      case 2: //attack
         stop_attack()
-      }
-		} else {
-			undo_selection();
-		}
+        break;
+      case 3: //skill
+        perform_skill(index, cell)
+        break;
+      default:
+        console.log("Error resolving on_click empty")
+    }
+
+	} else if (game_state.board_state[index] > 0) { // character clicked
+    switch(character_chosen.in_process) {
+      case 0: // nothing
+        select_character(index, cell);
+        break;
+      case 1: // move
+        undo_selection();
+        break;
+      case 2: //attack
+        perform_attack(index, cell)
+        break;
+      case 3: //skill
+        perform_skill(index, cell)
+        break;
+      default:
+        console.log("Error resolving on_click character")
+    }
+
+	} else { // obstacle clicked
+
+    switch(character_chosen.in_process) {
+      case 0: // nothing
+        select_obstacle(index, cell);
+        break;
+      case 1: // move
+        undo_selection();
+        break;
+      case 2: //attack
+        stop_attack()
+        break;
+      case 3: //skill
+        perform_skill(index, cell)
+        break;
+      default:
+        console.log("Error resolving on_click obstacle")
+    }
+
 	}
 }
 
@@ -546,7 +556,10 @@ function add_character(board_index) {
 }
 
 function move_character(to_index, to_cell) {
-  field_chosen = 0;
+  character_chosen.in_process = 0; // end the motion
+  var chosen_index = character_chosen.char_position
+  var chosen_character_index = character_chosen.char_id
+
   var distance = findDistance(to_index, chosen_index)
   var max_distance = character_state.move_action[chosen_character_index]
 
@@ -569,10 +582,15 @@ function move_character(to_index, to_cell) {
       }
     }
     socket.sendMessage(toSend);
+
+    character_chosen.char_position = to_index
+    var to_cell = document.getElementById('cell_' + to_index);
+    character_chosen.cell = to_cell
   } else {
     alert("Полегче, мсье Болт")
     undo_selection()
   }
+
 }
 
 function displayFog() {
@@ -606,6 +624,10 @@ function select_character(index, cell) {
   var character_number = game_state.board_state[index]
   var character = character_detailed_info[character_number];
 
+  character_chosen.char_id = character_number
+  character_chosen.char_position = index
+  character_chosen.cell = cell
+
   let name = character.name;
   let avatar = character.avatar;
 
@@ -615,8 +637,6 @@ function select_character(index, cell) {
   name_display.innerHTML = name;
 
   var avatar_container = document.createElement("div");
-
-
   var avatar_display = document.createElement("IMG");
   avatar_display.src = avatar;
   avatar_display.style.width = '250px';
@@ -767,13 +787,17 @@ function select_character(index, cell) {
   pick_weapon_button.onclick = function(event) {
     var weapon_select = document.getElementById("weapon_chosen")
     var weapon_index = weapon_select.value
+
     character_state.current_weapon[character_number] = weapon_index
+    character_chosen.weapon_id = weapon_index
+
     var weapon = weapon_detailed_info[weapon_index]
 
     weapon_mini_display.src = weapon.avatar;
   }
 
   var default_weapon_index = character_state.current_weapon[character_number]
+  character_chosen.weapon_id = default_weapon_index
   var default_weapon = weapon_detailed_info[default_weapon_index]
 
   var weapon_mini_display = document.createElement("IMG");
@@ -820,14 +844,7 @@ function select_character(index, cell) {
   attack_button.onclick = function(event) {
     var main_actions_left = character_state.main_action[character_number]
     if (main_actions_left > 0) {
-      attack.in_process = 1
-      attack.weapon_id = character_state.current_weapon[character_number]
-      attack.attacker_id = character_number
-      attack.attacker_position = index
-      field_chosen = 0
-      targeted_skill.in_process = 0
-
-      cell.src = "./images/attack_placeholder.jpg";
+      choose_character_to_attack(cell)
     } else {
       alert("У вас не осталось действий!")
     }
@@ -899,6 +916,11 @@ function select_character(index, cell) {
 
   tiny_animate_containers()
 
+}
+
+function choose_character_to_attack(cell) {
+  character_chosen.in_process = 2
+  cell.src = "./images/attack_placeholder.jpg";
 }
 
 function change_character_visibility(character_number) {
@@ -975,38 +997,44 @@ function select_obstacle(index, cell) {
   character_info_container.append(name_display);
   character_info_container.append(avatar_display);
 
-  var delete_button = document.createElement("button");
-  delete_button.innerHTML = "Уничтожить";
-  delete_button.index = index;
-  delete_button.cell = cell;
-  delete_button.onclick = function(event) {
-    delete_object(event);
+  if (my_role == "gm") {
+    var delete_button = document.createElement("button");
+    delete_button.innerHTML = "Уничтожить";
+    delete_button.index = index;
+    delete_button.cell = cell;
+    delete_button.onclick = function(event) {
+      delete_object(event);
+    }
+    character_info_container.append(delete_button);
   }
-  character_info_container.append(delete_button);
 
   tiny_animate_containers()
 
 }
 
 function choose_character_to_move(index, cell) {
-  field_chosen = 1;
-  attack.in_process = 0
-  targeted_skill.in_process = 0
-  chosen_index = index;
-  chosen_character_index = game_state.board_state[index];
+  character_chosen.in_process = 1
+  character_chosen.char_position = index;
+  character_chosen.char_id = game_state.board_state[index];
   cell.src = "./images/loading.webp";
 }
 
 function undo_selection() {
-  field_chosen = 0;
-  var old_cell = document.getElementById("cell_" + chosen_index);
-  old_cell.src = character_detailed_info[chosen_character_index].avatar;
+  character_chosen.in_process = 0
+  var old_cell = document.getElementById("cell_" + character_chosen.char_position);
+  old_cell.src = character_detailed_info[character_chosen.char_id].avatar;
 }
 
 function stop_attack() {
-  attack.in_process = 0
-  var old_cell = document.getElementById("cell_" + attack.attacker_position);
-  old_cell.src = character_detailed_info[attack.attacker_id].avatar;
+  character_chosen.in_process = 0
+  var old_cell = document.getElementById("cell_" + character_chosen.char_position);
+  old_cell.src = character_detailed_info[character_chosen.char_id].avatar;
+}
+
+function stop_skill() {
+  character_chosen.in_process = 0
+  var old_cell = document.getElementById("cell_" + character_chosen.char_position);
+  old_cell.src = character_detailed_info[character_chosen.char_id].avatar;
 }
 
 function get_object_picture(index_in_board_state) {
@@ -1235,21 +1263,24 @@ function roll_attack(type, attacker, target) {
 }
 
 function perform_attack(index, cell) {
-  var weapon = weapon_detailed_info[attack.weapon_id]
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
 
-  if (isInRange(index, attack.attacker_position, weapon.range)) {
+  var weapon = weapon_detailed_info[character_chosen.weapon_id]
+
+  if (isInRange(index, user_position, weapon.range)) {
 
     var target_character_number = game_state.board_state[index]
     var target_character_KD = parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
     var target_character = character_detailed_info[target_character_number]
-    var attacking_character = character_detailed_info[attack.attacker_id]
+    var attacking_character = character_detailed_info[user_character_number]
 
-    var attack_roll = roll_attack(weapon.type, attack.attacker_id, target_character_number)
+    var attack_roll = roll_attack(weapon.type, user_character_number, target_character_number)
 
     var toSend = {};
     toSend.command = 'resolve_attack';
     toSend.room_number = my_room;
-    toSend.attacker_id = attack.attacker_id
+    toSend.attacker_id = user_character_number
     toSend.target_id = target_character_number
     toSend.attack_type = weapon.type
 
@@ -1262,8 +1293,8 @@ function perform_attack(index, cell) {
         var cumulative_attack_roll = attack_roll + 2*parseInt(attacking_character.intelligence)
       }
 
-      var attack_bonus = character_state.attack_bonus[attack.attacker_id]
-      var universal_bonus = character_state.universal_bonus[attack.attacker_id]
+      var attack_bonus = character_state.attack_bonus[user_character_number]
+      var universal_bonus = character_state.universal_bonus[user_character_number]
 
       cumulative_attack_roll = cumulative_attack_roll + attack_bonus + universal_bonus
 
@@ -1276,12 +1307,12 @@ function perform_attack(index, cell) {
           if (evade_roll > cumulative_attack_roll) { //succesfully evaded
             toSend.outcome = "evaded"
           } else {
-            var damage_roll = compute_damage(weapon, attack.attacker_id, attack_roll, target_character_number)
+            var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
             toSend.damage_roll = damage_roll
             toSend.outcome = "damage_after_evasion"
           }
         } else {
-          var damage_roll = compute_damage(weapon, attack.attacker_id, attack_roll, target_character_number)
+          var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
           toSend.damage_roll = damage_roll
           toSend.outcome = "damage_without_evasion"
         }
@@ -1290,7 +1321,7 @@ function perform_attack(index, cell) {
       }
     } else { // full crit
       toSend.attack_roll = attack_roll
-      var damage_roll = compute_damage(weapon, attack.attacker_id, attack_roll, target_character_number)
+      var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
       toSend.damage_roll = damage_roll
       toSend.outcome = "full_crit"
     }
@@ -1406,24 +1437,19 @@ function compute_damage(weapon, character_number, attack_roll, target_number) {
   return damage
 }
 
-function stop_skill() {
-  targeted_skill.in_process = 0
-  var old_cell = document.getElementById("cell_" + targeted_skill.attacker_position);
-  old_cell.src = character_detailed_info[targeted_skill.attacker_id].avatar;
-}
-
 function weak_spot(index, cell) {
   var target_character_number = game_state.board_state[index]
-  var attacking_character = character_detailed_info[targeted_skill.attacker_id]
+  var user_character_number = character_chosen.char_id
+  var attacking_character = character_detailed_info[user_character_number]
 
   var toSend = {};
   toSend.command = 'skill';
-  toSend.skill_index = targeted_skill.skill_id
+  toSend.skill_index = character_chosen.skill_id
   toSend.room_number = my_room;
-  toSend.user_index = targeted_skill.attacker_id
+  toSend.user_index = user_character_number
   toSend.target_id = target_character_number
 
-  var int_check = roll_x(20) + parseInt(attacking_character.intelligence) + character_state.universal_bonus[targeted_skill.attacker_id]
+  var int_check = roll_x(20) + parseInt(attacking_character.intelligence) + character_state.universal_bonus[user_character_number]
   if (int_check >= weak_spot_threshold) {
     toSend.outcome = "success"
   } else {
@@ -1434,25 +1460,27 @@ function weak_spot(index, cell) {
 }
 
 function heal(index, cell) {
-    if (isInRange(index, targeted_skill.attacker_position, heal_range)) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  if (isInRange(index, user_position, heal_range)) {
 
   var target_character_number = game_state.board_state[index]
-  var healer_character = character_detailed_info[targeted_skill.attacker_id]
+  var healer_character = character_detailed_info[user_character_number]
   var target_character = character_detailed_info[target_character_number]
 
   var target_hp = character_state.HP[target_character_number]
   var target_full_hp = HP_values[target_character.stamina]
   var ratio = parseFloat(target_hp)/parseFloat(target_full_hp)
 
-  var heal_roll = roll_x(20) + parseInt(healer_character.intelligence) + character_state.universal_bonus[targeted_skill.attacker_id]
+  var heal_roll = roll_x(20) + parseInt(healer_character.intelligence) + character_state.universal_bonus[user_character_number]
   if (healer_character.special_type == "med") {
     heal_roll = heal_roll + parseInt(healer_character.intelligence)
   }
   var toSend = {};
   toSend.command = 'skill';
-  toSend.skill_index = targeted_skill.skill_id
+  toSend.skill_index = character_chosen.skill_id
   toSend.room_number = my_room;
-  toSend.user_index = targeted_skill.attacker_id
+  toSend.user_index = user_character_number
   toSend.target_id = target_character_number
   toSend.heal_roll = heal_roll
 
@@ -1549,19 +1577,21 @@ function heal(index, cell) {
 }
 
 function big_bro(index, cell) {
-  if (isInRange(index, targeted_skill.attacker_position, big_bro_range)) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  if (isInRange(index, user_position, big_bro_range)) {
   var target_character_number = game_state.board_state[index]
 
-  var shield_KD = parseInt(character_state.KD_points[targeted_skill.attacker_id]) + parseInt(character_state.bonus_KD[targeted_skill.attacker_id])
+  var shield_KD = parseInt(character_state.KD_points[user_character_number]) + parseInt(character_state.bonus_KD[user_character_number])
   var target_KD = parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
 
   var bonus_KD = Math.max(shield_KD -  target_KD, 0)
 
   var toSend = {};
   toSend.command = 'skill';
-  toSend.skill_index = targeted_skill.skill_id
+  toSend.skill_index = character_chosen.skill_id
   toSend.room_number = my_room;
-  toSend.user_index = targeted_skill.attacker_id
+  toSend.user_index = user_character_number
   toSend.target_id = target_character_number
   toSend.bonus_KD = bonus_KD
   socket.sendMessage(toSend);
@@ -1625,18 +1655,20 @@ function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, b
 
 // increase attack roll by agility bonus (2*mod)
 function cut_limbs(index, cell) {
-  var weapon = weapon_detailed_info[character_state.current_weapon[targeted_skill.attacker_id]]
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]]
   if (weapon.type == "melee") {
-    var attacking_character = character_detailed_info[targeted_skill.attacker_id]
-    var bonus_attack = 2*parseInt(attacking_character.agility) + character_state.attack_bonus[targeted_skill.attacker_id] + character_state.universal_bonus[targeted_skill.attacker_id]
+    var attacking_character = character_detailed_info[user_character_number]
+    var bonus_attack = 2*parseInt(attacking_character.agility) + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
 
-    var toSend = damage_skill_template(index, targeted_skill.attacker_position, weapon.range, targeted_skill.attacker_id, targeted_skill.skill_id, bonus_attack, weapon)
+    var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon)
     if (toSend == null) {
       alert("Далековато")
     } else {
       if (toSend.outcome == "damage_after_evasion" || toSend.outcome == "damage_without_evasion" || toSend.outcome == "full_crit") {
         var damage_roll = toSend.damage_roll
-        var flat_damage = damage_roll - strength_damage_map[parseInt(attacking_character.strength)] - character_state.damage_bonus[targeted_skill.attacker_id]
+        var flat_damage = damage_roll - strength_damage_map[parseInt(attacking_character.strength)] - character_state.damage_bonus[user_character_number]
         var full_damage = weapon.damage[1] * weapon.damage[0]
         if (flat_damage > full_damage/3) {
           toSend.skill_outcome = "success"
@@ -1657,11 +1689,13 @@ function cut_limbs(index, cell) {
 }
 
 function shock_wave(index, cell) {
-  var weapon = weapon_detailed_info[character_state.current_weapon[targeted_skill.attacker_id]]
-  var attacking_character = character_detailed_info[targeted_skill.attacker_id]
-  var bonus_attack = parseInt(attacking_character.intelligence) + character_state.attack_bonus[targeted_skill.attacker_id] + character_state.universal_bonus[targeted_skill.attacker_id]
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]]
+  var attacking_character = character_detailed_info[user_character_number]
+  var bonus_attack = parseInt(attacking_character.intelligence) + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
 
-  var toSend = damage_skill_template(index, targeted_skill.attacker_position, weapon.range, targeted_skill.attacker_id, targeted_skill.skill_id, bonus_attack, weapon)
+  var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon)
   if (toSend == null) {
     alert("Далековато")
   } else {
@@ -1675,7 +1709,9 @@ function shock_wave(index, cell) {
 }
 
 function devour(index, cell) {
-  if (isInRange(index, targeted_skill.attacker_position, 1)) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  if (isInRange(index, user_position, 1)) {
     var target_character_number = game_state.board_state[index]
     var stacks = 0
     if (character_state.special_effects[target_character_number].hasOwnProperty("Markus_stacks")) {
@@ -1684,9 +1720,9 @@ function devour(index, cell) {
     var damage = stacks*5 + roll_x(10)
     var toSend = {};
     toSend.command = 'skill';
-    toSend.skill_index = targeted_skill.skill_id
+    toSend.skill_index = character_chosen.skill_id
     toSend.room_number = my_room;
-    toSend.user_index = targeted_skill.attacker_id
+    toSend.user_index = user_character_number
     toSend.target_id = target_character_number
     toSend.damage = damage
     socket.sendMessage(toSend);
@@ -1696,7 +1732,9 @@ function devour(index, cell) {
 }
 
 function absolute_recovery(index, cell) {
-  if (isInRange(index, targeted_skill.attacker_position, 1)) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  if (isInRange(index, user_position, 1)) {
     var target_character_number = game_state.board_state[index]
     var heal_amount = 0
 
@@ -1706,16 +1744,16 @@ function absolute_recovery(index, cell) {
     }
 
     var biopool = 0
-    if (character_state.special_effects[targeted_skill.attacker_id].hasOwnProperty("biopool")) {
-      biopool = character_state.special_effects[targeted_skill.attacker_id].biopool
+    if (character_state.special_effects[user_character_number].hasOwnProperty("biopool")) {
+      biopool = character_state.special_effects[user_character_number].biopool
     }
 
     if (heal_amount > 0 && biopool >= heal_amount) {
       var toSend = {};
       toSend.command = 'skill';
-      toSend.skill_index = targeted_skill.skill_id
+      toSend.skill_index = character_chosen.skill_id
       toSend.room_number = my_room;
-      toSend.user_index = targeted_skill.attacker_id
+      toSend.user_index = user_character_number
       toSend.target_id = target_character_number
       toSend.heal_amount = heal_amount
       socket.sendMessage(toSend);
@@ -1728,14 +1766,16 @@ function absolute_recovery(index, cell) {
 }
 
 function gas_bomb(index, cell) {
-  var character = character_detailed_info[targeted_skill.attacker_id]
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  var character = character_detailed_info[user_character_number]
   var throw_range = throw_base_range + parseInt(character.strength)*2
-  if (isInRange(index, targeted_skill.attacker_position, throw_range)) {
+  if (isInRange(index, user_position, throw_range)) {
     var toSend = {};
     toSend.command = 'skill';
-    toSend.skill_index = targeted_skill.skill_id
+    toSend.skill_index = character_chosen.skill_id
     toSend.room_number = my_room;
-    toSend.user_index = targeted_skill.attacker_id
+    toSend.user_index = user_character_number
     toSend.position = index
     toSend.threshold = gas_bomb_threshold
     socket.sendMessage(toSend);
@@ -1747,12 +1787,15 @@ function gas_bomb(index, cell) {
 }
 
 function light_sound_bomb(index, cell) {
-  if (isInRange(index, targeted_skill.attacker_position, light_sound_bomb_range)) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+
+  if (isInRange(index, user_position, light_sound_bomb_range)) {
   var toSend = {};
   toSend.command = 'skill';
-  toSend.skill_index = targeted_skill.skill_id
+  toSend.skill_index = character_chosen.skill_id
   toSend.room_number = my_room;
-  toSend.user_index = targeted_skill.attacker_id
+  toSend.user_index = user_character_number
   toSend.position = index
 
   var character_list = []
@@ -1787,15 +1830,18 @@ function light_sound_bomb(index, cell) {
 }
 
 function force_field(index, cell) {
-  if (isInRange(index, targeted_skill.attacker_position, force_field_range)) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+
+  if (isInRange(index, user_position, force_field_range)) {
   var toSend = {};
   toSend.command = 'skill';
-  toSend.skill_index = targeted_skill.skill_id
+  toSend.skill_index = character_chosen.skill_id
   toSend.room_number = my_room;
-  toSend.user_index = targeted_skill.attacker_id
+  toSend.user_index = user_character_number
   toSend.position = index
 
-  var user = character_detailed_info[targeted_skill.attacker_id]
+  var user = character_detailed_info[user_character_number]
 
   var shield = Math.ceil(parseFloat(HP_values[user.stamina])/2)
   toSend.shield = shield
@@ -1822,14 +1868,17 @@ function force_field(index, cell) {
 }
 
 function adrenaline(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+
   var target_number = game_state.board_state[index]
   var adrenaline_range = 1
-  if (isInRange(index, targeted_skill.attacker_position, adrenaline_range)) {
+  if (isInRange(index, user_position, adrenaline_range)) {
     var toSend = {};
     toSend.command = 'skill';
     toSend.room_number = my_room;
-    toSend.skill_index = targeted_skill.skill_id
-    toSend.user_index = targeted_skill.attacker_id
+    toSend.skill_index = character_chosen.skill_id
+    toSend.user_index = user_character_number
     toSend.target_index = target_number
     var extra_actions = roll_x(4)
     var minus_actions = roll_x(4)
@@ -1842,15 +1891,17 @@ function adrenaline(index, cell) {
 }
 
 function pich_pich_go(index, cell) {
-  var user = character_detailed_info[targeted_skill.attacker_id]
+  var user_character_number = character_chosen.char_id
+
+  var user = character_detailed_info[user_character_number]
   var target_number = game_state.board_state[index]
   var target = character_detailed_info[target_number]
   if (target.special_type == "drone") {
     var toSend = {};
     toSend.command = 'skill';
     toSend.room_number = my_room;
-    toSend.skill_index = targeted_skill.skill_id
-    toSend.user_index = targeted_skill.attacker_id
+    toSend.skill_index = character_chosen.skill_id
+    toSend.user_index = user_character_number
     toSend.target_index = target_number
     var extra_actions = Math.ceil(parseFloat(user.intelligence)/2)
     toSend.extra_actions = extra_actions
@@ -1861,7 +1912,7 @@ function pich_pich_go(index, cell) {
 }
 
 function perform_skill(index, cell) {
-  switch(targeted_skill.skill_id) {
+  switch(character_chosen.skill_id) {
     case 1:
       adrenaline(index, cell)
       stop_skill()
@@ -1935,24 +1986,12 @@ function use_skill(skill_index, character_number, position, cell) {
       if (character_state.special_effects[character_number].hasOwnProperty("adrenaline_user")) {
         alert("Умение все еще на кулдауне")
       } else {
-        field_chosen = 0
-        attack.in_process = 0
-        targeted_skill.in_process = 1
-        targeted_skill.skill_id = skill_index
-        targeted_skill.attacker_id = character_number
-        targeted_skill.attacker_position = position
-        cell.src = "./images/Chidori.webp";
+        choose_character_skill(skill_index, character_number, position, cell)
       }
       break;
     case 2: // Подрезать сухожилия
     if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
-      field_chosen = 0
-      attack.in_process = 0
-      targeted_skill.in_process = 1
-      targeted_skill.skill_id = skill_index
-      targeted_skill.attacker_id = character_number
-      targeted_skill.attacker_position = position
-      cell.src = "./images/Chidori.webp";
+      choose_character_skill(skill_index, character_number, position, cell)
     } else {
       alert("Не хватает действий!")
     }
@@ -1960,13 +1999,7 @@ function use_skill(skill_index, character_number, position, cell) {
 
     case 3: // Слабое место
     if (character_state.bonus_action[character_number] > 0) {
-      field_chosen = 0
-      attack.in_process = 0
-      targeted_skill.in_process = 1
-      targeted_skill.skill_id = skill_index
-      targeted_skill.attacker_id = character_number
-      targeted_skill.attacker_position = position
-      cell.src = "./images/Chidori.webp";
+      choose_character_skill(skill_index, character_number, position, cell)
     } else {
       alert("Не хватает действий!")
     }
@@ -1974,13 +2007,7 @@ function use_skill(skill_index, character_number, position, cell) {
 
     case 4: // Лечение
     if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
-      field_chosen = 0
-      attack.in_process = 0
-      targeted_skill.in_process = 1
-      targeted_skill.skill_id = skill_index
-      targeted_skill.attacker_id = character_number
-      targeted_skill.attacker_position = position
-      cell.src = "./images/Chidori.webp";
+      choose_character_skill(skill_index, character_number, position, cell)
     } else {
       alert("Не хватает действий!")
     }
@@ -1988,13 +2015,7 @@ function use_skill(skill_index, character_number, position, cell) {
 
     case 5: // Большой брат
     if (character_state.bonus_action[character_number] > 0) {
-      field_chosen = 0
-      attack.in_process = 0
-      targeted_skill.in_process = 1
-      targeted_skill.skill_id = skill_index
-      targeted_skill.attacker_id = character_number
-      targeted_skill.attacker_position = position
-      cell.src = "./images/Chidori.webp";
+      choose_character_skill(skill_index, character_number, position, cell)
     } else {
       alert("Не хватает действий!")
     }
@@ -2021,13 +2042,7 @@ function use_skill(skill_index, character_number, position, cell) {
 
     case 7: // пожирание сущности
     if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
-      field_chosen = 0
-      attack.in_process = 0
-      targeted_skill.in_process = 1
-      targeted_skill.skill_id = skill_index
-      targeted_skill.attacker_id = character_number
-      targeted_skill.attacker_position = position
-      cell.src = "./images/Chidori.webp";
+      choose_character_skill(skill_index, character_number, position, cell)
     } else {
       alert("Не хватает действий!")
     }
@@ -2043,13 +2058,7 @@ function use_skill(skill_index, character_number, position, cell) {
 
     case 9: // безупречное восстановление
       if (character_state.bonus_action[character_number] > 0) {
-        field_chosen = 0
-        attack.in_process = 0
-        targeted_skill.in_process = 1
-        targeted_skill.skill_id = skill_index
-        targeted_skill.attacker_id = character_number
-        targeted_skill.attacker_position = position
-        cell.src = "./images/Chidori.webp";
+        choose_character_skill(skill_index, character_number, position, cell)
       } else {
         alert("Не хватает действий!")
       }
@@ -2086,13 +2095,7 @@ function use_skill(skill_index, character_number, position, cell) {
     case 12: // газовая граната
           if (!character_state.special_effects[character_number].hasOwnProperty("gas_bomb_user")) {
             if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
-              field_chosen = 0
-              attack.in_process = 0
-              targeted_skill.in_process = 1
-              targeted_skill.skill_id = skill_index
-              targeted_skill.attacker_id = character_number
-              targeted_skill.attacker_position = position
-              cell.src = "./images/Chidori.webp";
+              choose_character_skill(skill_index, character_number, position, cell)
             } else {
               alert("Не хватает действий!")
             }
@@ -2103,13 +2106,7 @@ function use_skill(skill_index, character_number, position, cell) {
     case 13: // светошумовая граната
           if (!character_state.special_effects[character_number].hasOwnProperty("light_sound_bomb_user")) {
               if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
-                field_chosen = 0
-                attack.in_process = 0
-                targeted_skill.in_process = 1
-                targeted_skill.skill_id = skill_index
-                targeted_skill.attacker_id = character_number
-                targeted_skill.attacker_position = position
-                cell.src = "./images/Chidori.webp";
+                choose_character_skill(skill_index, character_number, position, cell)
               } else {
                 alert("Не хватает действий!")
               }
@@ -2119,13 +2116,7 @@ function use_skill(skill_index, character_number, position, cell) {
           break;
     case 14: // Шоковый импульс
       if (character_state.main_action[character_number] > 0) {
-        field_chosen = 0
-        attack.in_process = 0
-        targeted_skill.in_process = 1
-        targeted_skill.skill_id = skill_index
-        targeted_skill.attacker_id = character_number
-        targeted_skill.attacker_position = position
-        cell.src = "./images/Chidori.webp";
+        choose_character_skill(skill_index, character_number, position, cell)
       } else {
         alert("Не хватает действий!")
       }
@@ -2133,13 +2124,7 @@ function use_skill(skill_index, character_number, position, cell) {
     case 15: // Пыщ-пыщ-го
       if (!character_state.special_effects[character_number].hasOwnProperty("pich_pich_user")) {
         if (character_state.bonus_action[character_number] > 0) {
-          field_chosen = 0
-          attack.in_process = 0
-          targeted_skill.in_process = 1
-          targeted_skill.skill_id = skill_index
-          targeted_skill.attacker_id = character_number
-          targeted_skill.attacker_position = position
-          cell.src = "./images/Chidori.webp";
+          choose_character_skill(skill_index, character_number, position, cell)
         } else {
           alert("Не хватает действий!")
         }
@@ -2151,13 +2136,7 @@ function use_skill(skill_index, character_number, position, cell) {
     case 16: // Силовое поле
         if (!character_state.special_effects[character_number].hasOwnProperty("force_field_user")) {
           if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
-            field_chosen = 0
-            attack.in_process = 0
-            targeted_skill.in_process = 1
-            targeted_skill.skill_id = skill_index
-            targeted_skill.attacker_id = character_number
-            targeted_skill.attacker_position = position
-            cell.src = "./images/Chidori.webp";
+            choose_character_skill(skill_index, character_number, position, cell)
           } else {
             alert("Не хватает действий!")
           }
@@ -2169,6 +2148,14 @@ function use_skill(skill_index, character_number, position, cell) {
     default:
       alert("Не знаем это умение")
   }
+}
+
+function choose_character_skill(skill_index, character_number, position, cell) {
+  character_chosen.in_process = 3
+  character_chosen.skill_id = skill_index
+  character_chosen.char_id = character_number
+  character_chosen.char_position = position
+  cell.src = "./images/Chidori.webp";
 }
 
 function apply_bomb(position, radius) {
@@ -2383,6 +2370,14 @@ socket.registerMessageHandler((data) => {
             // q
             if(keyCode == 81) {
                 fogModeChange();
+            } else if (keyCode == 87) { // w
+              if (character_chosen.in_process == 1) {
+                undo_selection()
+              } else {
+                var index = character_chosen.char_position
+                var cell = character_chosen.cell
+                choose_character_to_move(index, cell);
+            }
             }
         };
       }
@@ -3353,5 +3348,19 @@ notifications_container.hide();
 var character_info_container = $(CHARACTER_INFO_CONTANER_SELECTOR);
 
 var weapon_info_container = $(WEAPON_INFO_CONTANER_SELECTOR);
+
+document.onkeydown = function (e) {
+    var keyCode = e.keyCode;
+    // w
+    if(keyCode == 87) {
+        if (character_chosen.in_process == 1) {
+          undo_selection()
+        } else {
+          var index = character_chosen.char_position
+          var cell = character_chosen.cell
+          choose_character_to_move(index, cell);
+      }
+    }
+};
 
 setInterval(reconnect, 15*1000)
