@@ -250,15 +250,10 @@ wss.on('connection', (ws) => {
         clientSocket.send(JSON.stringify(response));
       });
     } else if (data.command == 'assign_zone') {
-      var response = {};
-      response.room_number = data.room_number;
-      response.command = 'assign_zone_response';
-      response.index = data.index;
-      response.to_name = 'all';
-      response.modificator = data.modificator;
-      response.zone_number = data.zone_number;
+      data.command = 'assign_zone_response';
+      data.to_name = 'all';
       wss.clients.forEach(function(clientSocket) {
-        clientSocket.send(JSON.stringify(response));
+        clientSocket.send(JSON.stringify(data));
       });
     } else if (data.command == 'search_action') {
       var response = {};

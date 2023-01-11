@@ -45,6 +45,7 @@ var skill_list = [];
 var TINY_EFFECT_CLASS = 'is-tiny';
 
 var EMPTY_CELL_PIC = "./images/square.jpg";
+var ZONE_ENDPOINT_PIC = "./images/red_cross.jpg"
 var FOG_IMAGE = "./images/fog.webp";
 var QUESTION_IMAGE = "./images/question.jpg";
 
@@ -117,6 +118,7 @@ let battle_mod = 0
 let character_chosen = {in_process: 0, char_id: 0, char_position: 0, weapon_id: 0, skill_id: 0, cell: 0};
 
 let last_obstacle = 1;
+let zone_endpoint = {index: -1, cell: 0}
 
 var gunshot_audio = new Audio('sounds/gunshot.mp3');
 var sword_audio = new Audio('sounds/sword.wav');
@@ -195,15 +197,27 @@ function no_shift_onclick(my_role, gm_control_mod, game_state, field_chosen, cel
   }
 }
 
-function shift_onclick(index) {
+function shift_onclick(index, cell) {
   if (my_role == 'gm') {
-    var toSend = {};
-    toSend.command = 'add_obstacle';
-    toSend.cell_id = index;
-    toSend.obstacle_number = last_obstacle;
-    toSend.obstacle_name = obstacle_list[last_obstacle - 1];
-    toSend.room_number = my_room;
-    socket.sendMessage(toSend);
+    if (gm_control_mod == 2) {
+      if (zone_endpoint.index < 0) {
+        zone_endpoint.index = index
+        zone_endpoint.cell = cell
+        cell.src = ZONE_ENDPOINT_PIC
+      } else {
+        endpoint_assign_zone(index, zone_endpoint.index)
+        zone_endpoint.cell.src = EMPTY_CELL_PIC
+        zone_endpoint.index = -1
+      }
+    } else {
+      var toSend = {};
+      toSend.command = 'add_obstacle';
+      toSend.cell_id = index;
+      toSend.obstacle_number = last_obstacle;
+      toSend.obstacle_name = obstacle_list[last_obstacle - 1];
+      toSend.room_number = my_room;
+      socket.sendMessage(toSend);
+    }
   }
 }
 
@@ -250,7 +264,7 @@ function construct_board(new_game_state) {
         var index = cell.row * game_state.size + cell.column;
 
         if (event.shiftKey) {
-          shift_onclick(index)
+          shift_onclick(index, cell)
         } else if (event.ctrlKey) {
           ctrl_onclick(index)
         } else {
@@ -274,6 +288,60 @@ function construct_board(new_game_state) {
   board_container.appendChild(board);
 }
 
+function endpoint_assign_zone(endpoint1, endpoint2) {
+  var zone_number = zone_number_select.val();
+  var modificator = search_modificator.val();
+  var size = game_state.size
+
+  var index_list = []
+
+  var coord1 = index_to_coordinates(endpoint1, size)
+  var coord2 = index_to_coordinates(endpoint2, size)
+
+  var top_left = top_left_coord(coord1, coord2)
+  var bottom_right = bottom_right_coord(coord1, coord2)
+
+  for (let i = top_left.x; i <= bottom_right.x; i++) {
+    for (let j = top_left.y; j <= bottom_right.y; j++) {
+      var coord = {}
+      coord.x = i
+      coord.y = j
+      var index = coord_to_index(coord, size)
+
+      index_list.push(index)
+      var zone_text = document.getElementById('zone_text_' + index);
+      zone_text.innerHTML = zone_number + '(' + modificator + ')';
+    }
+  }
+
+  var toSend = {};
+  toSend.command = 'assign_zone';
+  toSend.zone_number = zone_number;
+  toSend.index_list = index_list;
+  toSend.modificator = modificator;
+  toSend.room_number = my_room;
+  socket.sendMessage(toSend);
+}
+
+function top_left_coord(coord1, coord2) {
+  var toRet = {}
+  toRet.x = Math.min(coord1.x, coord2.x)
+  toRet.y = Math.min(coord1.y, coord2.y)
+  return toRet
+}
+
+function bottom_right_coord(coord1, coord2) {
+  var toRet = {}
+  toRet.x = Math.max(coord1.x, coord2.x)
+  toRet.y = Math.max(coord1.y, coord2.y)
+  return toRet
+}
+
+function coord_to_index(coord, size) {
+  var index = coord.x * size + coord.y
+  return index
+}
+
 function assignZone(index) {
   var zone_number = zone_number_select.val();
   var modificator = search_modificator.val();
@@ -281,10 +349,13 @@ function assignZone(index) {
   var zone_text = document.getElementById('zone_text_' + index);
   zone_text.innerHTML = zone_number + '(' + modificator + ')';
 
+  var index_list = []
+  index_list.push(index)
+
   var toSend = {};
   toSend.command = 'assign_zone';
   toSend.zone_number = zone_number;
-  toSend.index = index;
+  toSend.index_list = index_list;
   toSend.modificator = modificator;
   toSend.room_number = my_room;
   socket.sendMessage(toSend);
@@ -358,6 +429,13 @@ function standard_cell_onClick(index, cell, role) {
     }
 
 	}
+}
+
+function index_to_coordinates(index, size) {
+  var toRet = {}
+  toRet.x = Math.floor(index/size)
+  toRet.y = index % size
+  return toRet
 }
 
 function findDistance(index1, index2) {
@@ -649,6 +727,36 @@ function select_character(index, cell) {
 
   if (my_role == "gm" || character_state.visibility[character_number] == 1) {
 
+    avatar_display.onmouseenter = function(event) {
+
+      var main_action = character_state.main_action[character_number]
+      var bonus_action = character_state.bonus_action[character_number]
+      var move_action = character_state.move_action[character_number]
+
+      var main_action_display = document.createElement("h2");
+      main_action_display.id = "main_action_display";
+      main_action_display.innerHTML = "Основных: " + main_action
+
+      var bonus_action_display = document.createElement("h2");
+      bonus_action_display.id = "bonus_action_display";
+      bonus_action_display.innerHTML = "Бонусных: " + bonus_action
+
+      var move_action_display = document.createElement("h2");
+      move_action_display.id = "move_action_display";
+      move_action_display.innerHTML = "Передвижение: " + move_action
+
+
+      weapon_info_container.append(main_action_display)
+      weapon_info_container.append(bonus_action_display)
+      weapon_info_container.append(move_action_display)
+      weapon_info_container.show()
+    }
+
+    avatar_display.onmouseleave = function(event) {
+      weapon_info_container.html("")
+      weapon_info_container.hide()
+    }
+
   var strength_display = document.createElement("h2");
   strength_display.innerHTML = "Cила: " + character.strength;
 
@@ -831,10 +939,12 @@ function select_character(index, cell) {
     weapon_info_container.append(weapon_avatar_display)
     weapon_info_container.append(weapon_range_display)
     weapon_info_container.append(weapon_damage_display)
+    weapon_info_container.show()
   }
 
   weapon_mini_display.onmouseleave = function(event) {
     weapon_info_container.html("")
+    weapon_info_container.hide()
   }
 
   avatar_container.append(weapon_mini_display)
@@ -2328,6 +2438,31 @@ function clear_character(number) {
   character_state.defensive_advantage[number] = null
 }
 
+function w_onclick() {
+  if (character_chosen.in_process == 1) {
+    undo_selection()
+  } else {
+    var index = character_chosen.char_position
+    var cell = character_chosen.cell
+    choose_character_to_move(index, cell);
+  }
+}
+
+function a_onclick() {
+  if (character_chosen.in_process == 2) {
+    stop_attack()
+  } else {
+    var character_number = character_chosen.char_id
+    var cell = character_chosen.cell
+    var main_actions_left = character_state.main_action[character_number]
+    if (main_actions_left > 0) {
+      choose_character_to_attack(cell)
+    } else {
+      alert("У вас не осталось действий!")
+    }
+  }
+}
+
 //socket.init('ws://localhost:3001');
 socket.init(SERVER_ADDRESS);
 
@@ -2371,13 +2506,9 @@ socket.registerMessageHandler((data) => {
             if(keyCode == 81) {
                 fogModeChange();
             } else if (keyCode == 87) { // w
-              if (character_chosen.in_process == 1) {
-                undo_selection()
-              } else {
-                var index = character_chosen.char_position
-                var cell = character_chosen.cell
-                choose_character_to_move(index, cell);
-            }
+              w_onclick()
+            } else if (keyCode == 65) { // a
+              a_onclick()
             }
         };
       }
@@ -2522,8 +2653,11 @@ socket.registerMessageHandler((data) => {
 					cell.src = FOG_IMAGE;
 				}
 		} else if (data.command == 'assign_zone_response') {
-      game_state.zone_state[data.index] = data.zone_number;
-      game_state.search_modificator_state[data.index] = data.modificator;
+      var index_list = data.index_list
+      for (let i = 0; i < index_list.length; i++) {
+        game_state.zone_state[index_list[i]] = data.zone_number;
+        game_state.search_modificator_state[index_list[i]] = data.modificator;
+      }
     } else if (data.command == 'change_character_visibility_response') {
       character_state.visibility[data.character_number] = data.new_value;
     } else if (data.command == 'simple_roll_response') {
@@ -3353,13 +3487,9 @@ document.onkeydown = function (e) {
     var keyCode = e.keyCode;
     // w
     if(keyCode == 87) {
-        if (character_chosen.in_process == 1) {
-          undo_selection()
-        } else {
-          var index = character_chosen.char_position
-          var cell = character_chosen.cell
-          choose_character_to_move(index, cell);
-      }
+        w_onclick()
+    } else if (keyCode == 65) { // a
+      a_onclick()
     }
 };
 

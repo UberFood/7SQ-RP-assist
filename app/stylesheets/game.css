@@ -204,6 +204,11 @@ html, body {
   transition: transform 333ms ease-in-out;
 }
 
+#special-info-container {
+  display: flex;
+  flex-direction: column;
+}
+
 #weapon-info-container {
   display: flex;
   flex-direction: column;
