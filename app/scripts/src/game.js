@@ -1332,14 +1332,14 @@ function start_new_round() {
   socket.sendMessage(toSend);
 }
 
-function roll_attack(type, attacker, target) {
+function roll_attack(type, attacker, target, advantage_bonus) {
   var advantage = 0
   if ((type == "ranged")||(type == "energy")) {
     advantage = character_state.ranged_advantage[attacker]
   } else if (type == "melee") {
     advantage = character_state.melee_advantage[attacker]
   }
-  advantage = advantage - character_state.defensive_advantage[target]
+  advantage = advantage - character_state.defensive_advantage[target] + advantage_bonus
   var roll = 0
 
   if (advantage >= 2) { // Дикое преимущество = 4 куба
@@ -1372,6 +1372,141 @@ function roll_attack(type, attacker, target) {
   return roll
 }
 
+function cover_mod(accumulated_cover) {
+  var mod = {}
+  mod.isPossible = true
+  mod.cover_level = accumulated_cover
+  switch(accumulated_cover) {
+    case 0:
+      mod.attack_bonus = 0
+      mod.advantage_bonus = 0
+      break;
+    case 1:
+      mod.attack_bonus = 0
+      mod.advantage_bonus = 0
+      break;
+    case 2:
+      mod.attack_bonus = -1
+      mod.advantage_bonus = 0
+      break;
+    case 3:
+      mod.attack_bonus = -2
+      mod.advantage_bonus = 0
+      break;
+    case 4:
+        mod.attack_bonus = -2
+        mod.advantage_bonus = -1
+        break;
+    case 5:
+        mod.attack_bonus = -3
+        mod.advantage_bonus = -1
+        break;
+    case 6:
+        mod.attack_bonus = -3
+        mod.advantage_bonus = -2
+        break;
+    case 7:
+        mod.attack_bonus = -4
+        mod.advantage_bonus = -2
+        break;
+    case 8:
+        mod.attack_bonus = -4
+        mod.advantage_bonus = -3
+        break;
+    case 9:
+        mod.attack_bonus = -5
+        mod.advantage_bonus = -3
+        break;
+    default:
+        mod.isPossible = false
+        break;
+  }
+
+  return mod
+}
+
+function compute_cover(distance, cover) {
+  var result = 0
+  if (distance < 0.15) {
+    result = cover
+  } else if (distance < 0.3) {
+    result = cover * 0.75
+  } else if (distance < 0.5) {
+    result = cover * 0.5
+  } else if (distance < 0.65) {
+    result = cover * 0.25
+  } else {
+    result = 0
+  }
+
+  return result
+}
+
+function line_from_endpoints(point1, point2) {
+  var line = {}
+  line.a = -1*(point1.y - point2.y)
+  line.b = point1.x - point2.x
+  line.c = (line.a * point2.x - line.b * point2.y)
+  return line
+}
+
+function distance_to_line(endpoint1, endpoint2, size, testpoint) {
+  var endpoint1_coord = index_to_coordinates(endpoint1, size)
+  var endpoint2_coord = index_to_coordinates(endpoint2, size)
+  var testpoint_coord = index_to_coordinates(testpoint, size)
+
+  var line = line_from_endpoints(endpoint1_coord, endpoint2_coord)
+  console.log(line)
+  console.log(testpoint_coord)
+
+  var distance = Math.abs(line.a*testpoint_coord.x + line.b*testpoint_coord.y + line.c)/Math.sqrt(line.a*line.a + line.b*line.b)
+
+  console.log(distance)
+  return distance
+}
+
+function cells_on_line(endpoint1, endpoint2, size) {
+  var endpoint1_coord = index_to_coordinates(endpoint1, size)
+  var endpoint2_coord = index_to_coordinates(endpoint2, size)
+  var line = line_from_endpoints(endpoint1_coord, endpoint2_coord)
+
+  var scale = Math.max(Math.abs(line.a), Math.abs(line.b))
+  // need to be reversed! remember line.a = delta y
+  var x_step = line.b/scale
+  var y_step = -1*line.a/scale
+  var current_point = endpoint2_coord
+
+  var safety_iter = 0
+  var candidate_cells = []
+  while (Math.abs(current_point.x - endpoint1_coord.x) > 0.5 || Math.abs(current_point.y - endpoint1_coord.y) > 0.5) {
+    var ceil = {}
+    ceil.x = Math.ceil(current_point.x)
+    ceil.y = Math.ceil(current_point.y)
+    var ceil_index = coord_to_index(ceil, size)
+
+    var floor = {}
+    floor.x = Math.floor(current_point.x)
+    floor.y = Math.floor(current_point.y)
+    var floor_index = coord_to_index(floor, size)
+
+
+    candidate_cells.push(ceil_index)
+    if (ceil_index != floor_index) {
+      candidate_cells.push(floor_index)
+    }
+
+    current_point.x = current_point.x  + x_step
+    current_point.y = current_point.y  + y_step
+    safety_iter = safety_iter + 1
+    if (safety_iter > 50) {
+      break;
+    }
+  }
+
+  console.log(candidate_cells)
+  return candidate_cells
+}
+
 function perform_attack(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
@@ -1380,12 +1515,25 @@ function perform_attack(index, cell) {
 
   if (isInRange(index, user_position, weapon.range)) {
 
+    var accumulated_cover = 0
+    var candidate_cells = cells_on_line(user_position, index, game_state.size)
+    for (let i = 0; i < candidate_cells.length; i++) {
+      var current_cell = candidate_cells[i]
+      if (game_state.board_state[current_cell] < 0) {// это препятствие
+        var obstacle = obstacle_detailed_info[Math.abs(game_state.board_state[current_cell])]
+        var distance = distance_to_line(user_position, index, game_state.size, current_cell)
+        accumulated_cover = accumulated_cover + compute_cover(distance, obstacle.cover)
+      }
+    }
+    accumulated_cover = Math.ceil(accumulated_cover)
+    var cover_modifier = cover_mod(accumulated_cover)
+
+
     var target_character_number = game_state.board_state[index]
     var target_character_KD = parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
     var target_character = character_detailed_info[target_character_number]
     var attacking_character = character_detailed_info[user_character_number]
 
-    var attack_roll = roll_attack(weapon.type, user_character_number, target_character_number)
 
     var toSend = {};
     toSend.command = 'resolve_attack';
@@ -1393,52 +1541,60 @@ function perform_attack(index, cell) {
     toSend.attacker_id = user_character_number
     toSend.target_id = target_character_number
     toSend.attack_type = weapon.type
+    toSend.cover_level = cover_modifier.cover_level
 
-    if (attack_roll < 20) {// no crit
-      if (weapon.type == "ranged") {
-        var cumulative_attack_roll = attack_roll + parseInt(attacking_character.intelligence)
-      } else if (weapon.type == "melee") {
-        var cumulative_attack_roll = attack_roll + parseInt(attacking_character.strength)
-      } else if (weapon.type == "energy") {
-        var cumulative_attack_roll = attack_roll + 2*parseInt(attacking_character.intelligence)
-      }
+    if (cover_modifier.isPossible) {
+      var attack_roll = roll_attack(weapon.type, user_character_number, target_character_number, cover_modifier.advantage_bonus)
 
-      var attack_bonus = character_state.attack_bonus[user_character_number]
-      var universal_bonus = character_state.universal_bonus[user_character_number]
+      if (attack_roll < 20) {// no crit
+        if (weapon.type == "ranged") {
+          var cumulative_attack_roll = attack_roll + parseInt(attacking_character.intelligence)
+        } else if (weapon.type == "melee") {
+          var cumulative_attack_roll = attack_roll + parseInt(attacking_character.strength)
+        } else if (weapon.type == "energy") {
+          var cumulative_attack_roll = attack_roll + 2*parseInt(attacking_character.intelligence)
+        }
 
-      cumulative_attack_roll = cumulative_attack_roll + attack_bonus + universal_bonus
+        var attack_bonus = character_state.attack_bonus[user_character_number]
+        var universal_bonus = character_state.universal_bonus[user_character_number]
 
-      toSend.attack_roll = cumulative_attack_roll
+        cumulative_attack_roll = cumulative_attack_roll + attack_bonus + universal_bonus + cover_modifier.attack_bonus
 
-      if (cumulative_attack_roll > target_character_KD) {// Есть пробитие
-        if (character_state.can_evade[target_character_number] == 1) {
-          var evade_roll = roll_x(20) + parseInt(target_character.agility) + character_state.universal_bonus[target_character_number]
-          toSend.evade_roll = evade_roll
-          if (evade_roll > cumulative_attack_roll) { //succesfully evaded
-            toSend.outcome = "evaded"
+        toSend.attack_roll = cumulative_attack_roll
+
+        if (cumulative_attack_roll > target_character_KD) {// Есть пробитие
+          if (character_state.can_evade[target_character_number] == 1) {
+            var evade_roll = roll_x(20) + parseInt(target_character.agility) + character_state.universal_bonus[target_character_number]
+            toSend.evade_roll = evade_roll
+            if (evade_roll > cumulative_attack_roll) { //succesfully evaded
+              toSend.outcome = "evaded"
+            } else {
+              var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
+              toSend.damage_roll = damage_roll
+              toSend.outcome = "damage_after_evasion"
+            }
           } else {
             var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
             toSend.damage_roll = damage_roll
-            toSend.outcome = "damage_after_evasion"
+            toSend.outcome = "damage_without_evasion"
           }
         } else {
-          var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
-          toSend.damage_roll = damage_roll
-          toSend.outcome = "damage_without_evasion"
+          toSend.outcome = "KD_block"
         }
-      } else {
-        toSend.outcome = "KD_block"
+      } else { // full crit
+        toSend.attack_roll = attack_roll
+        var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
+        toSend.damage_roll = damage_roll
+        toSend.outcome = "full_crit"
       }
-    } else { // full crit
-      toSend.attack_roll = attack_roll
-      var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
-      toSend.damage_roll = damage_roll
-      toSend.outcome = "full_crit"
-    }
+
+    } else {
+      toSend.outcome = "full_cover"
+  }
     socket.sendMessage(toSend);
 
   } else {
-    alert("Далековато...")
+      alert("Далековато...")
   }
   stop_attack()
 }
@@ -3355,37 +3511,47 @@ socket.registerMessageHandler((data) => {
         character_state.stamina[data.attacker_id] = character_state.stamina[data.attacker_id] - stamina_attack_cost
         character_state.main_action[data.attacker_id] = character_state.main_action[data.attacker_id] - 1
       }
+
+      if (data.cover_level > 0) {
+        var cover_string = "Уровень укрытия: " + data.cover_level
+      } else {
+        var cover_string = ""
+      }
       switch (data.outcome) {
         case "KD_block":
-          var message = attacker.name + " атакует " + target.name + " (" + data.attack_roll + "), но не пробивает броню."
+          var message = attacker.name + " атакует " + target.name + " (" + data.attack_roll + "), но не пробивает броню. " + cover_string
           pushToList(message)
           break;
         case "evaded":
-          var message = attacker.name + " атакует " + target.name + " (" + data.attack_roll + "), однако " + target.name + " удалось увернуться (" + data.evade_roll + ")."
+          var message = attacker.name + " атакует " + target.name + " (" + data.attack_roll + "), однако " + target.name + " удалось увернуться (" + data.evade_roll + "). " + cover_string
           pushToList(message)
           if (target.special_type != 'rogue') {
             character_state.can_evade[data.target_id] = 0
           }
           break;
         case "damage_without_evasion":
-          var message = attacker.name + " успешно атакует " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться. Атака наносит " + data.damage_roll + " урона."
+          var message = attacker.name + " успешно атакует " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться. Атака наносит " + data.damage_roll + " урона. " + cover_string
           pushToList(message)
           do_damage(data.target_id, data.damage_roll)
           melee_penalty(data)
           break;
         case "damage_after_evasion":
-          var message = attacker.name + " успешно атакует " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + "). Атака наносит " + data.damage_roll + " урона."
+          var message = attacker.name + " успешно атакует " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + "). Атака наносит " + data.damage_roll + " урона. " + cover_string
           pushToList(message)
           do_damage(data.target_id, data.damage_roll)
           character_state.can_evade[data.target_id] = 0
           melee_penalty(data)
           break;
         case "full_crit":
-          var message = attacker.name + " критически атакует " + target.name + ", не оставляя возможности увернуться. Атака наносит " + data.damage_roll + " урона."
+          var message = attacker.name + " критически атакует " + target.name + ", не оставляя возможности увернуться. Атака наносит " + data.damage_roll + " урона. " + cover_string
           pushToList(message)
           do_damage(data.target_id, data.damage_roll)
           character_state.can_evade[data.target_id] = 0
           melee_penalty(data)
+          break;
+        case "full_cover":
+          var message = attacker.name + " пытался атаковать " + target.name + " но тот находится в полном укрытии."
+          pushToList(message)
           break;
         default:
           console.log("fucked up resolving damage")
