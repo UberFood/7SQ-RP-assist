@@ -168,13 +168,10 @@ wss.on('connection', (ws) => {
           clientSocket.send(JSON.stringify(data));
         });
     } else if (data.command == 'delete_character') {
-      var response = {};
-      response.room_number = data.room_number;
-      response.command = 'delete_character_response';
-      response.to_name = 'all';
-      response.index = data.index;
+      data.command = 'delete_character_response';
+      data.to_name = 'all';
       wss.clients.forEach(function(clientSocket) {
-        clientSocket.send(JSON.stringify(response));
+        clientSocket.send(JSON.stringify(data));
       });
     } else if (data.command == 'roll_initiative') {
       var response = {};
@@ -235,6 +232,13 @@ wss.on('connection', (ws) => {
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(response));
       });
+    } else if (data.command == 'sync_board') {
+      data.command = 'sync_board_response';
+      data.to_name = 'all';
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(data));
+      });
+
     } else if (data.command == 'update_fog') {
       var response = {};
       response.room_number = data.room_number;
@@ -246,15 +250,10 @@ wss.on('connection', (ws) => {
         clientSocket.send(JSON.stringify(response));
       });
     } else if (data.command == 'assign_zone') {
-      var response = {};
-      response.room_number = data.room_number;
-      response.command = 'assign_zone_response';
-      response.index = data.index;
-      response.to_name = 'all';
-      response.modificator = data.modificator;
-      response.zone_number = data.zone_number;
+      data.command = 'assign_zone_response';
+      data.to_name = 'all';
       wss.clients.forEach(function(clientSocket) {
-        clientSocket.send(JSON.stringify(response));
+        clientSocket.send(JSON.stringify(data));
       });
     } else if (data.command == 'search_action') {
       var response = {};

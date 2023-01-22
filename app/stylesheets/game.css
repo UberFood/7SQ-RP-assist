@@ -115,7 +115,7 @@ top:1px;
     font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
 }
 
-#character_chosen {
+select {
     background-color: blue;
     color: white;
     text-decoration: none;
@@ -204,6 +204,11 @@ html, body {
   transition: transform 333ms ease-in-out;
 }
 
+#special-info-container {
+  display: flex;
+  flex-direction: column;
+}
+
 #weapon-info-container {
   display: flex;
   flex-direction: column;
@@ -267,6 +272,11 @@ html, body {
   margin-top: 5px;
 }
 
+#weapon_mini_display {
+  float: left;
+  float: top;
+}
+
 .board_cell{
   float: left;
   vertical-align: bottom;
@@ -283,4 +293,8 @@ html, body {
 .is-tiny {
   transform: scale(0.001);
   transition: transform 0ms;
+}
+
+.is-red {
+  background: red
 }
