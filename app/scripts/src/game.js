@@ -123,6 +123,9 @@ let zone_endpoint = {index: -1, cell: 0}
 var gunshot_audio = new Audio('sounds/gunshot.mp3');
 var sword_audio = new Audio('sounds/sword.wav');
 
+gunshot_audio.volume = 0.3
+sword_audio.volume = 0.3
+
 function reconnect() {
   if (!socket.isReady()) {
     socket.init(SERVER_ADDRESS);
