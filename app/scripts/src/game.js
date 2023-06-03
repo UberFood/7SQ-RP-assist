@@ -30,6 +30,8 @@ var NOTIFICATIONS_LIST_SELECTOR = '[data-name="notifications_list"]';
 
 var SERVER_ADDRESS = location.origin.replace(/^http/, 'ws');
 
+var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: []};
+
 var my_name = JSON.parse(sessionStorage.getItem('username'));
 var my_role = JSON.parse(sessionStorage.getItem('user_role'));
 var my_room = JSON.parse(sessionStorage.getItem('room_number'));
@@ -106,7 +108,7 @@ const main_action_map = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
 
 
 let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: []};
-let character_state = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: []}
+let character_state = CHARACTER_STATE_CONSTANT;
 
 let character_base = [];
 let obstacle_base = [];
@@ -703,6 +705,9 @@ function delete_character(index, character_number) {
 
 function select_character(index, cell) {
   var character_number = game_state.board_state[index]
+
+
+  if (character_state.invisibility[character_number] == "all" || character_state.invisibility[character_number] == my_name) {
   var character = character_detailed_info[character_number];
 
   character_chosen.char_id = character_number
@@ -1028,6 +1033,8 @@ function select_character(index, cell) {
 }
 
   tiny_animate_containers()
+
+}
 
 }
 
@@ -1449,7 +1456,7 @@ function line_from_endpoints(point1, point2) {
   var line = {}
   line.a = -1*(point1.y - point2.y)
   line.b = point1.x - point2.x
-  line.c = (line.a * point2.x - line.b * point2.y)
+  line.c = -1*(line.a * point2.x + line.b * point2.y)
   return line
 }
 
@@ -1542,6 +1549,7 @@ function perform_attack(index, cell) {
     toSend.command = 'resolve_attack';
     toSend.room_number = my_room;
     toSend.attacker_id = user_character_number
+    toSend.attacker_position = user_position
     toSend.target_id = target_character_number
     toSend.attack_type = weapon.type
     toSend.cover_level = cover_modifier.cover_level
@@ -2414,6 +2422,21 @@ function use_skill(skill_index, character_number, position, cell) {
         }
         break;
 
+    case 17: // Инвиз
+          if (character_state.bonus_action[character_number] > 0) {
+            var toSend = {};
+            toSend.command = 'skill';
+            toSend.room_number = my_room;
+            toSend.skill_index = skill_index;
+            toSend.user_index = character_number;
+            toSend.username = my_name;
+            toSend.position = position;
+            socket.sendMessage(toSend);
+          } else {
+            alert("Не хватает действий!")
+          }
+        break;
+
     default:
       alert("Не знаем это умение")
   }
@@ -2571,7 +2594,7 @@ function sync_board() {
 }
 
 function clear_character_state() {
-  character_state = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: []}
+  character_state = CHARACTER_STATE_CONSTANT
 }
 
 function clear_character(number) {
@@ -2699,6 +2722,7 @@ socket.registerMessageHandler((data) => {
       character_state.can_evade[data.character_number] = 1;
       character_state.has_moved[data.character_number] = 0;
       character_state.visibility[data.character_number] = 0;
+      character_state.invisibility[data.character_number] = "all";
       character_state.current_weapon[data.character_number] = character.inventory[0]
       character_state.attack_bonus[data.character_number] = 0
       character_state.damage_bonus[data.character_number] = 0
@@ -2756,7 +2780,7 @@ socket.registerMessageHandler((data) => {
         }
       }
 
-      if (!((my_role == 'player')&&(game_state.fog_state[to_index] == 1))) {
+      if (!(((my_role == 'player')&&(game_state.fog_state[to_index] == 1)) || (character_state.invisibility[data.character_number] != "all" && character_state.invisibility[data.character_number] != my_name))) {
         var to_cell = document.getElementById('cell_' + to_index);
         to_cell.src = data.character_avatar;
       }
@@ -3211,6 +3235,19 @@ socket.registerMessageHandler((data) => {
             pushToList(message)
             break;
 
+        case 17:
+          if (battle_mod == 1) {
+            character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+          }
+          character_state.invisibility[user_index] = data.username
+          if (my_name != data.username) {
+            var cell = document.getElementById('cell_' + data.position);
+            cell.src = EMPTY_CELL_PIC;
+          }
+
+
+          break;
+
         default:
           alert("Received unknown skill command")
       }
@@ -3505,6 +3542,12 @@ socket.registerMessageHandler((data) => {
         var audio = sword_audio
       }
       audio.play();
+
+      if (character_state.invisibility[data.attacker_id] != "all") {
+        character_state.invisibility[data.attacker_id] = "all"
+        var attacker_cell = document.getElementById('cell_' + data.attacker_position);
+        attacker_cell.src = character_detailed_info[data.attacker_id].avatar;
+      }
 
       var attacker = character_detailed_info[data.attacker_id]
       var target = character_detailed_info[data.target_id]
