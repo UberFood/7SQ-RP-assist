@@ -2258,6 +2258,64 @@ function pich_pich_go(index, cell) {
   }
 }
 
+function lucky_shot(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  var target_character_number = game_state.board_state[index]
+  var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]]
+
+  if (isInRange(index, user_position, weapon.range)) {
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.skill_index = character_chosen.skill_id
+    toSend.room_number = my_room;
+    toSend.user_index = user_character_number
+    toSend.target_id = target_character_number
+    toSend.roll = roll_x(10)
+    if (toSend.roll == 7) {
+      toSend.damage = roll_x(7)
+    }
+    socket.sendMessage(toSend);
+
+  } else {
+    alert("Далековато")
+  }
+}
+
+function lottery_shot(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  var target_character_number = game_state.board_state[index]
+  var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]]
+
+  if (isInRange(index, user_position, weapon.range)) {
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.skill_index = character_chosen.skill_id
+    toSend.room_number = my_room;
+    toSend.user_index = user_character_number
+    toSend.target_id = target_character_number
+    toSend.roll = roll_x(100)
+    if (toSend.roll == 7) {
+      var damage = 0
+      for (let i = 0; i < 7; i++) {
+        damage = damage + roll_x(7)
+      }
+      toSend.damage = damage
+    } else if (toSend.roll == 77) {
+      var damage = 0
+      for (let i = 0; i < 14; i++) {
+        damage = damage + roll_x(7)
+      }
+      toSend.damage = damage
+    }
+    socket.sendMessage(toSend);
+
+  } else {
+    alert("Далековато")
+  }
+}
+
 function perform_skill(index, cell) {
   switch(character_chosen.skill_id) {
     case 1:
@@ -2306,6 +2364,16 @@ function perform_skill(index, cell) {
       break;
     case 16:
       force_field(index, cell)
+      stop_skill()
+      break;
+
+    case 19:
+      lucky_shot(index, cell)
+      stop_skill()
+      break;
+
+    case 20:
+      lottery_shot(index, cell)
       stop_skill()
       break;
 
@@ -2514,6 +2582,22 @@ function use_skill(skill_index, character_number, position, cell) {
             toSend.user_index = character_number;
             socket.sendMessage(toSend);
             break;
+
+    case 19: // Лаки шот
+        if (character_state.bonus_action[character_number] > 0) {
+          choose_character_skill(skill_index, character_number, position, cell)
+        } else {
+          alert("Не хватает действий!")
+        }
+        break;
+
+    case 20: // Лотерейный выстрел
+        if (character_state.bonus_action[character_number] > 0) {
+          choose_character_skill(skill_index, character_number, position, cell)
+        } else {
+          alert("Не хватает действий!")
+        }
+        break;
 
     default:
       alert("Не знаем это умение")
@@ -3341,6 +3425,43 @@ socket.registerMessageHandler((data) => {
           var character = character_detailed_info[user_index]
           var message = character.name + " активирует боевую универсальность"
           pushToList(message)
+          break;
+
+        case 19:
+          var character = character_detailed_info[user_index]
+          var target = character_detailed_info[data.target_id]
+          if (battle_mod == 1) {
+            character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+          }
+
+          if (data.roll == 7) {
+            do_damage(data.target_id, data.damage)
+            var message = "Удача благоволит " + character.name + ", который наносит " + data.damage + " урона " + target.name
+          } else {
+            var message = data.roll + " это не число " + character.name + ", так что " + target.name + " избегает атаки."
+          }
+          pushToList(message)
+
+          break;
+
+      case 20:
+          var character = character_detailed_info[user_index]
+          var target = character_detailed_info[data.target_id]
+          if (battle_mod == 1) {
+            character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+          }
+
+          if (data.roll == 7) {
+            do_damage(data.target_id, data.damage)
+            var message = "Какая удача! Фортуна явно на стороне " + character.name + ", который наносит " + data.damage + " урона " + target.name
+          } else if (data.roll == 77) {
+            do_damage(data.target_id, data.damage)
+            var message = "Джекпот! " + character.name + " сегодня стоит купить лотерейный билет, а пока он наносит " + data.damage + " урона " + target.name
+          } else {
+            var message = data.roll + " это не число " + character.name + ", так что " + target.name + " избегает атаки."
+          }
+          pushToList(message)
+
           break;
 
         default:
