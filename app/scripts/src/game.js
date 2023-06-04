@@ -714,7 +714,7 @@ function move_character(to_index, to_cell) {
           }
       }
 
-
+      clear_containers();
       socket.sendMessage(toSend);
 
       character_chosen.char_position = to_index
@@ -1400,11 +1400,26 @@ function start_new_round() {
 function roll_attack(type, attacker, target, advantage_bonus) {
   var advantage = 0
   if ((type == "ranged")||(type == "energy")) {
-    advantage = character_state.ranged_advantage[attacker]
+    advantage = character_state.ranged_advantage[attacker];
+    if (character_state.special_effects[attacker].hasOwnProperty("adaptive_fighting")) {
+      if (character_state.special_effects[attacker].adaptive_fighting == 0) {
+        advantage = advantage + 1;
+        console.log("Сработал рейнджовый стак универсальности");
+      }
+      character_state.special_effects[attacker].adaptive_fighting = 1;
+    }
   } else if (type == "melee") {
     advantage = character_state.melee_advantage[attacker]
+    if (character_state.special_effects[attacker].hasOwnProperty("adaptive_fighting")) {
+      if (character_state.special_effects[attacker].adaptive_fighting == 1) {
+        advantage = advantage + 1;
+        console.log("Сработал милли стак универсальности");
+      }
+      character_state.special_effects[attacker].adaptive_fighting = 0;
+    }
   }
   advantage = advantage - character_state.defensive_advantage[target] + advantage_bonus
+
   var roll = 0
 
   if (advantage >= 2) { // Дикое преимущество = 4 куба
@@ -2491,6 +2506,14 @@ function use_skill(skill_index, character_number, position, cell) {
             alert("Не хватает действий!")
           }
         break;
+    case 18: // Боевая универсальность
+            var toSend = {};
+            toSend.command = 'skill';
+            toSend.room_number = my_room;
+            toSend.skill_index = skill_index;
+            toSend.user_index = character_number;
+            socket.sendMessage(toSend);
+            break;
 
     default:
       alert("Не знаем это умение")
@@ -2716,7 +2739,7 @@ socket.registerOpenHandler(() => {
 });
 
 socket.registerMessageHandler((data) => {
-  console.log(data);
+  //console.log(data);
   if (((data.to_name == my_name) || (data.to_name == 'all')) && (data.room_number == my_room)) {
     if (data.command == 'player_info_response') {
       if (data.isValid == 0) {
@@ -3311,8 +3334,13 @@ socket.registerMessageHandler((data) => {
             var cell = document.getElementById('cell_' + data.position);
             cell.src = EMPTY_CELL_PIC;
           }
+          break;
 
-
+        case 18:
+          character_state.special_effects[user_index].adaptive_fighting = -1;
+          var character = character_detailed_info[user_index]
+          var message = character.name + " активирует боевую универсальность"
+          pushToList(message)
           break;
 
         default:
