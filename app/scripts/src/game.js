@@ -30,7 +30,7 @@ var NOTIFICATIONS_LIST_SELECTOR = '[data-name="notifications_list"]';
 
 var SERVER_ADDRESS = location.origin.replace(/^http/, 'ws');
 
-var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: []};
+var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: []};
 
 var my_name = JSON.parse(sessionStorage.getItem('username'));
 var my_role = JSON.parse(sessionStorage.getItem('user_role'));
@@ -91,6 +91,8 @@ var force_field_radius = 1.6
 var force_field_stamina_cost = 5
 var force_field_cooldown = 10
 var force_field_obstacle = 24
+
+var invisibility_detection_radius = 3;
 
 var big_bro_range = 2
 var heal_range = 1
@@ -647,28 +649,81 @@ function move_character(to_index, to_cell) {
   var max_distance = character_state.move_action[chosen_character_index]
 
   if (distance <= max_distance) {
-    var toSend = {};
-    toSend.command = 'move_character';
-    toSend.from_index = chosen_index;
-    toSend.to_index = to_index;
-    toSend.character_number = chosen_character_index;
-    toSend.character_avatar = character_detailed_info[chosen_character_index].avatar;
-    toSend.room_number = my_room;
-    toSend.distance = distance
-    toSend.left_shield = 0
+    if (!(character_state.invisibility[chosen_character_index] != "all" && distance > 2)) {
+      var toSend = {};
+      toSend.command = 'move_character';
+      toSend.from_index = chosen_index;
+      toSend.to_index = to_index;
+      toSend.character_number = chosen_character_index;
+      toSend.character_avatar = character_detailed_info[chosen_character_index].avatar;
+      toSend.room_number = my_room;
+      toSend.distance = distance
+      toSend.left_shield = 0
 
-    if (character_state.special_effects[chosen_character_index].hasOwnProperty("force_field_target")) {
-      var shield_index = character_state.special_effects[chosen_character_index].force_field_target.shield_index
-      if(!game_state.terrain_effects[shield_index].cells_protected.includes(to_index)) {// покинул зону защиты
-        toSend.left_shield = 1
-        toSend.shield_index = shield_index
+      if (character_state.special_effects[chosen_character_index].hasOwnProperty("force_field_target")) {
+        var shield_index = character_state.special_effects[chosen_character_index].force_field_target.shield_index
+        if(!game_state.terrain_effects[shield_index].cells_protected.includes(to_index)) {// покинул зону защиты
+          toSend.left_shield = 1
+          toSend.shield_index = shield_index
+        }
       }
-    }
-    socket.sendMessage(toSend);
 
-    character_chosen.char_position = to_index
-    var to_cell = document.getElementById('cell_' + to_index);
-    character_chosen.cell = to_cell
+      toSend.invisibility_ended_id = [];
+      if (character_state.invisibility[chosen_character_index] != "all") {//user is invisible
+        var immediate_nbh = index_in_radius(to_index, 1);
+        for (let i = 0; i < immediate_nbh.length; i++) {
+            if (game_state.board_state[immediate_nbh[i]] > 0 && game_state.board_state[immediate_nbh[i]] != chosen_character_index) {// there are characters there
+              toSend.invisibility_ended_id.push(chosen_character_index);
+              break;
+            }
+        }
+        if (toSend.invisibility_ended_id.length == 0) {
+          var extended_nbh = index_in_radius(to_index, invisibility_detection_radius);
+          for (let i = 0; i < extended_nbh.length; i++) {
+              if (game_state.board_state[extended_nbh[i]] > 0 && game_state.board_state[extended_nbh[i]] != chosen_character_index) {// there are characters there
+                var current_char_num = game_state.board_state[extended_nbh[i]];
+                var roll = roll_x(20) + parseInt(character_detailed_info[current_char_num].intelligence);
+                if (roll > 10) {
+                  toSend.invisibility_ended_id.push(chosen_character_index);
+                  break;
+                }
+              }
+          }
+        }
+      }
+
+      var immediate_nbh = index_in_radius(to_index, 1);
+      for (let i = 0; i < immediate_nbh.length; i++) {
+          if (game_state.board_state[immediate_nbh[i]] > 0 && game_state.board_state[immediate_nbh[i]] != chosen_character_index) {// there are characters there
+            if (character_state.invisibility[game_state.board_state[immediate_nbh[i]]] != "all") {
+                toSend.invisibility_ended_id.push(game_state.board_state[immediate_nbh[i]]);
+            }
+          }
+      }
+
+      var extended_nbh = index_in_radius(to_index, invisibility_detection_radius);
+      for (let i = 0; i < extended_nbh.length; i++) {
+          if (game_state.board_state[extended_nbh[i]] > 0 && game_state.board_state[extended_nbh[i]] != chosen_character_index && (!immediate_nbh.includes(extended_nbh[i]))) {// there are characters there
+            var current_char_num = game_state.board_state[extended_nbh[i]];
+            if (character_state.invisibility[current_char_num] != "all") {
+              var roll = roll_x(20) + parseInt(character_detailed_info[chosen_character_index].intelligence);
+              if (roll > 10) {
+                toSend.invisibility_ended_id.push(current_char_num);
+              }
+            }
+          }
+      }
+
+
+      socket.sendMessage(toSend);
+
+      character_chosen.char_position = to_index
+      var to_cell = document.getElementById('cell_' + to_index);
+      character_chosen.cell = to_cell
+    } else {
+      alert("В инвизе приходится красться (ходите по 1-2 клетки)")
+      undo_selection()
+    }
   } else {
     alert("Полегче, мсье Болт")
     undo_selection()
@@ -2731,6 +2786,7 @@ socket.registerMessageHandler((data) => {
       character_state.melee_advantage[data.character_number] = 0
       character_state.defensive_advantage[data.character_number] = 0
       character_state.special_effects[data.character_number] = {}
+      character_state.position[data.character_number] = data.cell_id;
 
 
     } else if (data.command == 'add_obstacle_response') {
@@ -2745,6 +2801,17 @@ socket.registerMessageHandler((data) => {
       var to_index = data.to_index;
       var from_index = data.from_index;
       game_state.board_state[to_index] = data.character_number;
+      character_state.position[data.character_number] = to_index;
+
+      for (let i = 0; i < data.invisibility_ended_id.length; i++) {
+        var id = data.invisibility_ended_id[i];
+        character_state.invisibility[id] = "all";
+
+        var position = character_state.position[id];
+        var to_cell = document.getElementById('cell_' + position);
+        var avatar = character_detailed_info[id].avatar;
+        to_cell.src = avatar;
+      }
 
       // remove shielded property from character and remove character from shielded list
       if (data.left_shield == 1) {
@@ -2755,7 +2822,7 @@ socket.registerMessageHandler((data) => {
         }
       }
 
-      character_state.has_moved[data.character_number] = 1
+      character_state.has_moved[data.character_number] = 1;
 
       if (battle_mod == 1) {
         character_state.stamina[data.character_number] = character_state.stamina[data.character_number] - stamina_move_cost
