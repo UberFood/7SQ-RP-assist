@@ -95,6 +95,8 @@ var force_field_obstacle = 24
 var lottery_shot_stamina_cost = 1
 var lucky_shot_stamina_cost = 1
 
+var action_splash_cooldown = 4
+
 var invisibility_detection_radius = 3;
 
 var big_bro_range = 2
@@ -2606,6 +2608,20 @@ function use_skill(skill_index, character_number, position, cell) {
         }
         break;
 
+    case 21: //Прилив действий
+      if (character_state.special_effects[character_number].hasOwnProperty("action_splash")) {
+        alert("Умение все еще на кулдауне")
+      } else {
+        var toSend = {};
+        toSend.command = 'skill';
+        toSend.room_number = my_room;
+        toSend.skill_index = skill_index
+        toSend.user_index = character_number
+        toSend.extra_actions = character_state.bonus_action[character_number]
+        socket.sendMessage(toSend);
+      }
+      break;
+
     default:
       alert("Не знаем это умение")
   }
@@ -3473,6 +3489,19 @@ socket.registerMessageHandler((data) => {
 
           break;
 
+      case 21: //всплеск действий
+          var user = character_detailed_info[user_index]
+          character_state.main_action[user_index] = character_state.main_action[user_index] + data.extra_actions
+          character_state.bonus_action[user_index] = 0
+
+          var action_splash_object = {}
+          action_splash_object.cooldown = action_splash_cooldown
+          character_state.special_effects[user_index].action_splash = action_splash_object
+
+          var message = user.name + " использует всплеск действий и получает " + data.extra_actions + " основных действий вместо бонусных."
+          pushToList(message)
+          break;
+
         default:
           alert("Received unknown skill command")
       }
@@ -3555,6 +3584,16 @@ socket.registerMessageHandler((data) => {
               pushToList(message)
             } else {
               character_state.special_effects[i].light_sound_bomb_user.cooldown = character_state.special_effects[i].light_sound_bomb_user.cooldown - 1
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("action_splash")) {
+            if (character_state.special_effects[i].action_splash.cooldown == 0) {
+              delete character_state.special_effects[i].action_splash
+              var message = character.name + " вновь может использовать всплеск действий."
+              pushToList(message)
+            } else {
+              character_state.special_effects[i].action_splash.cooldown = character_state.special_effects[i].action_splash.cooldown - 1
             }
           }
 
