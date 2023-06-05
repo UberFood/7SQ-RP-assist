@@ -92,6 +92,9 @@ var force_field_stamina_cost = 5
 var force_field_cooldown = 10
 var force_field_obstacle = 24
 
+var lottery_shot_stamina_cost = 1
+var lucky_shot_stamina_cost = 1
+
 var invisibility_detection_radius = 3;
 
 var big_bro_range = 2
@@ -370,7 +373,12 @@ function assignZone(index) {
 function fogOrPic(cell_id) {
   var picture_name = FOG_IMAGE;
   if ((game_state.fog_state[cell_id] != 1)||(my_role == 'gm')) {
-    picture_name = get_object_picture(game_state.board_state[cell_id]);
+    var char_id = game_state.board_state[cell_id]
+    if (character_state.invisibility[char_id] == "all" || character_state.invisibility[char_id] == my_name) {
+      picture_name = get_object_picture(char_id);
+    } else {
+      picture_name = get_object_picture(0);
+    }
   }
   return picture_name;
 }
@@ -3408,7 +3416,7 @@ socket.registerMessageHandler((data) => {
             pushToList(message)
             break;
 
-        case 17:
+        case 17: // инвиз
           if (game_state.battle_mod == 1) {
             character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
           }
@@ -3419,18 +3427,19 @@ socket.registerMessageHandler((data) => {
           }
           break;
 
-        case 18:
+        case 18: // боевая универсальность
           character_state.special_effects[user_index].adaptive_fighting = -1;
           var character = character_detailed_info[user_index]
           var message = character.name + " активирует боевую универсальность"
           pushToList(message)
           break;
 
-        case 19:
+        case 19: // лаки шот
           var character = character_detailed_info[user_index]
           var target = character_detailed_info[data.target_id]
           if (game_state.battle_mod == 1) {
             character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+            character_state.stamina[user_index] = character_state.stamina[user_index] - lucky_shot_stamina_cost
           }
 
           if (data.roll == 7) {
@@ -3443,11 +3452,12 @@ socket.registerMessageHandler((data) => {
 
           break;
 
-      case 20:
+      case 20: // lottery_shot
           var character = character_detailed_info[user_index]
           var target = character_detailed_info[data.target_id]
           if (game_state.battle_mod == 1) {
             character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+            character_state.stamina[user_index] = character_state.stamina[user_index] - lottery_shot_stamina_cost
           }
 
           if (data.roll == 7) {
