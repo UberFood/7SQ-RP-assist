@@ -109,14 +109,13 @@ const bonus_action_map= [0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3]
 const main_action_map = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
 
 
-let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: []};
+let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: [], battle_mod: 0};
 let character_state = CHARACTER_STATE_CONSTANT;
 
 let character_base = [];
 let obstacle_base = [];
 
 let gm_control_mod = 0; // normal mode
-let battle_mod = 0
 
 // in_process: 0 = nothing, 1 = move, 2 = attack, 3 = skill
 let character_chosen = {in_process: 0, char_id: 0, char_position: 0, weapon_id: 0, skill_id: 0, cell: 0};
@@ -2686,7 +2685,7 @@ function do_damage(character_number, damage) {
 }
 
 function change_battle_mod() {
-  if (battle_mod == 1) {
+  if (game_state.battle_mod == 1) {
     var new_value = 0
   } else {
     var new_value = 1
@@ -2931,7 +2930,7 @@ socket.registerMessageHandler((data) => {
 
       character_state.has_moved[data.character_number] = 1;
 
-      if (battle_mod == 1) {
+      if (game_state.battle_mod == 1) {
         character_state.stamina[data.character_number] = character_state.stamina[data.character_number] - stamina_move_cost
         character_state.move_action[data.character_number] = character_state.move_action[data.character_number] - data.distance
         var character = character_detailed_info[data.character_number]
@@ -3058,7 +3057,7 @@ socket.registerMessageHandler((data) => {
           case 2:
             var attacker = character_detailed_info[user_index]
             var target = character_detailed_info[data.target_id]
-            if (battle_mod == 1) {
+            if (game_state.battle_mod == 1) {
               character_state.stamina[user_index] = character_state.stamina[user_index] - stamina_cut_limb_cost
               character_state.main_action[user_index] = character_state.main_action[user_index] - 1
               character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
@@ -3305,7 +3304,7 @@ socket.registerMessageHandler((data) => {
         case 14:
           var attacker = character_detailed_info[user_index]
           var target = character_detailed_info[data.target_id]
-          if (battle_mod == 1) {
+          if (game_state.battle_mod == 1) {
             character_state.main_action[user_index] = character_state.main_action[user_index] - 1
           }
         switch (data.outcome) {
@@ -3353,7 +3352,7 @@ socket.registerMessageHandler((data) => {
           var target_index = data.target_index
           var target = character_detailed_info[target_index]
           var extra_actions = data.extra_actions
-          if (battle_mod == 1) {
+          if (game_state.battle_mod == 1) {
             character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
           }
           while (extra_actions > 0) {
@@ -3376,7 +3375,7 @@ socket.registerMessageHandler((data) => {
           pushToList(message)
           break;
         case 16:
-            if (battle_mod == 1) {
+            if (game_state.battle_mod == 1) {
               character_state.main_action[user_index] = character_state.main_action[user_index] - 1
               character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
               character_state.stamina[user_index] = character_state.stamina[user_index] - force_field_stamina_cost
@@ -3410,7 +3409,7 @@ socket.registerMessageHandler((data) => {
             break;
 
         case 17:
-          if (battle_mod == 1) {
+          if (game_state.battle_mod == 1) {
             character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
           }
           character_state.invisibility[user_index] = data.username
@@ -3430,7 +3429,7 @@ socket.registerMessageHandler((data) => {
         case 19:
           var character = character_detailed_info[user_index]
           var target = character_detailed_info[data.target_id]
-          if (battle_mod == 1) {
+          if (game_state.battle_mod == 1) {
             character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
           }
 
@@ -3447,7 +3446,7 @@ socket.registerMessageHandler((data) => {
       case 20:
           var character = character_detailed_info[user_index]
           var target = character_detailed_info[data.target_id]
-          if (battle_mod == 1) {
+          if (game_state.battle_mod == 1) {
             character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
           }
 
@@ -3744,8 +3743,8 @@ socket.registerMessageHandler((data) => {
         }
       }
     } else if (data.command == 'battle_mod_response') {
-      battle_mod = data.value
-      if (battle_mod == 0) {
+      game_state.battle_mod = data.value
+      if (game_state.battle_mod == 0) {
         var message = "Бой окончен! Наступил мир во всем мире"
       } else {
         var message = "Начало боя! Люди умирают, если их убить"
@@ -3769,7 +3768,7 @@ socket.registerMessageHandler((data) => {
       var target = character_detailed_info[data.target_id]
       character_state.has_moved[data.attacker_id] = 1
 
-      if (battle_mod == 1) {
+      if (game_state.battle_mod == 1) {
         character_state.stamina[data.attacker_id] = character_state.stamina[data.attacker_id] - stamina_attack_cost
         character_state.main_action[data.attacker_id] = character_state.main_action[data.attacker_id] - 1
       }
