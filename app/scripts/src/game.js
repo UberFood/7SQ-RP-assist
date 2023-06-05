@@ -57,8 +57,12 @@ var CHAT_CASH = 15;
 var stamina_weakspot_cost = 1
 var stamina_move_cost = 0
 var stamina_attack_cost = 1
+var punch_rainfall_stamina_cost = 2
 var stamina_cut_limb_cost = 4
 var shield_up_stamina_cost = 2
+var lottery_shot_stamina_cost = 1
+var lucky_shot_stamina_cost = 1
+var action_splash_stamina_cost = 2
 
 var rest_stamina_gain = 3
 
@@ -91,9 +95,6 @@ var force_field_radius = 1.6
 var force_field_stamina_cost = 5
 var force_field_cooldown = 10
 var force_field_obstacle = 24
-
-var lottery_shot_stamina_cost = 1
-var lucky_shot_stamina_cost = 1
 
 var action_splash_cooldown = 4
 
@@ -1963,7 +1964,21 @@ function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, b
     var target_character_KD = parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
     var target_character = character_detailed_info[target_character_number]
     var attacking_character = character_detailed_info[user_id]
-    var attack_roll = roll_attack(weapon.type, user_id, target_character_number)
+
+    var accumulated_cover = 0
+    var candidate_cells = cells_on_line(user_pos, target_pos, game_state.size)
+    for (let i = 0; i < candidate_cells.length; i++) {
+      var current_cell = candidate_cells[i]
+      if (game_state.board_state[current_cell] < 0) {// это препятствие
+        var obstacle = obstacle_detailed_info[Math.abs(game_state.board_state[current_cell])]
+        var distance = distance_to_line(user_pos, target_pos, game_state.size, current_cell)
+        accumulated_cover = accumulated_cover + compute_cover(distance, obstacle.cover)
+      }
+    }
+    accumulated_cover = Math.ceil(accumulated_cover)
+    var cover_modifier = cover_mod(accumulated_cover)
+
+    var attack_roll = roll_attack(weapon.type, user_id, target_character_number, cover_modifier.advantage_bonus)
 
     var toSend = {};
     toSend.command = 'skill';
@@ -2042,6 +2057,55 @@ function cut_limbs(index, cell) {
   }
 
 
+}
+
+function punch_rainfall(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]]
+  if (weapon.type == "melee") {
+    var attacking_character = character_detailed_info[user_character_number]
+    var target_char_id = game_state.board_state[index]
+    var target_character = character_detailed_info[target_char_id]
+    var bonus_attack = parseInt(attacking_character.agility) + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
+
+    var total_damage = 0;
+    var attacks_successful = 0;
+    for (let i = 0; i < character_state.main_action[user_character_number]; i++) {
+      var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon)
+      if (toSend == null) {
+        alert("Далековато");
+        return;
+      } else {
+          if (toSend.outcome == "damage_after_evasion" || toSend.outcome == "damage_without_evasion" || toSend.outcome == "full_crit") {
+            attacks_successful = attacks_successful + 1;
+            total_damage = total_damage + toSend.damage_roll;
+            character_state.can_evade[target_char_id] = 0;
+          } else if (toSend.outcome == "evaded" && target_character.special_type != "rogue") {
+            character_state.can_evade[target_char_id] = 0;
+          }
+      }
+    }
+
+    var multiplyer = 1.0 + parseFloat(attacks_successful - 1)/2.0
+    var message = "Множитель града был: " + multiplyer
+    console.log(message)
+    var final_damage = parseInt(parseFloat(total_damage)*multiplyer)
+
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.skill_index = character_chosen.skill_id
+    toSend.room_number = my_room;
+    toSend.user_index = user_character_number
+    toSend.target_id = target_char_id
+    toSend.total_attacks = character_state.main_action[user_character_number]
+    toSend.successfull_attacks = attacks_successful
+    toSend.damage = final_damage
+    socket.sendMessage(toSend);
+
+  } else {
+    alert("Град ударов можно соврешить только рукопашным оружием!")
+  }
 }
 
 function shock_wave(index, cell) {
@@ -2386,6 +2450,11 @@ function perform_skill(index, cell) {
       stop_skill()
       break;
 
+    case 22:
+      punch_rainfall(index, cell)
+      stop_skill()
+      break;
+
     default:
       alert("Unknown targeted skill")
   }
@@ -2621,6 +2690,17 @@ function use_skill(skill_index, character_number, position, cell) {
         socket.sendMessage(toSend);
       }
       break;
+
+
+    case 22: // град ударов
+        if (character_state.main_action[character_number] > 1) {
+          choose_character_skill(skill_index, character_number, position, cell)
+        } else {
+          alert("Для града ударов требуется больше 1 основного действия!")
+        }
+      break;
+
+
 
     default:
       alert("Не знаем это умение")
@@ -3493,6 +3573,9 @@ socket.registerMessageHandler((data) => {
           var user = character_detailed_info[user_index]
           character_state.main_action[user_index] = character_state.main_action[user_index] + data.extra_actions
           character_state.bonus_action[user_index] = 0
+          if (game_state.battle_mod == 1) {
+            character_state.stamina[user_index] = character_state.stamina[user_index] - action_splash_stamina_cost*data.extra_actions
+          }
 
           var action_splash_object = {}
           action_splash_object.cooldown = action_splash_cooldown
@@ -3502,9 +3585,28 @@ socket.registerMessageHandler((data) => {
           pushToList(message)
           break;
 
+      case 22: // град ударов
+          var character = character_detailed_info[user_index]
+          var target = character_detailed_info[data.target_id]
+          if (game_state.battle_mod == 1) {
+            character_state.main_action[user_index] = 0
+            character_state.stamina[user_index] = character_state.stamina[user_index] - punch_rainfall_stamina_cost*data.total_attacks
+          }
+          if (data.damage > 0) {
+            character_state.can_evade[data.target_id] = 0;
+          }
+
+          do_damage(data.target_id, data.damage)
+          var message = character.name + " наносит град из " + data.total_attacks + " ударов, из которых " + data.successfull_attacks + " попадают в " + target.name + " нанося " + data.damage + " урона."
+
+          pushToList(message)
+
+          break;
+
         default:
           alert("Received unknown skill command")
       }
+
     } else if (data.command == 'new_round_response') {
       var message = "Начало нового раунда!"
       pushToList(message)
