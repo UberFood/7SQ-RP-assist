@@ -64,7 +64,7 @@ var lottery_shot_stamina_cost = 1
 var lucky_shot_stamina_cost = 1
 var action_splash_stamina_cost = 2
 
-var rest_stamina_gain = 3
+var rest_stamina_gain = 5
 
 var cooldown_cut_limb = 1
 var cooldown_big_bro = 1
@@ -105,6 +105,17 @@ var heal_range = 1
 var throw_base_range = 2
 var light_sound_bomb_range = 5
 var force_field_range = 1
+var adrenaline_range = 1
+var poisonous_adrenaline_range = 1
+
+var poisonous_adrenaline_duration = 2
+var poisonous_adrenaline_cooldown = 3
+var poisonous_adrenaline_flat_HP = 5
+var poisonous_adrenaline_flat_stamina = 5
+var poisonous_adrenaline_percent_HP = 0.05
+var poisonous_adrenaline_percent_stamina = 0.05
+
+var adrenaline_cooldown = 3
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
@@ -2310,6 +2321,29 @@ function adrenaline(index, cell) {
   }
 }
 
+function poisonous_adrenaline(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+
+  var target_number = game_state.board_state[index]
+  if (isInRange(index, user_position, poisonous_adrenaline_range)) {
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.room_number = my_room;
+    toSend.skill_index = character_chosen.skill_id
+    toSend.user_index = user_character_number
+    toSend.target_index = target_number
+    var extra_actions = []
+    for (let i = 0; i < poisonous_adrenaline_duration; i++) {
+      extra_actions.push(roll_x(4))
+    }
+    toSend.extra_actions = extra_actions
+    socket.sendMessage(toSend);
+  } else {
+    alert("Радиус адреналина 1 клетка!")
+  }
+}
+
 function pich_pich_go(index, cell) {
   var user_character_number = character_chosen.char_id
 
@@ -2452,6 +2486,11 @@ function perform_skill(index, cell) {
 
     case 22:
       punch_rainfall(index, cell)
+      stop_skill()
+      break;
+
+    case 23:
+      poisonous_adrenaline(index, cell)
       stop_skill()
       break;
 
@@ -2699,6 +2738,14 @@ function use_skill(skill_index, character_number, position, cell) {
           alert("Для града ударов требуется больше 1 основного действия!")
         }
       break;
+
+    case 23: //Адреналиновый потоп
+        if (character_state.special_effects[character_number].hasOwnProperty("poisonous_adrenaline_user")) {
+          alert("Умение все еще на кулдауне")
+        } else {
+          choose_character_skill(skill_index, character_number, position, cell)
+        }
+        break;
 
 
 
@@ -3152,7 +3199,7 @@ socket.registerMessageHandler((data) => {
             character_state.special_effects[target_index].adrenaline_target = adrenaline_object_target
 
             var adrenaline_object_user = {}
-            adrenaline_object_user.cooldown = 3
+            adrenaline_object_user.cooldown = adrenaline_cooldown
             character_state.special_effects[user_index].adrenaline_user = adrenaline_object_user
 
             var message = user.name + " использует прилив адреналина. "  + target.name + " получает " + data.extra_actions + " действий. Это будет стоить " + data.minus_actions + " действий на следующий ход."
@@ -3603,6 +3650,32 @@ socket.registerMessageHandler((data) => {
 
           break;
 
+      case 23: // адреналиновый потоп
+          var user = character_detailed_info[user_index]
+          var target_index = data.target_index
+          var target = character_detailed_info[target_index]
+          var extra_actions = data.extra_actions[0]
+          while (extra_actions > 0) {
+            if (extra_actions % 2 == 0) {
+              character_state.move_action[target_index] = character_state.move_action[target_index] + adrenaline_move_increase
+            } else {
+              character_state.main_action[target_index] = character_state.main_action[target_index] + 1
+            }
+            extra_actions = extra_actions - 1
+          }
+          var adrenaline_object_target = {}
+          adrenaline_object_target.extra_actions = data.extra_actions
+          adrenaline_object_target.turn = 1
+          character_state.special_effects[target_index].poisonous_adrenaline_target = adrenaline_object_target
+
+          var adrenaline_object_user = {}
+          adrenaline_object_user.cooldown = poisonous_adrenaline_cooldown
+          character_state.special_effects[user_index].poisonous_adrenaline_user = adrenaline_object_user
+
+          var message = user.name + " использует адреналиновый потоп. "  + target.name + " получает " + data.extra_actions[0] + " действий в этот ход, и " + data.extra_actions[1] + " в следующий. Это будет стоить жизней и выносливости, используйте с умом."
+          pushToList(message)
+          break;
+
         default:
           alert("Received unknown skill command")
       }
@@ -3754,6 +3827,15 @@ socket.registerMessageHandler((data) => {
             }
           }
 
+          if (character_state.special_effects[i].hasOwnProperty("poisonous_adrenaline_user")) {
+            character_state.special_effects[i].poisonous_adrenaline_user.cooldown = character_state.special_effects[i].poisonous_adrenaline_user.cooldown - 1
+            if (character_state.special_effects[i].poisonous_adrenaline_user.cooldown == 0) {
+              delete character_state.special_effects[i].poisonous_adrenaline_user
+              var message = "Умение Адреналиновый Потоп у " + character.name + " снова доступно."
+              pushToList(message)
+            }
+          }
+
           if (character_state.special_effects[i].hasOwnProperty("adrenaline_target")) {
               var minus_actions = character_state.special_effects[i].adrenaline_target.minus_actions
               while (minus_actions > 0) {
@@ -3765,6 +3847,32 @@ socket.registerMessageHandler((data) => {
                 minus_actions = minus_actions - 1
               }
               delete character_state.special_effects[i].adrenaline_target
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("poisonous_adrenaline_target")) {
+              var turn = character_state.special_effects[i].poisonous_adrenaline_target.turn
+              character_state.special_effects[i].poisonous_adrenaline_target.turn = turn + 1
+              var extra_actions = character_state.special_effects[i].poisonous_adrenaline_target.extra_actions[turn]
+              while (extra_actions > 0) {
+                if (extra_actions % 2 == 0) {
+                  character_state.move_action[i] = character_state.move_action[i] + adrenaline_move_increase
+                } else {
+                  character_state.main_action[i] = character_state.main_action[i] + 1
+                }
+                extra_actions = extra_actions - 1
+              }
+              if (turn + 1 == poisonous_adrenaline_duration) {
+                var character = character_detailed_info[i]
+                var max_HP = HP_values[character.stamina]
+                var max_stamina = stamina_values[character.stamina]
+                var HP_cost = poisonous_adrenaline_flat_HP + parseInt(parseFloat(max_HP) * poisonous_adrenaline_percent_HP)
+                var stamina_cost = poisonous_adrenaline_flat_stamina + parseInt(parseFloat(max_stamina) * poisonous_adrenaline_percent_stamina)
+                character_state.HP[i] = character_state.HP[i] - HP_cost
+                character_state.stamina[i] = character_state.stamina[i] - stamina_cost
+                delete character_state.special_effects[i].poisonous_adrenaline_target
+                var message = "Адреналин в крови " + character.name + " заканчивается, наступает похмелье (" + HP_cost + " хп и " + stamina_cost + " выносливости)"
+                pushToList(message)
+              }
           }
 
           if (character_state.special_effects[i].hasOwnProperty("shocked")) {
