@@ -57,17 +57,19 @@ var CHAT_CASH = 15;
 var stamina_weakspot_cost = 1
 var stamina_move_cost = 0
 var stamina_attack_cost = 1
-var punch_rainfall_stamina_cost = 2
+var punch_rainfall_stamina_cost = 2 // per punch
 var stamina_cut_limb_cost = 4
-var shield_up_stamina_cost = 2
+var shield_up_stamina_cost = 2 // per move I think
 var lottery_shot_stamina_cost = 1
 var lucky_shot_stamina_cost = 1
 var action_splash_stamina_cost = 2
+var adrenaline_stamina_cost = 3
+var acid_bomb_stamina_cost = 3
 
 var rest_stamina_gain = 5
 
-var cooldown_cut_limb = 1
-var cooldown_big_bro = 1
+var cooldown_cut_limb = 1 // duration
+var cooldown_big_bro = 1 // duration
 
 var shield_up_KD = 3
 
@@ -116,6 +118,10 @@ var poisonous_adrenaline_percent_HP = 0.05
 var poisonous_adrenaline_percent_stamina = 0.05
 
 var adrenaline_cooldown = 3
+
+var acid_bomb_duration = 2 // 2+1 really
+var acid_bomb_cooldown = 5
+var acid_bomb_radius = 1.6
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
@@ -1608,6 +1614,10 @@ function cells_on_line(endpoint1, endpoint2, size) {
   return candidate_cells
 }
 
+function character_KD(target_character_number) {
+  return parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
+}
+
 function perform_attack(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
@@ -1631,7 +1641,7 @@ function perform_attack(index, cell) {
 
 
     var target_character_number = game_state.board_state[index]
-    var target_character_KD = parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
+    var target_character_KD = character_KD(target_character_number)
     var target_character = character_detailed_info[target_character_number]
     var attacking_character = character_detailed_info[user_character_number]
 
@@ -2200,7 +2210,7 @@ function gas_bomb(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
   var character = character_detailed_info[user_character_number]
-  var throw_range = throw_base_range + parseInt(character.strength)*2
+  var throw_range = findThrowRange(character)
   if (isInRange(index, user_position, throw_range)) {
     var toSend = {};
     toSend.command = 'skill';
@@ -2212,6 +2222,28 @@ function gas_bomb(index, cell) {
     socket.sendMessage(toSend);
 
     add_obstacle_command(index, gas_bomb_obstacle)
+  } else {
+    alert("Мало каши ели для такого броска")
+  }
+}
+
+function findThrowRange(character) {
+  return throw_base_range + parseInt(character.strength)*2
+}
+
+function acid_bomb(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  var character = character_detailed_info[user_character_number]
+  var throw_range = findThrowRange(character)
+  if (isInRange(index, user_position, throw_range)) {
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.skill_index = character_chosen.skill_id
+    toSend.room_number = my_room;
+    toSend.user_index = user_character_number
+    toSend.position = index
+    socket.sendMessage(toSend);
   } else {
     alert("Мало каши ели для такого броска")
   }
@@ -2494,6 +2526,11 @@ function perform_skill(index, cell) {
       stop_skill()
       break;
 
+    case 24:
+      acid_bomb(index, cell)
+      stop_skill()
+      break;
+
     default:
       alert("Unknown targeted skill")
   }
@@ -2747,7 +2784,17 @@ function use_skill(skill_index, character_number, position, cell) {
         }
         break;
 
-
+    case 24: // кислотная граната
+          if (!character_state.special_effects[character_number].hasOwnProperty("acid_bomb_user")) {
+            if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
+              choose_character_skill(skill_index, character_number, position, cell)
+            } else {
+              alert("Не хватает действий!")
+            }
+          } else {
+            alert("У гранаты кулдаун (кислота окисляется)")
+          }
+          break;
 
     default:
       alert("Не знаем это умение")
@@ -2764,7 +2811,7 @@ function choose_character_skill(skill_index, character_number, position, cell) {
 
 function apply_bomb(position, radius) {
   var candidate_cells = index_in_radius(position, radius)
-  console.log(candidate_cells)
+  //console.log(candidate_cells)
   for (let i = 0; i < candidate_cells.length; i++) {
     var target_character_number = game_state.board_state[candidate_cells[i]]
     if (target_character_number > 0) {// персонаж в радиусе бомбы
@@ -2781,6 +2828,30 @@ function apply_bomb(position, radius) {
       }
       character_state.move_action[target_character_number] = character_state.move_action[target_character_number] - gas_bomb_move_reduction
       character_state.main_action[target_character_number] = character_state.main_action[target_character_number] - 1
+    }
+  }
+}
+
+function apply_acid_bomb(position, radius) {
+  var candidate_cells = index_in_radius(position, radius)
+  //console.log(candidate_cells)
+  for (let i = 0; i < candidate_cells.length; i++) {
+    var target_character_number = game_state.board_state[candidate_cells[i]]
+    if (target_character_number > 0) {// персонаж в радиусе бомбы
+      var character = character_detailed_info[target_character_number]
+      var message = character.name + " попадает под действие кислотной гранаты"
+      pushToList(message)
+      if (character_state.special_effects[target_character_number].hasOwnProperty("acid_bomb_poison")) {
+        character_state.special_effects[target_character_number].acid_bomb_poison.duration = acid_bomb_duration
+      } else {
+        var acid_bomb_poison_object = {}
+        acid_bomb_poison_object.duration = acid_bomb_duration
+        var KD_change = parseInt(character_KD(target_character_number)/2)
+        acid_bomb_poison_object.bonus_KD = KD_change
+        character_state.special_effects[target_character_number].acid_bomb_poison = acid_bomb_poison_object
+        character_state.bonus_KD[target_character_number] = character_state.bonus_KD[target_character_number] - KD_change
+      }
+
     }
   }
 }
@@ -3174,18 +3245,19 @@ socket.registerMessageHandler((data) => {
       var user_index = data.user_index
       character_state.has_moved[user_index] = 1
       switch(data.skill_index) {
-        case 0:
+        case 0: // рывок
             character = character_detailed_info[user_index]
             character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
             character_state.move_action[user_index] = character_state.move_action[user_index] + charge_move_increase
             var message = character.name + " совершает рывок"
             pushToList(message)
             break;
-          case 1:
+          case 1: // прилив адреналина
             var user = character_detailed_info[user_index]
             var target_index = data.target_index
             var target = character_detailed_info[target_index]
             var extra_actions = data.extra_actions
+            character_state.stamina[target_index] = character_state.stamina[target_index] - adrenaline_stamina_cost
             while (extra_actions > 0) {
               if (extra_actions % 2 == 0) {
                 character_state.move_action[target_index] = character_state.move_action[target_index] + adrenaline_move_increase
@@ -3205,7 +3277,7 @@ socket.registerMessageHandler((data) => {
             var message = user.name + " использует прилив адреналина. "  + target.name + " получает " + data.extra_actions + " действий. Это будет стоить " + data.minus_actions + " действий на следующий ход."
             pushToList(message)
             break;
-          case 2:
+          case 2: // подрезание сухожилий
             var attacker = character_detailed_info[user_index]
             var target = character_detailed_info[data.target_id]
             if (game_state.battle_mod == 1) {
@@ -3266,7 +3338,7 @@ socket.registerMessageHandler((data) => {
               break;
           }
             break;
-        case 3:
+        case 3: // слабое место
           var attacker = character_detailed_info[user_index]
           character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
           character_state.stamina[user_index] = character_state.stamina[user_index] - stamina_weakspot_cost
@@ -3282,7 +3354,7 @@ socket.registerMessageHandler((data) => {
           pushToList(message)
           break;
 
-        case 4:
+        case 4: // лечение
         var healer = character_detailed_info[user_index]
         var target = character_detailed_info[data.target_id]
         character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
@@ -3320,7 +3392,7 @@ socket.registerMessageHandler((data) => {
               console.log("Ошибка при разборе отхила")
           }
           break;
-        case 5:
+        case 5: // большой брат
           character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
           character_state.stamina[user_index] = character_state.stamina[user_index] - 1
           var shield = character_detailed_info[user_index]
@@ -3333,7 +3405,7 @@ socket.registerMessageHandler((data) => {
           big_bro_object.bonus_KD = data.bonus_KD
           character_state.special_effects[data.target_id].big_bro = big_bro_object
           break;
-        case 6:
+        case 6: // поднять щиты
           var shield = character_detailed_info[user_index]
           character_state.main_action[user_index] = character_state.main_action[user_index] - 1
           if (data.outcome == "shield_up") {
@@ -3351,7 +3423,7 @@ socket.registerMessageHandler((data) => {
             pushToList(message)
           }
           break;
-        case 7:
+        case 7: // пожирание сущности
           var attacker = character_detailed_info[user_index]
           var target = character_detailed_info[data.target_id]
           character_state.main_action[user_index] = character_state.main_action[user_index] - 1
@@ -3371,7 +3443,7 @@ socket.registerMessageHandler((data) => {
           var message = attacker.name + " наносит " + target.name + " " + data.damage + " урона от которого невозможно увернуться"
           pushToList(message)
           break;
-        case 9:
+        case 9: // абсолютное восстановление
           var healer = character_detailed_info[user_index]
           var target = character_detailed_info[data.target_id]
           character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
@@ -3382,14 +3454,14 @@ socket.registerMessageHandler((data) => {
           var message = healer.name + " восстаналивает " + target.name + " " + data.heal_amount + " хп"
           pushToList(message)
           break;
-        case 10:
+        case 10: // получить бонус
             character = character_detailed_info[user_index]
             character_state.main_action[user_index] = character_state.main_action[user_index] - 1
             character_state.bonus_action[user_index] = character_state.bonus_action[user_index] + 1
             var message = character.name + " меняет обычное на бонусное действие"
             pushToList(message)
             break;
-        case 11:
+        case 11: // отдых
             character = character_detailed_info[user_index]
             character_state.main_action[user_index] = 0
             character_state.bonus_action[user_index] = 0
@@ -3399,7 +3471,7 @@ socket.registerMessageHandler((data) => {
             pushToList(message)
             break;
 
-        case 12:
+        case 12: // газовая граната
             character = character_detailed_info[user_index]
             character_state.main_action[user_index] = character_state.main_action[user_index] - 1
             character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
@@ -3676,6 +3748,25 @@ socket.registerMessageHandler((data) => {
           pushToList(message)
           break;
 
+
+      case 24: // кислотная граната
+          character = character_detailed_info[user_index]
+
+          character_state.main_action[user_index] = character_state.main_action[user_index] - 1
+          character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+          character_state.stamina[user_index] = character_state.stamina[user_index] - acid_bomb_stamina_cost
+
+          var message = character.name + " бросает кислотную гранату. А они только купили новые доспехи..."
+          pushToList(message)
+
+          var acid_bomb_user = {}
+          acid_bomb_user.cooldown = acid_bomb_cooldown
+          character_state.special_effects[user_index].acid_bomb_user = acid_bomb_user
+
+          apply_acid_bomb(data.position, acid_bomb_radius)
+
+          break;
+
         default:
           alert("Received unknown skill command")
       }
@@ -3779,6 +3870,16 @@ socket.registerMessageHandler((data) => {
               pushToList(message)
             } else {
               character_state.special_effects[i].gas_bomb_user.cooldown = character_state.special_effects[i].gas_bomb_user.cooldown - 1
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("acid_bomb_user")) {
+            if (character_state.special_effects[i].acid_bomb_user.cooldown == 0) {
+              delete character_state.special_effects[i].acid_bomb_user
+              var message = "Кислотная граната у" + character.name + " готова к использованию."
+              pushToList(message)
+            } else {
+              character_state.special_effects[i].acid_bomb_user.cooldown = character_state.special_effects[i].acid_bomb_user.cooldown - 1
             }
           }
 
@@ -3940,6 +4041,18 @@ socket.registerMessageHandler((data) => {
               character_state.special_effects[i].big_bro.cooldown = character_state.special_effects[i].big_bro.cooldown - 1
             }
           }
+
+          if (character_state.special_effects[i].hasOwnProperty("acid_bomb_poison")) {
+            if (character_state.special_effects[i].acid_bomb_poison.duration == 0) {
+              character_state.bonus_KD[i] = character_state.bonus_KD[i] + character_state.special_effects[i].acid_bomb_poison.bonus_KD
+              delete character_state.special_effects[i].acid_bomb_poison
+              var message = "Броня " + character.name + " наконец восстановилась"
+              pushToList(message)
+            } else {
+              character_state.special_effects[i].acid_bomb_poison.duration = character_state.special_effects[i].acid_bomb_poison.duration - 1
+            }
+          }
+
           if (character_state.special_effects[i].hasOwnProperty("gas_bomb_poison")) {
             var count = character_state.special_effects[i].gas_bomb_poison.poison_level
             while (count > 0) {
