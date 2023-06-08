@@ -127,6 +127,7 @@ var acid_bomb_radius = 1.6
 var mines_0_distance_damage = 12
 var mines_1_distance_damage = 8
 var mines_1p5_distance_damage = 5
+var landmine_detection_radius = 2
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
@@ -1166,22 +1167,39 @@ function change_character_visibility(character_number) {
 
 function search_action(search_button) {
   var index = search_button.index;
-  var character = character_detailed_info[game_state.board_state[index]];
+  var character_number = game_state.board_state[index]
+  var character = character_detailed_info[character_number];
 
-  var name = character.name;
-  var modificator = game_state.search_modificator_state[index];
-  var intelligence = character.intelligence;
-  var roll = rollSearch(parseInt(intelligence), parseInt(modificator));
-  var zone_number = game_state.zone_state[index];
-  pushToList('Персонаж ' + name + ' бросил ' + roll + ' на внимательность');
+  if (!(game_state.battle_mod == 1 && character_state.bonus_action[character_number] < 1)) {
 
-  var toSend = {};
-  toSend.command = 'search_action';
-  toSend.character_name = name;
-  toSend.roll = roll;
-  toSend.zone_number = zone_number;
-  toSend.room_number = my_room;
-  socket.sendMessage(toSend);
+    var name = character.name;
+    var modificator = game_state.search_modificator_state[index];
+    var intelligence = character.intelligence;
+    var roll = rollSearch(parseInt(intelligence), parseInt(modificator));
+    var zone_number = game_state.zone_state[index];
+    pushToList('Персонаж ' + name + ' бросил ' + roll + ' на внимательность');
+
+    var toSend = {};
+    toSend.command = 'search_action';
+    toSend.character_name = name;
+    toSend.roll = roll;
+    toSend.zone_number = zone_number;
+    toSend.room_number = my_room;
+    toSend.player_name = my_name
+    toSend.mines_detected = []
+    toSend.character_number = character_number
+
+    var landmine_candidates = index_in_radius(index, landmine_detection_radius)
+    for (let i = 0; i < landmine_candidates.length; i++) {
+        if (game_state.landmines.positions.includes(landmine_candidates[i])) {
+          toSend.mines_detected.push(landmine_candidates[i])
+        }
+      }
+      socket.sendMessage(toSend);
+
+  } else {
+    alert("Обыск во время боя стоит бонусное действие!")
+  }
 }
 
 function rollSearch(intelligence, mod) {
@@ -4275,6 +4293,19 @@ socket.registerMessageHandler((data) => {
     } else if (data.command == 'search_action_response') {
       if (my_role == 'gm') {
         pushToList(data.character_name + ' бросил ' + data.roll + ' на внимательность в зоне ' + data.zone_number);
+      }
+
+      if (game_state.battle_mod == 1) {
+        character_state.bonus_action[data.character_number] = character_state.bonus_action[data.character_number] - 1
+      }
+
+      if (data.mines_detected.length > 0) {
+        var message = data.character_name + " обнаруживает " + data.mines_detected.length + " мин рядом с собой"
+        pushToList(message)
+        for (let i = 0; i < data.mines_detected.length; i++) {
+          var mine = data.mines_detected[i]
+          game_state.landmines.knowers[mine].push(data.player_name)
+        }
       }
     }
   }
