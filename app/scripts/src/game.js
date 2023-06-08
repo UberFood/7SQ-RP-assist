@@ -1138,6 +1138,23 @@ function select_character(index, cell) {
 
   character_info_container.append(button_list);
 
+} else {
+  var hp_percent = parseFloat(character_state.HP[character_number])/parseFloat(HP_values[character.stamina])
+  hp_percent = Math.floor(hp_percent*100)
+
+  var HP_display = document.createElement("h2");
+  HP_display.id = "HP_display";
+  HP_display.innerHTML = "ХП: " + hp_percent + "%";
+
+  var tired_percent = parseFloat(character_state.stamina[character_number])/parseFloat(stamina_values[character.stamina])
+  tired_percent = Math.floor(tired_percent*100)
+
+  var tired_display = document.createElement("h2");
+  tired_display.id = "tired_display";
+  tired_display.innerHTML = "Выносливость: " + tired_percent + "%";
+
+  character_info_container.append(HP_display);
+  character_info_container.append(tired_display);
 }
 
   tiny_animate_containers()
