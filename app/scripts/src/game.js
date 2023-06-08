@@ -127,7 +127,8 @@ var acid_bomb_radius = 1.6
 var mines_0_distance_damage = 12
 var mines_1_distance_damage = 8
 var mines_1p5_distance_damage = 5
-var landmine_detection_radius = 2
+var landmine_detection_radius = 2.9
+var landmine_diffuse_threshold = 10
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
@@ -2287,6 +2288,33 @@ function gas_bomb(index, cell) {
   }
 }
 
+function diffuse_landmine(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  var character = character_detailed_info[user_character_number]
+  if (isInRange(index, user_position, landmine_detection_radius)) {
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.skill_index = character_chosen.skill_id
+    toSend.room_number = my_room;
+    toSend.user_index = user_character_number
+    toSend.position = index
+    toSend.outcome = "empty"
+
+    if (game_state.landmines.positions.includes(index)) {
+      var roll = roll_x(20) + parseInt(character.intelligence)
+      if (roll > landmine_diffuse_threshold) {
+        toSend.outcome = "success"
+      } else {
+        toSend.outcome = "fail"
+      }
+    }
+    socket.sendMessage(toSend);
+  } else {
+    alert("Слишком далеко для взаимодействия")
+  }
+}
+
 function findThrowRange(character) {
   return throw_base_range + parseInt(character.strength)*2
 }
@@ -2591,6 +2619,11 @@ function perform_skill(index, cell) {
       stop_skill()
       break;
 
+    case 26:
+      diffuse_landmine(index, cell)
+      stop_skill()
+      break;
+
     default:
       alert("Unknown targeted skill")
   }
@@ -2868,6 +2901,14 @@ function use_skill(skill_index, character_number, position, cell) {
             socket.sendMessage(toSend);
           } else {
             alert("Не хватает действий!")
+          }
+          break;
+
+    case 26: // Обезвредить мину
+          if (character_state.bonus_action[character_number] > 0) {
+            choose_character_skill(skill_index, character_number, position, cell)
+          } else {
+            alert("Это умение требует 1 бонусное действие!")
           }
           break;
 
@@ -3882,6 +3923,40 @@ socket.registerMessageHandler((data) => {
           game_state.landmines.knowers[data.position].push(data.player_name)
         }
 
+          break;
+
+      case 26: // обезвредить мину
+
+          if (game_state.battle_mod == 1) {
+            character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+          }
+          character = character_detailed_info[user_index]
+          switch(data.outcome) {
+            case "empty":
+                var message = "С чем " + character.name + " пытался взаимодействовать?"
+                pushToList(message)
+                break;
+            case "fail":
+                var message = character.name + " попытался обезвредить мину, но не сумел."
+                pushToList(message)
+                break;
+
+            case "success":
+                var mine_position = data.position
+                var cell = document.getElementById('cell_' + mine_position);
+                cell.src = fogOrPic(mine_position)
+                var index = game_state.landmines.positions.indexOf(mine_position)
+                if (index > -1) {
+                  game_state.landmines.positions.splice(index,1)
+                }
+                game_state.landmines.knowers[mine_position] = []
+                var message = character.name + " запрещает мине взрываться!"
+                pushToList(message)
+                break;
+
+            default:
+                console.log("Switch обевзрежения пошел не так")
+          }
           break;
 
         default:
