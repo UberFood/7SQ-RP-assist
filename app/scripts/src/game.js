@@ -17,6 +17,7 @@ var MIRROR_BUTTON_SELECTOR = '[data-name="mirror_button"]';
 var NEXT_ROUND_BUTTON_SELECTOR = '[data-name="next_round_button"]';
 var BATTLE_MOD_BUTTON_SELECTOR = '[data-name="battle_mod_button"]';
 var SYNC_BUTTON_SELECTOR = '[data-name="sync_button"]';
+var LANDMINE_BUTTON_SELECTOR = '[data-name="landmine_button"]';
 var FOG_ZONE_BUTTON_SELECTOR = '[data-name="fog_zone_button"]';
 var UNFOG_ZONE_BUTTON_SELECTOR = '[data-name="unfog_zone_button"]';
 
@@ -132,7 +133,7 @@ const bonus_action_map= [0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3]
 const main_action_map = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
 
 
-let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: [], battle_mod: 0};
+let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: [], battle_mod: 0, landmines: {positions: [], knowers: []}};
 let character_state = CHARACTER_STATE_CONSTANT;
 
 let character_base = [];
@@ -2796,6 +2797,21 @@ function use_skill(skill_index, character_number, position, cell) {
           }
           break;
 
+    case 25: // Заминировать
+          if (character_state.bonus_action[character_number] > 0) {
+            var toSend = {};
+            toSend.command = 'skill';
+            toSend.room_number = my_room;
+            toSend.skill_index = skill_index
+            toSend.user_index = character_number
+            toSend.player_name = my_name
+            toSend.position = position
+            socket.sendMessage(toSend);
+          } else {
+            alert("Не хватает действий!")
+          }
+          break;
+
     default:
       alert("Не знаем это умение")
   }
@@ -2974,6 +2990,17 @@ function sync_board() {
   toSend.from_name = my_name;
   toSend.room_number = my_room;
   socket.sendMessage(toSend);
+}
+
+function show_landmines() {
+  var landmines_array = game_state.landmines.positions
+  for (let i = 0; i < landmines_array.length; i++) {
+    var current_mine = landmines_array[i]
+    if (game_state.landmines.knowers[current_mine].includes(my_name)) {
+      var cell = document.getElementById('cell_' + current_mine);
+      cell.src = "/images/landmine.jfif"
+    }
+  }
 }
 
 function clear_character_state() {
@@ -3497,7 +3524,7 @@ socket.registerMessageHandler((data) => {
 
             break;
 
-        case 13:
+        case 13: // светошумовая гранат
             var light_sound_bomb_user = {}
             light_sound_bomb_user.cooldown = light_sound_bomb_skill_cooldown
             character_state.special_effects[user_index].light_sound_bomb_user = light_sound_bomb_user
@@ -3524,7 +3551,7 @@ socket.registerMessageHandler((data) => {
             }
             break;
 
-        case 14:
+        case 14: // шокировать (дрон + уязвимость)
           var attacker = character_detailed_info[user_index]
           var target = character_detailed_info[data.target_id]
           if (game_state.battle_mod == 1) {
@@ -3570,7 +3597,7 @@ socket.registerMessageHandler((data) => {
       }
           break;
 
-        case 15:
+        case 15: // пыщ пыщ гоу
           var user = character_detailed_info[user_index]
           var target_index = data.target_index
           var target = character_detailed_info[target_index]
@@ -3597,7 +3624,7 @@ socket.registerMessageHandler((data) => {
           var message = user.name + " использует Пыщ-Пыщ-Гоу. "  + target.name + " получает " + data.extra_actions + " доп действий на этот и следующий ход."
           pushToList(message)
           break;
-        case 16:
+        case 16: // силовое поле
             if (game_state.battle_mod == 1) {
               character_state.main_action[user_index] = character_state.main_action[user_index] - 1
               character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
@@ -3764,6 +3791,19 @@ socket.registerMessageHandler((data) => {
           character_state.special_effects[user_index].acid_bomb_user = acid_bomb_user
 
           apply_acid_bomb(data.position, acid_bomb_radius)
+
+          break;
+
+      case 25: // заминировать
+        if (game_state.battle_mod == 1) {
+          character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+        }
+
+        if (!game_state.landmines.positions.includes(data.position)) {
+          game_state.landmines.positions.push(data.position)
+          game_state.landmines.knowers[data.position] = []
+          game_state.landmines.knowers[data.position].push(data.player_name)
+        }
 
           break;
 
@@ -4240,6 +4280,9 @@ battle_mod_button.hide();
 var sync_button = $(SYNC_BUTTON_SELECTOR);
 sync_button.on('click', sync_board);
 sync_button.hide();
+
+var landmine_button = $(LANDMINE_BUTTON_SELECTOR);
+landmine_button.on('click', show_landmines);
 
 var fog_zone_button = $(FOG_ZONE_BUTTON_SELECTOR);
 fog_zone_button.on('click', fogCurrentZone);

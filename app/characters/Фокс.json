@@ -1,1 +1,1 @@
-{"name":"Фокс","avatar":"/images/fox.jpg","strength":"3","stamina":"4","agility":"8","intelligence":"7", "KD_points": "12", "special_type": "spy", "inventory": [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17], "skillset": [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]}
+{"name":"Фокс","avatar":"/images/fox.jpg","strength":"3","stamina":"4","agility":"8","intelligence":"7", "KD_points": "12", "special_type": "spy", "inventory": [8,4], "skillset": [25,4,10,11]}
