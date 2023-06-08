@@ -683,7 +683,7 @@ function move_character(to_index, to_cell) {
   var max_distance = character_state.move_action[chosen_character_index]
 
   if (distance <= max_distance) {
-    if (!(character_state.invisibility[chosen_character_index] != "all" && distance > 2)) {
+    if (!(game_state.battle_mod == 1 && distance > 2)) {
       var toSend = {};
       toSend.command = 'move_character';
       toSend.from_index = chosen_index;
@@ -775,7 +775,7 @@ function move_character(to_index, to_cell) {
       var to_cell = document.getElementById('cell_' + to_index);
       character_chosen.cell = to_cell
     } else {
-      alert("В инвизе приходится красться (ходите по 1-2 клетки)")
+      alert("В бою нужно двигаться поступательно (1-2 клетки)")
       undo_selection()
     }
   } else {
