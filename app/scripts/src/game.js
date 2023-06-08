@@ -124,6 +124,10 @@ var acid_bomb_duration = 2 // 2+1 really
 var acid_bomb_cooldown = 5
 var acid_bomb_radius = 1.6
 
+var mines_0_distance_damage = 12
+var mines_1_distance_damage = 8
+var mines_1p5_distance_damage = 5
+
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
 const stamina_values = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195];
@@ -687,6 +691,8 @@ function move_character(to_index, to_cell) {
       toSend.room_number = my_room;
       toSend.distance = distance
       toSend.left_shield = 0
+      toSend.mines_exploded = []
+      toSend.mines_damage = 0
 
       if (character_state.special_effects[chosen_character_index].hasOwnProperty("force_field_target")) {
         var shield_index = character_state.special_effects[chosen_character_index].force_field_target.shield_index
@@ -720,12 +726,30 @@ function move_character(to_index, to_cell) {
         }
       }
 
+      if (game_state.landmines.positions.includes(to_index)) {
+        toSend.mines_exploded.push(to_index)
+        toSend.mines_damage = toSend.mines_damage + roll_x(mines_0_distance_damage);
+      }
+
       var immediate_nbh = index_in_radius(to_index, 1);
       for (let i = 0; i < immediate_nbh.length; i++) {
           if (game_state.board_state[immediate_nbh[i]] > 0 && game_state.board_state[immediate_nbh[i]] != chosen_character_index) {// there are characters there
             if (character_state.invisibility[game_state.board_state[immediate_nbh[i]]] != "all") {
                 toSend.invisibility_ended_id.push(game_state.board_state[immediate_nbh[i]]);
             }
+          }
+
+          if (game_state.landmines.positions.includes(immediate_nbh[i]) && immediate_nbh[i] != to_index) {
+            toSend.mines_exploded.push(immediate_nbh[i])
+            toSend.mines_damage = toSend.mines_damage + roll_x(mines_1_distance_damage);
+          }
+      }
+
+      var one_and_half_nbh = index_in_radius(to_index, 1.6);
+      for (let i = 0; i < one_and_half_nbh.length; i++) {
+          if (game_state.landmines.positions.includes(one_and_half_nbh[i]) && (!immediate_nbh.includes(one_and_half_nbh[i]))) {
+            toSend.mines_exploded.push(one_and_half_nbh[i])
+            toSend.mines_damage = toSend.mines_damage + roll_x(mines_1p5_distance_damage);
           }
       }
 
@@ -3166,6 +3190,24 @@ socket.registerMessageHandler((data) => {
         var to_cell = document.getElementById('cell_' + position);
         var avatar = character_detailed_info[id].avatar;
         to_cell.src = avatar;
+      }
+
+      for (let i = 0; i < data.mines_exploded.length; i++) {
+        var mine_position = data.mines_exploded[i]
+        var cell = document.getElementById('cell_' + mine_position);
+        cell.src = fogOrPic(mine_position)
+        var index = game_state.landmines.positions.indexOf(mine_position)
+        if (index > -1) {
+          game_state.landmines.positions.splice(index,1)
+        }
+        game_state.landmines.knowers[mine_position] = []
+      }
+
+      if (data.mines_damage > 0) {
+        do_damage(data.character_number, data.mines_damage)
+        var character = character_detailed_info[data.character_number]
+        var message = character.name + " подрывается на минах получая " + data.mines_damage + " урона"
+        pushToList(message)
       }
 
       // remove shielded property from character and remove character from shielded list
