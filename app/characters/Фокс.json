@@ -1,1 +1,1 @@
-{"name":"Фокс","avatar":"/images/fox.jpg","strength":"3","stamina":"4","agility":"8","intelligence":"7", "KD_points": "12", "special_type": "spy", "inventory": [8,4], "skillset": [25,4,10,11]}
+{"name":"Фокс","avatar":"/images/fox.jpg","strength":"3","stamina":"4","agility":"8","intelligence":"7", "KD_points": "12", "special_type": "spy", "inventory": [8,4], "skillset": [25,4,10,11], "landmine_immune": true}

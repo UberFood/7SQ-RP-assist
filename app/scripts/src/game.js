@@ -3268,22 +3268,26 @@ socket.registerMessageHandler((data) => {
         to_cell.src = avatar;
       }
 
-      for (let i = 0; i < data.mines_exploded.length; i++) {
-        var mine_position = data.mines_exploded[i]
-        var cell = document.getElementById('cell_' + mine_position);
-        cell.src = fogOrPic(mine_position)
-        var index = game_state.landmines.positions.indexOf(mine_position)
-        if (index > -1) {
-          game_state.landmines.positions.splice(index,1)
-        }
-        game_state.landmines.knowers[mine_position] = []
-      }
+      var character = character_detailed_info[data.character_number]
 
-      if (data.mines_damage > 0) {
-        do_damage(data.character_number, data.mines_damage)
-        var character = character_detailed_info[data.character_number]
-        var message = character.name + " подрывается на минах получая " + data.mines_damage + " урона"
-        pushToList(message)
+      if (!character.hasOwnProperty("landmine_immune")) {
+        for (let i = 0; i < data.mines_exploded.length; i++) {
+          var mine_position = data.mines_exploded[i]
+          var cell = document.getElementById('cell_' + mine_position);
+          cell.src = fogOrPic(mine_position)
+          var index = game_state.landmines.positions.indexOf(mine_position)
+          if (index > -1) {
+            game_state.landmines.positions.splice(index,1)
+          }
+          game_state.landmines.knowers[mine_position] = []
+        }
+
+        if (data.mines_damage > 0) {
+          do_damage(data.character_number, data.mines_damage)
+          var message = character.name + " подрывается на минах получая " + data.mines_damage + " урона"
+          pushToList(message)
+        }
+
       }
 
       // remove shielded property from character and remove character from shielded list
