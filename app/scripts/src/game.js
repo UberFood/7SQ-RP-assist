@@ -3371,7 +3371,8 @@ socket.registerMessageHandler((data) => {
         img.click(function() {
           var position = character_state.position[ordered_array[i]]
           var cell = document.getElementById('cell_' + position);
-          select_character(position, cell)
+          //select_character(position, cell)
+          no_shift_onclick(my_role, gm_control_mod, game_state, character_chosen.in_process, cell, position)
         })
         img.appendTo(initiative_order_container);
 
