@@ -5,6 +5,7 @@ var $ = window.jQuery;
 var CHARACTER_INFO_CONTANER_SELECTOR = '[data-name="character-info-container"]';
 var WEAPON_INFO_CONTANER_SELECTOR = '[data-name="weapon-info-container"]';
 var NOTIFICATIONS_CONTANER_SELECTOR = '[data-name="notifications-container"]';
+var INITIATIVE_ORDER_CONTANER_SELECTOR = '[data-name="initiative-order-display-container"]';
 
 var CREATE_BOARD_BUTTON_SELECTOR = '[data-name="create_board_button"]';
 var SAVE_BOARD_BUTTON_SELECTOR = '[data-name="save_board_button"]';
@@ -3151,6 +3152,16 @@ function a_onclick() {
   }
 }
 
+function compare_initiative(a,b) {
+  if (character_state.initiative[a] < character_state.initiative[b]) {
+    return 1;
+  } else if (character_state.initiative[a] == character_state.initiative[b]) {
+    return 0;
+  } else {
+    return -1;
+  }
+}
+
 //socket.init('ws://localhost:3001');
 socket.init(SERVER_ADDRESS);
 
@@ -3342,6 +3353,30 @@ socket.registerMessageHandler((data) => {
       }
     } else if (data.command == 'roll_initiative_response') {
       character_state.initiative = data.initiative_state;
+      var ordered_array = []
+      for (let i = 0; i < character_state.initiative.length; i++) {
+        if (character_state.HP[i] > 0) {// character is present
+          ordered_array.push(i)
+        }
+      }
+      ordered_array.sort(compare_initiative);
+      initiative_order_container.html("")
+      for (let i = 0; i < ordered_array.length; i++) {
+        var character = character_detailed_info[ordered_array[i]]
+        var query_string = '<img> id="initiative_image_' + i + '"'
+        var img = $(query_string)
+        img.attr('src', character.avatar);
+        img.attr('height', '50px');
+        img.attr('width', '50px');
+        img.click(function() {
+          var position = character_state.position[ordered_array[i]]
+          var cell = document.getElementById('cell_' + position);
+          select_character(position, cell)
+        })
+        img.appendTo(initiative_order_container);
+
+      }
+
     } else if (data.command == 'deal_damage_response') {
       character_state.HP[data.character_number] = character_state.HP[data.character_number] - data.damage;
     } else if (data.command == 'save_game_response') {
@@ -4490,6 +4525,8 @@ notifications_container.hide();
 var character_info_container = $(CHARACTER_INFO_CONTANER_SELECTOR);
 
 var weapon_info_container = $(WEAPON_INFO_CONTANER_SELECTOR);
+
+var initiative_order_container = $(INITIATIVE_ORDER_CONTANER_SELECTOR);
 
 document.onkeydown = function (e) {
     var keyCode = e.keyCode;
