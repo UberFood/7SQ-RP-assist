@@ -267,13 +267,7 @@ function ctrl_onclick(index) {
 }
 
 function construct_board(new_game_state) {
-  game_state.board_state = new_game_state.board_state;
-  game_state.size = new_game_state.size;
-  game_state.fog_state = new_game_state.fog_state;
-  game_state.zone_state = new_game_state.zone_state;
-  game_state.search_modificator_state = new_game_state.search_modificator_state;
-  game_state.terrain_effects = new_game_state.terrain_effects;
-
+  game_state = new_game_state
   clear_containers()
 
   var board_container = document.getElementById("board-container");
@@ -401,11 +395,11 @@ function fogOrPic(cell_id) {
   var picture_name = FOG_IMAGE;
   if ((game_state.fog_state[cell_id] != 1)||(my_role == 'gm')) {
     var char_id = game_state.board_state[cell_id]
-    if (character_state.invisibility[char_id] == "all" || character_state.invisibility[char_id] == my_name) {
-      picture_name = get_object_picture(char_id);
-    } else {
+    picture_name = get_object_picture(char_id);
+    if (char_id > 0 && character_state.invisibility[char_id] != "all" && character_state.invisibility[char_id] != my_name) {
       picture_name = get_object_picture(0);
     }
+
   }
   return picture_name;
 }
