@@ -155,9 +155,11 @@ let zone_endpoint = {index: -1, cell: 0}
 
 var gunshot_audio = new Audio('sounds/gunshot.mp3');
 var sword_audio = new Audio('sounds/sword.wav');
+var explosion_audio = new Audio('sounds/explosion.mp3');
 
 gunshot_audio.volume = 0.2
 sword_audio.volume = 0.2
+explosion_audio.volume = 0.2
 
 function reconnect() {
   if (!socket.isReady()) {
@@ -677,7 +679,7 @@ function move_character(to_index, to_cell) {
   var max_distance = character_state.move_action[chosen_character_index]
 
   if (distance <= max_distance) {
-    if (!(game_state.battle_mod == 1 && distance > 2)) {
+    if (!(game_state.battle_mod == 1 && distance > 1.6)) {
       var toSend = {};
       toSend.command = 'move_character';
       toSend.from_index = chosen_index;
@@ -3277,6 +3279,7 @@ socket.registerMessageHandler((data) => {
         }
 
         if (data.mines_damage > 0) {
+          explosion_audio.play();
           do_damage(data.character_number, data.mines_damage)
           var message = character.name + " подрывается на минах получая " + data.mines_damage + " урона"
           pushToList(message)
