@@ -3128,26 +3128,31 @@ function clear_character(number) {
 }
 
 function w_onclick() {
-  if (character_chosen.in_process == 1) {
-    undo_selection()
-  } else {
-    var index = character_chosen.char_position
-    var cell = character_chosen.cell
-    choose_character_to_move(index, cell);
+  if (my_role == "gm" || character_state.visibility[character_chosen.char_id] == 1) {
+    if (character_chosen.in_process == 1) {
+      undo_selection()
+    } else {
+      var index = character_chosen.char_position
+      var cell = character_chosen.cell
+      choose_character_to_move(index, cell);
+    }
   }
 }
 
 function a_onclick() {
-  if (character_chosen.in_process == 2) {
-    stop_attack()
-  } else {
-    var character_number = character_chosen.char_id
-    var cell = character_chosen.cell
-    var main_actions_left = character_state.main_action[character_number]
-    if (main_actions_left > 0) {
-      choose_character_to_attack(cell)
+  if (my_role == "gm" || character_state.visibility[character_chosen.char_id] == 1) {
+
+    if (character_chosen.in_process == 2) {
+      stop_attack()
     } else {
-      alert("У вас не осталось действий!")
+      var character_number = character_chosen.char_id
+      var cell = character_chosen.cell
+      var main_actions_left = character_state.main_action[character_number]
+      if (main_actions_left > 0) {
+        choose_character_to_attack(cell)
+      } else {
+        alert("У вас не осталось действий!")
+      }
     }
   }
 }
