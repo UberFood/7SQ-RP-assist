@@ -4052,7 +4052,7 @@ socket.registerMessageHandler((data) => {
 
       for (let i = 1; i < character_state.can_evade.length; i++) {
         character = character_detailed_info[i]
-        if (character !== undefined && character !== null) {
+        if (character !== undefined && character !== null && character_state.HP[i] !== null && character_state.HP[i] > 0) {
           character_state.can_evade[i] = 1
           character_state.has_moved[i] = 0
           character_state.move_action[i] = parseFloat(move_action_map[character.agility]);
