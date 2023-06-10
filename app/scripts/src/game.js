@@ -102,7 +102,7 @@ var force_field_obstacle = 24
 
 var action_splash_cooldown = 4
 
-var invisibility_detection_radius = 3;
+var invisibility_detection_radius = 2;
 
 var big_bro_range = 2
 var heal_range = 1
@@ -130,6 +130,10 @@ var mines_1_distance_damage = 8
 var mines_1p5_distance_damage = 5
 var landmine_detection_radius = 2.9
 var landmine_diffuse_threshold = 10
+
+var tobacco_strike_hp_percentage = 0.1
+var tobacco_strike_bonus = 4
+var tobacco_strike_cooldown = 1
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
@@ -2901,6 +2905,19 @@ function use_skill(skill_index, character_number, position, cell) {
           }
           break;
 
+    case 27: // Никотиновый удар
+          if (!character_state.special_effects[character_number].hasOwnProperty("tobacco_strike")) {
+            var toSend = {};
+            toSend.command = 'skill';
+            toSend.room_number = my_room;
+            toSend.skill_index = skill_index
+            toSend.user_index = character_number
+            socket.sendMessage(toSend);
+          } else {
+            alert("Нельзя затягиваться так часто! У вас зависимость")
+          }
+          break;
+
     default:
       alert("Не знаем это умение")
   }
@@ -3993,6 +4010,18 @@ socket.registerMessageHandler((data) => {
           }
           break;
 
+      case 27: // никотиновый удар
+          character = character_detailed_info[user_index]
+          var full_hp = HP_values[character.stamina]
+          character_state.HP[user_index] = character_state.HP[user_index] - full_hp * tobacco_strike_hp_percentage
+          character_state.attack_bonus[user_index] = character_state.attack_bonus[user_index] + tobacco_strike_bonus
+          var tobacco_strike_object = {}
+          tobacco_strike_object.cooldown = tobacco_strike_cooldown
+          character_state.special_effects[user_index].tobacco_strike = tobacco_strike_object
+          var message = character.name + " хорошечно затягивается. Берегитесь!"
+          pushToList(message);
+          break;
+
         default:
           alert("Received unknown skill command")
       }
@@ -4265,6 +4294,17 @@ socket.registerMessageHandler((data) => {
               pushToList(message)
             } else {
               character_state.special_effects[i].big_bro.cooldown = character_state.special_effects[i].big_bro.cooldown - 1
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("tobacco_strike")) {
+            if (character_state.special_effects[i].tobacco_strike.cooldown == 0) {
+              delete character_state.special_effects[i].tobacco_strike
+            } else {
+              if (character_state.special_effects[i].tobacco_strike.cooldown == tobacco_strike_cooldown) {
+                character_state.attack_bonus[i] = character_state.attack_bonus[i] - tobacco_strike_bonus
+              }
+              character_state.special_effects[i].tobacco_strike.cooldown = character_state.special_effects[i].tobacco_strike.cooldown - 1
             }
           }
 
