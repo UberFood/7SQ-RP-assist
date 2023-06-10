@@ -157,9 +157,11 @@ let zone_endpoint = {index: -1, cell: 0}
 var gunshot_audio = new Audio('sounds/gunshot.mp3');
 var sword_audio = new Audio('sounds/sword.wav');
 var explosion_audio = new Audio('sounds/explosion.mp3');
+var suriken_audio = new Audio('sounds/suriken.mp3');
 
 gunshot_audio.volume = 0.2
 sword_audio.volume = 0.2
+suriken_audio.volume = 0.2
 explosion_audio.volume = 0.2
 
 function reconnect() {
@@ -1676,6 +1678,18 @@ function character_KD(target_character_number) {
   return parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
 }
 
+function weapon_damage_bonus(raw_damage, weapon, character_number) {
+  var character = character_detailed_info[character_number]
+  var total_damage = raw_damage
+  if (weapon.type == 'melee') {
+    total_damage = total_damage + strength_damage_map[parseInt(character.strength)]
+  } else if (weapon.type == 'throwing') {
+    total_damage = total_damage + strength_damage_map[Math.ceil(parseInt(character.strength)/2)]
+  }
+  total_damage = total_damage + character_state.damage_bonus[character_number]
+  return total_damage
+}
+
 function perform_attack(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
@@ -1712,6 +1726,11 @@ function perform_attack(index, cell) {
     toSend.target_id = target_character_number
     toSend.attack_type = weapon.type
     toSend.cover_level = cover_modifier.cover_level
+    toSend.user_invisibility_ended = 0
+
+    if (character_state.invisibility[user_character_number] != "all" && weapon.type != "throwing") {
+      toSend.user_invisibility_ended = 1
+    }
 
     if (cover_modifier.isPossible) {
       var attack_roll = roll_attack(weapon.type, user_character_number, target_character_number, cover_modifier.advantage_bonus)
@@ -1723,6 +1742,8 @@ function perform_attack(index, cell) {
           var cumulative_attack_roll = attack_roll + parseInt(attacking_character.strength)
         } else if (weapon.type == "energy") {
           var cumulative_attack_roll = attack_roll + 2*parseInt(attacking_character.intelligence)
+        } else if (weapon.type == "throwing") {
+          var cumulative_attack_roll = attack_roll + parseInt(attacking_character.agility)
         }
 
         var attack_bonus = character_state.attack_bonus[user_character_number]
@@ -1778,77 +1799,51 @@ function compute_damage(weapon, character_number, attack_roll, target_number) {
       for (let i = 0; i < weapon.damage[0]; i++) {
         damage = damage + roll_x(weapon.damage[1])
       }
-      if (weapon.type == 'melee') {
-        damage = damage + strength_damage_map[parseInt(character.strength)]
-      }
-      damage = damage + character_state.damage_bonus[character_number]
+
+      damage = weapon_damage_bonus(damage, weapon, character_number)
     } else {
       if (character_state.special_effects[target_number].hasOwnProperty("weakspot") && character_state.special_effects[target_number].weakspot.hunter_id == character_number) {
         switch (attack_roll) {
           case 18:
             damage = weapon.damage[1] * weapon.damage[0]
-            if (weapon.type == 'melee') {
-              damage = damage + strength_damage_map[parseInt(character.strength)]
-            }
-            damage = damage + character_state.damage_bonus[character_number]
+            damage = weapon_damage_bonus(damage, weapon, character_number)
             damage = damage*2
             break;
           case 19:
           damage = weapon.damage[1] * weapon.damage[0]
-          if (weapon.type == 'melee') {
-            damage = damage + strength_damage_map[parseInt(character.strength)]
-          }
-          damage = damage + character_state.damage_bonus[character_number]
+          damage = weapon_damage_bonus(damage, weapon, character_number)
           damage = damage*2
           break;
           case 20:
           damage = weapon.damage[1] * weapon.damage[0]
-          if (weapon.type == 'melee') {
-            damage = damage + strength_damage_map[parseInt(character.strength)]
-          }
-          damage = damage + character_state.damage_bonus[character_number]
+          damage = weapon_damage_bonus(damage, weapon, character_number)
           damage = damage*5
           break;
           default:
             damage = weapon.damage[1] * weapon.damage[0]
-            if (weapon.type == 'melee') {
-              damage = damage + strength_damage_map[parseInt(character.strength)]
-            }
-            damage = damage + character_state.damage_bonus[character_number]
+            damage = weapon_damage_bonus(damage, weapon, character_number)
         }
       } else {
         switch (attack_roll) {
           case 18:
             damage = weapon.damage[1] * weapon.damage[0]
-            if (weapon.type == 'melee') {
-              damage = damage + strength_damage_map[parseInt(character.strength)]
-            }
-            damage = damage + character_state.damage_bonus[character_number]
+            damage = weapon_damage_bonus(damage, weapon, character_number)
             break;
           case 19:
           damage = weapon.damage[1] * weapon.damage[0]
-          if (weapon.type == 'melee') {
-            damage = damage + strength_damage_map[parseInt(character.strength)]
-          }
-          damage = damage + character_state.damage_bonus[character_number]
+          damage = weapon_damage_bonus(damage, weapon, character_number)
           damage = damage*2
           break;
           case 20:
           damage = weapon.damage[1] * weapon.damage[0]
-          if (weapon.type == 'melee') {
-            damage = damage + strength_damage_map[parseInt(character.strength)]
-          }
-          damage = damage + character_state.damage_bonus[character_number]
+          damage = weapon_damage_bonus(damage, weapon, character_number)
           damage = damage*3
           break;
           default:
           for (let i = 0; i < weapon.damage[0]; i++) {
             damage = damage + roll_x(weapon.damage[1])
           }
-          if (weapon.type == 'melee') {
-            damage = damage + strength_damage_map[parseInt(character.strength)]
-          }
-          damage = damage + character_state.damage_bonus[character_number]
+          damage = weapon_damage_bonus(damage, weapon, character_number)
         }
       }
     }
@@ -1860,10 +1855,7 @@ function compute_damage(weapon, character_number, attack_roll, target_number) {
     } else {
       damage = weapon.damage[1] * weapon.damage[0]
     }
-    if (weapon.type == 'melee') {
-      damage = damage + strength_damage_map[parseInt(character.strength)]
-    }
-    damage = damage + character_state.damage_bonus[character_number]
+    damage = weapon_damage_bonus(damage, weapon, character_number)
 
     if (attack_roll == 20) {
       damage = damage * 2
@@ -4361,10 +4353,12 @@ socket.registerMessageHandler((data) => {
         var audio = gunshot_audio
       } else if (data.attack_type == "melee") {
         var audio = sword_audio
+      } else {// default including energy and throwing
+        var audio = suriken_audio
       }
       audio.play();
 
-      if (character_state.invisibility[data.attacker_id] != "all") {
+      if (data.user_invisibility_ended == 1) {
         character_state.invisibility[data.attacker_id] = "all"
         var attacker_cell = document.getElementById('cell_' + data.attacker_position);
         attacker_cell.src = character_detailed_info[data.attacker_id].avatar;
