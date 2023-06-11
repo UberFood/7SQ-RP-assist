@@ -1,1 +1,1 @@
-{"name":"Кэт","avatar":"/images/cat.png","strength": "2", "stamina": "2", "agility":"4","intelligence": "2", "KD_points": "8", "special_type": "rough", "inventory": [5], "skillset": [4]}
+{"name":"Кэт","avatar":"/images/cat.png","strength": "2", "stamina": "2", "agility":"4","intelligence": "2", "KD_points": "8", "special_type": "rough", "inventory": [5], "skillset": [0,2,4,10,11,17]}

@@ -256,15 +256,10 @@ wss.on('connection', (ws) => {
         clientSocket.send(JSON.stringify(data));
       });
     } else if (data.command == 'search_action') {
-      var response = {};
-      response.room_number = data.room_number;
-      response.command = 'search_action_response';
-      response.character_name = data.character_name;
-      response.to_name = 'all';
-      response.zone_number = data.zone_number;
-      response.roll = data.roll;
+      data.command = 'search_action_response';
+      data.to_name = 'all';
       wss.clients.forEach(function(clientSocket) {
-        clientSocket.send(JSON.stringify(response));
+        clientSocket.send(JSON.stringify(data));
       });
     } else if (data.command == 'resolve_attack') {
       data.command = 'resolve_attack_response';
