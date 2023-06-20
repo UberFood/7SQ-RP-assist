@@ -68,9 +68,11 @@ var action_splash_stamina_cost = 2
 var adrenaline_stamina_cost = 3
 var acid_bomb_stamina_cost = 3
 
+var cut_limb_cooldown = 1
+
 var rest_stamina_gain = 5
 
-var cooldown_cut_limb = 1 // duration
+var cut_limb_duration = 1
 var cooldown_big_bro = 1 // duration
 
 var shield_up_KD = 3
@@ -2645,10 +2647,14 @@ function use_skill(skill_index, character_number, position, cell) {
       }
       break;
     case 2: // Подрезать сухожилия
-    if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
-      choose_character_skill(skill_index, character_number, position, cell)
+    if (!character_state.special_effects[character_number].hasOwnProperty("cut_limb_user")) {
+      if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
+        choose_character_skill(skill_index, character_number, position, cell)
+      } else {
+        alert("Не хватает действий!")
+      }
     } else {
-      alert("Не хватает действий!")
+      alert("Умение все еще на кулдауне!")
     }
     break;
 
@@ -3486,6 +3492,9 @@ socket.registerMessageHandler((data) => {
               character_state.main_action[user_index] = character_state.main_action[user_index] - 1
               character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
             }
+            var cut_limb_object = {}
+            cut_limb_object.cooldown = cut_limb_cooldown
+            character_state.special_effects[user_index].cut_limb_user = cut_limb_object
             switch (data.outcome) {
               case "KD_block":
                 var message = attacker.name + " пытается подрезать " + target.name + " (" + data.attack_roll + "), но не пробивает броню."
@@ -3501,7 +3510,7 @@ socket.registerMessageHandler((data) => {
               case "damage_without_evasion":
                 if (data.skill_outcome == "success") {
                   var limb_cut_object = {}
-                  limb_cut_object.cooldown = cooldown_cut_limb
+                  limb_cut_object.duration = cut_limb_duration
                   character_state.special_effects[data.target_id].cut_limb = limb_cut_object
                   character_state.move_action[data.target_id] = -10
                   var message = attacker.name + " успешно подрезает " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться. Атака наносит " + data.damage_roll + " урона."
@@ -3514,7 +3523,7 @@ socket.registerMessageHandler((data) => {
               case "damage_after_evasion":
                 if (data.skill_outcome == "success") {
                   var limb_cut_object = {}
-                  limb_cut_object.cooldown = cooldown_cut_limb
+                  limb_cut_object.duration = cut_limb_duration
                   character_state.special_effects[data.target_id].cut_limb = limb_cut_object
                   character_state.move_action[data.target_id] = -10
                   var message = attacker.name + " успешно подрезает " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + "). Атака наносит " + data.damage_roll + " урона."
@@ -3527,7 +3536,7 @@ socket.registerMessageHandler((data) => {
                 break;
             case "full_crit":
               var limb_cut_object = {}
-              limb_cut_object.cooldown = cooldown_cut_limb + 1
+              limb_cut_object.duration = cut_limb_duration + 1
               character_state.special_effects[data.target_id].cut_limb = limb_cut_object
               character_state.move_action[data.target_id] = -10
               var message = attacker.name + " критически подрезает " + target.name + ", не оставляя возможности увернуться. Атака наносит " + data.damage_roll + " урона."
@@ -4196,6 +4205,14 @@ socket.registerMessageHandler((data) => {
             }
           }
 
+          if (character_state.special_effects[i].hasOwnProperty("cut_limb_user")) {
+            if (character_state.special_effects[i].cut_limb_user.cooldown == 0) {
+              delete character_state.special_effects[i].cut_limb_user
+            } else {
+              character_state.special_effects[i].cut_limb_user.cooldown = character_state.special_effects[i].cut_limb_user.cooldown - 1
+            }
+          }
+
           if (character_state.special_effects[i].hasOwnProperty("poisonous_adrenaline_user")) {
             character_state.special_effects[i].poisonous_adrenaline_user.cooldown = character_state.special_effects[i].poisonous_adrenaline_user.cooldown - 1
             if (character_state.special_effects[i].poisonous_adrenaline_user.cooldown == 0) {
@@ -4254,12 +4271,13 @@ socket.registerMessageHandler((data) => {
           }
 
           if (character_state.special_effects[i].hasOwnProperty("cut_limb")) {
-            character_state.move_action[i] = -10
-            character_state.special_effects[i].cut_limb.cooldown = character_state.special_effects[i].cut_limb.cooldown - 1
-            if (character_state.special_effects[i].cut_limb.cooldown == 0) {
+            if (character_state.special_effects[i].cut_limb.duration == 0) {
               delete character_state.special_effects[i].cut_limb
-              var message = "Сухожилия " + character.name + " восстановятся на следующем ходу."
+              var message = "Сухожилия " + character.name + " восстановились."
               pushToList(message)
+            } else {
+              character_state.move_action[i] = -10
+              character_state.special_effects[i].cut_limb.duration = character_state.special_effects[i].cut_limb.duration - 1
             }
           }
 
