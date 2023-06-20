@@ -2554,7 +2554,7 @@ function perform_skill(index, cell) {
       heal(index, cell)
       stop_skill()
       break;
-    case 5: // Лечение
+    case 5: // Большой брат
       big_bro(index, cell)
       stop_skill()
       break;
@@ -2931,6 +2931,7 @@ function choose_character_skill(skill_index, character_number, position, cell) {
   cell.src = "./images/Chidori.webp";
 }
 
+// прок газовой гранаты
 function apply_bomb(position, radius) {
   var candidate_cells = index_in_radius(position, radius)
   //console.log(candidate_cells)
@@ -2948,7 +2949,7 @@ function apply_bomb(position, radius) {
         gas_bomb_poison_object.threshold = gas_bomb_threshold
         character_state.special_effects[target_character_number].gas_bomb_poison = gas_bomb_poison_object
       }
-      character_state.move_action[target_character_number] = character_state.move_action[target_character_number] - gas_bomb_move_reduction
+      character_state.bonus_action[target_character_number] = character_state.bonus_action[target_character_number] - 1
       character_state.main_action[target_character_number] = character_state.main_action[target_character_number] - 1
     }
   }
@@ -4334,7 +4335,7 @@ socket.registerMessageHandler((data) => {
           if (character_state.special_effects[i].hasOwnProperty("gas_bomb_poison")) {
             var count = character_state.special_effects[i].gas_bomb_poison.poison_level
             while (count > 0) {
-              character_state.move_action[i] = character_state.move_action[i] - gas_bomb_move_reduction
+              //character_state.move_action[i] = character_state.move_action[i] - gas_bomb_move_reduction
               if (count % 2 == 1) {
                 character_state.main_action[i] = character_state.main_action[i] - 1
               } else {
