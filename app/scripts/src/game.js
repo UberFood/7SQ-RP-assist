@@ -2667,7 +2667,7 @@ function use_skill(skill_index, character_number, position, cell) {
     break;
 
     case 4: // Лечение
-    if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
+    if (character_state.main_action[character_number] > 0) {
       choose_character_skill(skill_index, character_number, position, cell)
     } else {
       alert("Не хватает действий!")
@@ -3567,15 +3567,14 @@ socket.registerMessageHandler((data) => {
         case 4: // лечение
         var healer = character_detailed_info[user_index]
         var target = character_detailed_info[data.target_id]
-        character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
         character_state.main_action[user_index] = character_state.main_action[user_index] - 1
         character_state.stamina[user_index] = character_state.stamina[user_index] - 1
         var cooldown = 0
         if (character_state.initiative[user_index] > character_state.initiative[data.target_id]) {
           // пациент не ходит в этот же ход
-          character_state.main_action[data.target_id] = 0
-          character_state.bonus_action[data.target_id] = 0
-          character_state.move_action[data.target_id] = 0
+          character_state.main_action[data.target_id] = character_state.main_action[data.target_id] - 1
+          character_state.bonus_action[data.target_id] = character_state.bonus_action[data.target_id] - 1
+          character_state.move_action[data.target_id] = character_state.move_action[data.target_id]/2
           cooldown = 0
         } else {
           cooldown = 1
@@ -4283,9 +4282,9 @@ socket.registerMessageHandler((data) => {
 
           if (character_state.special_effects[i].hasOwnProperty("healed")) {
             if (character_state.special_effects[i].healed.cooldown > 0) {
-              character_state.move_action[i] = 0
-              character_state.main_action[i] = 0
-              character_state.bonus_action[i] = 0
+              character_state.move_action[i] = character_state.move_action[i]/2
+              character_state.main_action[i] = character_state.main_action[i] - 1
+              character_state.bonus_action[i] = character_state.bonus_action[i] - 1
               character_state.special_effects[i].healed.cooldown = character_state.special_effects[i].healed.cooldown - 1
             } else {
               delete character_state.special_effects[i].healed
