@@ -139,7 +139,7 @@ var tobacco_strike_cooldown = 1
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
 const stamina_values = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195];
 const strength_damage_map = [-2, 0, 1, 3, 6, 10, 15, 21, 28, 36, 45, 55]
-const move_action_map = [1, 3, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]
+const move_action_map = [1, 3, 4, 6, 8, 9, 10, 11, 12, 13, 14, 15]
 const bonus_action_map= [0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3]
 const main_action_map = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
 
@@ -2626,7 +2626,7 @@ function use_skill(skill_index, character_number, position, cell) {
   skill_index = parseInt(skill_index)
   switch(skill_index) {
     case 0: //Рывок
-      if (character_state.bonus_action[character_number] > 0) {
+      if (character_state.bonus_action[character_number] > 0 && (!character_state.special_effects[character_number].hasOwnProperty("charge_user") || character_detailed_info[character_number].special_type == "rogue")) {
         var toSend = {};
         toSend.command = 'skill';
         toSend.room_number = my_room;
@@ -3443,8 +3443,12 @@ socket.registerMessageHandler((data) => {
       switch(data.skill_index) {
         case 0: // рывок
             character = character_detailed_info[user_index]
+            var charge_move_increase = parseInt(character.agility)
             character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
             character_state.move_action[user_index] = character_state.move_action[user_index] + charge_move_increase
+            var charge_user_object = {}
+            charge_user_object.cooldown = 0
+            character_state.special_effects[user_index].charge_user = charge_user_object
             var message = character.name + " совершает рывок"
             pushToList(message)
             break;
@@ -4180,6 +4184,14 @@ socket.registerMessageHandler((data) => {
               delete character_state.special_effects[i].adrenaline_user
               var message = "Умение Прилив Адреналина у " + character.name + " снова доступно."
               pushToList(message)
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("charge_user")) {
+            if (character_state.special_effects[i].charge_user.cooldown == 0) {
+              delete character_state.special_effects[i].charge_user
+            } else {
+              character_state.special_effects[i].charge_user.cooldown = character_state.special_effects[i].charge_user.cooldown - 1
             }
           }
 
