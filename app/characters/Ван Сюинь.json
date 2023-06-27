@@ -1,1 +1,1 @@
-{"name":"Ван Сюинь","avatar":"/images/imed.png","strength":"1","stamina":"2","agility":"3","intelligence":"6", "KD_points": "8", "special_type": "med", "inventory": [6, 3], "skillset": [1,4,12]}
+{"name":"Ван Сюинь","avatar":"/images/imed.png","strength":"1","stamina":"2","agility":"3","intelligence":"6", "KD_points": "8", "special_type": "med", "inventory": [6, 3], "skillset": [1,4,12], "group":"player"}

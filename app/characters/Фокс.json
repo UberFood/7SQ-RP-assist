@@ -1,1 +1,1 @@
-{"name":"Фокс","avatar":"/images/fox_battle.jpg","strength":"3","stamina":"7","agility":"8","intelligence":"7", "KD_points": "12", "special_type": "rogue", "inventory": [18,4], "skillset": [25,4,10,11,15,0,2,17], "landmine_immune": true}
+{"name":"Фокс","avatar":"/images/fox_battle.jpg","strength":"3","stamina":"7","agility":"8","intelligence":"7", "KD_points": "12", "special_type": "rogue", "inventory": [18,4], "skillset": [25,4,10,11,15,0,2,17], "landmine_immune": true, "group":"anima"}

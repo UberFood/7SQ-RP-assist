@@ -86,6 +86,19 @@ wss.on('connection', (ws) => {
       var skill_list = JSON.parse(skill_list_unparsed);
       answer.skill_list = skill_list;
 
+      var character_group_list = [];
+      for (character_name of character_list) {
+        current_character_unparsed = fs.readFileSync('./app/characters/' + character_name + '.json');
+        var current_character = JSON.parse(current_character_unparsed);
+        if (current_character.hasOwnProperty("group")) {
+          var character_group = current_character.group
+        } else {
+          var character_group = "other"
+        }
+        character_group_list.push(character_group)
+      }
+      answer.character_group_list = character_group_list
+
       weapon_detailed_info = []
       for (weapon_name of weapon_list) {
         current_weapon_unparsed = fs.readFileSync('./app/weapons/' + weapon_name + '.json');

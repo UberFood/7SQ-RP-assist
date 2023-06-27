@@ -39,6 +39,7 @@ var my_role = JSON.parse(sessionStorage.getItem('user_role'));
 var my_room = JSON.parse(sessionStorage.getItem('room_number'));
 
 var character_list = [];
+var group_list = [];
 var character_detailed_info = [];
 var obstacle_list = [];
 var obstacle_detailed_info = [];
@@ -648,11 +649,70 @@ function add_character(board_index) {
   select.id = "character_chosen";
   select.className = "object_select"
 
+  var players_optgroup = document.createElement("optgroup");
+  players_optgroup.id = "players_optgroup"
+  players_optgroup.className = "character_optgroup"
+  players_optgroup.label = "Игроки"
+
+  var penguin_optgroup = document.createElement("optgroup");
+  penguin_optgroup.id = "penguin_optgroup"
+  penguin_optgroup.className = "character_optgroup"
+  penguin_optgroup.label = "Пингвины"
+
+  var shield_optgroup = document.createElement("optgroup");
+  shield_optgroup.id = "shield_optgroup"
+  shield_optgroup.className = "character_optgroup"
+  shield_optgroup.label = "Сквадовцы"
+
+  var sword_optgroup = document.createElement("optgroup");
+  sword_optgroup.id = "sword_optgroup"
+  sword_optgroup.className = "character_optgroup"
+  sword_optgroup.label = "Мечи"
+
+  var mutant_optgroup = document.createElement("optgroup");
+  mutant_optgroup.id = "mutant_optgroup"
+  mutant_optgroup.className = "character_optgroup"
+  mutant_optgroup.label = "Мутанты"
+
+  var anima_optgroup = document.createElement("optgroup");
+  anima_optgroup.id = "anima_optgroup"
+  anima_optgroup.className = "character_optgroup"
+  anima_optgroup.label = "Звери"
+
+  var other_optgroup = document.createElement("optgroup");
+  other_optgroup.id = "other_optgroup"
+  other_optgroup.className = "character_optgroup"
+  other_optgroup.label = "Остальные"
+
   for (let i = 0; i < character_list.length; i++) {
     var current_option = document.createElement("option");
     current_option.innerHTML = character_list[i];
     current_option.value = i;
-    select.appendChild(current_option);
+    var character_group = group_list[i]
+    switch(character_group) {
+      case "player":
+        players_optgroup.appendChild(current_option);
+        break;
+      case "penguin":
+        penguin_optgroup.appendChild(current_option);
+        break;
+      case "shield":
+        shield_optgroup.appendChild(current_option);
+        break;
+      case "sword":
+        sword_optgroup.appendChild(current_option);
+        break;
+      case "mutant":
+        mutant_optgroup.appendChild(current_option);
+        break;
+      case "anima":
+        anima_optgroup.appendChild(current_option);
+        break;
+      default:
+        other_optgroup.appendChild(current_option);
+
+    }
+
   }
 
   var button = document.createElement("button");
@@ -673,6 +733,13 @@ function add_character(board_index) {
     clear_containers(0)
   }
 
+  select.append(players_optgroup);
+  select.append(shield_optgroup);
+  select.append(sword_optgroup);
+  select.append(mutant_optgroup);
+  select.append(anima_optgroup);
+  select.append(penguin_optgroup);
+  select.append(other_optgroup);
   character_info_container.append(select);
   character_info_container.append(button);
   tiny_animate_containers()
@@ -3233,6 +3300,7 @@ socket.registerMessageHandler((data) => {
         };
       }
       character_list = data.character_list;
+      group_list = data.character_group_list;
       obstacle_list = data.obstacle_list;
       weapon_list = data.weapon_list
       weapon_detailed_info = data.weapon_detailed_info

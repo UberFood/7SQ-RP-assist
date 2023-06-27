@@ -1,1 +1,1 @@
-{"name":"Сколкова","avatar":"/images/skol.jpg","strength":"2","stamina":"3","agility":"3","intelligence":"8", "KD_points": "8", "special_type": "engineer", "inventory": [10, 7], "skillset": [4]}
+{"name":"Сколкова","avatar":"/images/skol.jpg","strength":"2","stamina":"3","agility":"3","intelligence":"8", "KD_points": "8", "special_type": "engineer", "inventory": [10, 7], "skillset": [4], "group":"shield"}

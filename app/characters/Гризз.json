@@ -1,1 +1,1 @@
-{"name":"Гризз","avatar":"/images/grizz.jpg","strength":"7","stamina":"6","agility":"4","intelligence":"5", "KD_points": "12", "special_type": "guard", "inventory": [11], "skillset": [5,4,6,10,11,16,21,26,12,24], "landmine_immune": true}
+{"name":"Гризз","avatar":"/images/grizz.jpg","strength":"7","stamina":"6","agility":"4","intelligence":"5", "KD_points": "12", "special_type": "guard", "inventory": [11], "skillset": [5,4,6,10,11,16,21,26,12,24], "landmine_immune": true, "group":"anima"}
