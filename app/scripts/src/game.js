@@ -30,6 +30,9 @@ var SAVE_NAME_INPUT_SELECTOR = '[data-name="save_name_input"]';
 
 var NOTIFICATIONS_LIST_SELECTOR = '[data-name="notifications_list"]';
 
+var SKILL_MODAL_SELECTOR = '[data-name="skill-modal"]';
+var SKILL_MODAL_CONTENT_SELECTOR = '[data-name="skill-modal-content"]';
+
 var SERVER_ADDRESS = location.origin.replace(/^http/, 'ws');
 
 var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: []};
@@ -46,6 +49,7 @@ var obstacle_detailed_info = [];
 var weapon_list = [];
 var weapon_detailed_info = [];
 var skill_list = [];
+var skill_detailed_info;
 
 var TINY_EFFECT_CLASS = 'is-tiny';
 
@@ -915,6 +919,10 @@ function select_character(index, cell) {
   character_info_container.append(avatar_container);
 
   if (my_role == "gm" || character_state.visibility[character_number] == 1) {
+
+    avatar_display.onclick = function() {
+      show_modal(character_number);
+    }
 
     avatar_display.onmouseenter = function(event) {
 
@@ -3250,6 +3258,48 @@ function compare_initiative(a,b) {
   }
 }
 
+function hide_modal() {
+  skill_modal.hide();
+  skill_modal_content.html("")
+}
+
+function show_modal(character_number) {
+  var character = character_detailed_info[character_number]
+  var skillset = character.skillset
+
+  var skill_table = $("<table>");
+
+  var table_size = 3
+
+  for (let i = 0; i < table_size; i++) {
+    var row = $("<tr>");
+    for (let j = 0; j < table_size; j++) {
+      var index = table_size*i + j
+      if (index < skillset.length) {
+        var skill_number = skillset[index]
+        var column = $("<th>");
+        var skill_icon = $("<IMG>");
+        skill_icon.attr('width', '100px');
+        skill_icon.attr('skill_number', skill_number);
+        skill_icon.attr('height', '100px');
+        skill_icon.attr('src', QUESTION_IMAGE);
+        skill_icon.on('click', function(event) {
+          console.log(event.target.getAttribute('skill_number'));
+          var position = character_state.position[character_number]
+          var cell = document.getElementById("cell_" + position);
+          use_skill(event.target.getAttribute('skill_number'), character_number, position, cell)
+          hide_modal()
+        });
+        column.append(skill_icon);
+        row.append(column);
+      }
+    }
+    skill_table.append(row);
+  }
+  skill_modal_content.append(skill_table);
+  skill_modal.show();
+}
+
 //socket.init('ws://localhost:3001');
 socket.init(SERVER_ADDRESS);
 
@@ -4665,6 +4715,22 @@ var character_info_container = $(CHARACTER_INFO_CONTANER_SELECTOR);
 var weapon_info_container = $(WEAPON_INFO_CONTANER_SELECTOR);
 
 var initiative_order_container = $(INITIATIVE_ORDER_CONTANER_SELECTOR);
+
+var skill_modal = $(SKILL_MODAL_SELECTOR);
+
+var skill_modal_content = $(SKILL_MODAL_CONTENT_SELECTOR);
+
+var span = document.getElementById("skill-modal-close");
+
+span.onclick = function() {
+  hide_modal();
+}
+
+window.onclick = function(event) {
+  if (event.target.id == skill_modal.attr('id')) {
+    hide_modal();
+  }
+}
 
 document.onkeydown = function (e) {
     var keyCode = e.keyCode;

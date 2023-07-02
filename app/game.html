@@ -10,64 +10,74 @@
 
 <body>
 
-<div className="App">
+  <div className="App">
 
-	<div className="header-info">
+    <div className="header-info">
 
-		<h4 className = "page_title"> 7SQ Fight Simulator</h4>
-  	<input data-name="board_size_input" placeholder = "5-20" type = "number" min = "5" max = "20" id = "board_size"></input>
-		<button data-name="create_board_button">Создать поле</button>
-		<button data-name="save_board_button">Сохранить карту</button>
-		<button data-name="load_board_button">Загрузить карту</button>
-		<input data-name="save_name_input" placeholder = "Название сейва" maxLength = "25" id="map_name"></input>
-		<button data-name="roll_initiative_button">Ролл инициативы</button>
-    <button data-name="fog_button">Вкл Туман Войны</button>
-    <button data-name="zone_button">Вкл Зональный режим</button>
-    <button data-name="chat_button">Чат? Чат!</button>
-    <button data-name="mirror_button">Отзеркалить</button>
-    <button data-name="next_round_button">Новый раунд</button>
-    <button data-name="battle_mod_button">Режим боя</button>
-    <button data-name="sync_button">Джимми Синхрон</button>
-    <button data-name="landmine_button">Показать ...?...</button>
-    <select data-name="zone_number_select">
+      <h4 className="page_title"> 7SQ Fight Simulator</h4>
+      <input data-name="board_size_input" placeholder="5-20" type="number" min="5" max="20" id="board_size"></input>
+      <button data-name="create_board_button">Создать поле</button>
+      <button data-name="save_board_button">Сохранить карту</button>
+      <button data-name="load_board_button">Загрузить карту</button>
+      <input data-name="save_name_input" placeholder="Название сейва" maxLength="25" id="map_name"></input>
+      <button data-name="roll_initiative_button">Ролл инициативы</button>
+      <button data-name="fog_button">Вкл Туман Войны</button>
+      <button data-name="zone_button">Вкл Зональный режим</button>
+      <button data-name="chat_button">Чат? Чат!</button>
+      <button data-name="mirror_button">Отзеркалить</button>
+      <button data-name="next_round_button">Новый раунд</button>
+      <button data-name="battle_mod_button">Режим боя</button>
+      <button data-name="sync_button">Джимми Синхрон</button>
+      <button data-name="landmine_button">Показать ...?...</button>
+      <select data-name="zone_number_select">
 
-    </select>
-    <input type="number" data-name="search_modificator" value="0">
-    <button data-name="fog_zone_button">Затуманить зону</button>
-    <button data-name="unfog_zone_button">Растуманить зону</button>
-
-	</div>
-
-  <div data-name="initiative-order-display-container" id="initiative-order-display-container">
-
-  </div>
-
-	<div id="game-display-container">
-		<div id="board-container">
-
-		</div>
-
-		<div data-name="character-info-container" id="character-info-container">
-
-		</div>
-
-    <div data-name="special-info-container" id="special-info-conainer">
-
-    <div data-name="weapon-info-container" id="weapon-info-container">
-
-		</div>
-
-    <div data-name="notifications-container" id="notifications-container">
-        <ul data-name="notifications_list" class="chat">
-
-        </ul>
-		</div>
+      </select>
+      <input type="number" data-name="search_modificator" value="0">
+      <button data-name="fog_zone_button">Затуманить зону</button>
+      <button data-name="unfog_zone_button">Растуманить зону</button>
 
     </div>
 
-	</div>
+    <div data-name="initiative-order-display-container" id="initiative-order-display-container">
 
-	</div>
+    </div>
+
+    <div id="game-display-container">
+      <div id="board-container">
+
+      </div>
+
+      <div data-name="character-info-container" id="character-info-container">
+
+      </div>
+
+      <div data-name="special-info-container" id="special-info-conainer">
+
+        <div data-name="weapon-info-container" id="weapon-info-container">
+
+        </div>
+
+        <div data-name="notifications-container" id="notifications-container">
+          <ul data-name="notifications_list" class="chat">
+
+          </ul>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <div data-name="skill-modal" id="skill-modal" class="modal">
+
+    <!-- Modal content -->
+    <div class="modal-content" data-name="skill-modal-content" id="skill-modal-content">
+      <span id="skill-modal-close" class="close">&times;</span>
+    </div>
+
+  </div>
+
 </body>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js" charset="utf-8"> </script>
