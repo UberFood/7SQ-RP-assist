@@ -3279,12 +3279,15 @@ function show_modal(character_number) {
         var skill_number = skillset[index]
         var column = $("<th>");
         var skill_icon = $("<IMG>");
+        var avatar = QUESTION_IMAGE
+        if (skill_detailed_info[skill_number].hasOwnProperty('avatar')) {
+          avatar = skill_detailed_info[skill_number].avatar
+        }
         skill_icon.attr('width', '100px');
         skill_icon.attr('skill_number', skill_number);
         skill_icon.attr('height', '100px');
-        skill_icon.attr('src', QUESTION_IMAGE);
+        skill_icon.attr('src', avatar);
         skill_icon.on('click', function(event) {
-          console.log(event.target.getAttribute('skill_number'));
           var position = character_state.position[character_number]
           var cell = document.getElementById("cell_" + position);
           use_skill(event.target.getAttribute('skill_number'), character_number, position, cell)
@@ -3354,6 +3357,7 @@ socket.registerMessageHandler((data) => {
       obstacle_list = data.obstacle_list;
       weapon_list = data.weapon_list
       weapon_detailed_info = data.weapon_detailed_info
+      skill_detailed_info = data.skill_detailed_info
       skill_list = data.skill_list
 
     } else if (data.command == 'construct_board_response') {

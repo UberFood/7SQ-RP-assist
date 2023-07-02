@@ -86,6 +86,19 @@ wss.on('connection', (ws) => {
       var skill_list = JSON.parse(skill_list_unparsed);
       answer.skill_list = skill_list;
 
+      var skill_detailed_info = [];
+
+      for (skill_name of skill_list) {
+        var filename = './app/skills/' + skill_name + '.json'
+        if (fs.existsSync(filename)) {
+          var current_skill = JSON.parse(fs.readFileSync(filename));
+        } else {
+          var current_skill = {}
+        }
+        skill_detailed_info.push(current_skill)
+      }
+      answer.skill_detailed_info = skill_detailed_info
+
       var character_group_list = [];
       for (character_name of character_list) {
         current_character_unparsed = fs.readFileSync('./app/characters/' + character_name + '.json');
