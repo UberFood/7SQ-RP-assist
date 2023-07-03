@@ -32,6 +32,7 @@ var NOTIFICATIONS_LIST_SELECTOR = '[data-name="notifications_list"]';
 
 var SKILL_MODAL_SELECTOR = '[data-name="skill-modal"]';
 var SKILL_MODAL_CONTENT_SELECTOR = '[data-name="skill-modal-content"]';
+var SKILL_DESCRIPTION_CONTAINER_SELECTOR = '[data-name="skill-description-container"]';
 
 var SERVER_ADDRESS = location.origin.replace(/^http/, 'ws');
 
@@ -3283,6 +3284,7 @@ function show_modal(character_number) {
         if (skill_detailed_info[skill_number].hasOwnProperty('avatar')) {
           avatar = skill_detailed_info[skill_number].avatar
         }
+        skill_icon.addClass('skill_icon');
         skill_icon.attr('width', '100px');
         skill_icon.attr('skill_number', skill_number);
         skill_icon.attr('height', '100px');
@@ -3293,6 +3295,36 @@ function show_modal(character_number) {
           use_skill(event.target.getAttribute('skill_number'), character_number, position, cell)
           hide_modal()
         });
+        skill_icon.on('mouseenter', function(event) {
+          var skill_number = event.target.getAttribute('skill_number');
+          var skill_object = skill_detailed_info[skill_number];
+          var skill_name_object = $("<h2>");
+          var skill_name = skill_list[skill_number];
+          skill_name_object.html(skill_name);
+          skill_description_container.append(skill_name_object);
+
+          var skill_cost_object = $("<h2>");
+          if (skill_object.hasOwnProperty('cost')) {
+            var skill_cost = skill_object.cost;
+          } else {
+            var skill_cost = "Неизвестно"
+          }
+          skill_cost_object.html("Требует действий: " + skill_cost);
+          skill_description_container.append(skill_cost_object);
+
+          var skill_description_object = $("<p>");
+          if (skill_object.hasOwnProperty('description')) {
+            var skill_description = skill_object.description;
+          } else {
+            var skill_description = "Мы сами не знаем что оно делает"
+          }
+          skill_description_object.html(skill_description);
+          skill_description_container.append(skill_description_object);
+        })
+
+        skill_icon.on('mouseleave', function(event) {
+          skill_description_container.html('');
+        })
         column.append(skill_icon);
         row.append(column);
       }
@@ -4722,6 +4754,8 @@ var initiative_order_container = $(INITIATIVE_ORDER_CONTANER_SELECTOR);
 
 var skill_modal = $(SKILL_MODAL_SELECTOR);
 
+var skill_description_container = $(SKILL_DESCRIPTION_CONTAINER_SELECTOR);
+
 var skill_modal_content = $(SKILL_MODAL_CONTENT_SELECTOR);
 
 var span = document.getElementById("skill-modal-close");
@@ -4729,6 +4763,8 @@ var span = document.getElementById("skill-modal-close");
 span.onclick = function() {
   hide_modal();
 }
+
+span.style.display = 'none';
 
 window.onclick = function(event) {
   if (event.target.id == skill_modal.attr('id')) {
