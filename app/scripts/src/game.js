@@ -3261,7 +3261,8 @@ function compare_initiative(a,b) {
 
 function hide_modal() {
   skill_modal.hide();
-  skill_modal_content.html("")
+  skill_modal_content.html("");
+  skill_description_container.html("");
 }
 
 function show_modal(character_number) {
