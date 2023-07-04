@@ -73,6 +73,7 @@ var lucky_shot_stamina_cost = 1
 var action_splash_stamina_cost = 2
 var adrenaline_stamina_cost = 3
 var acid_bomb_stamina_cost = 3
+var curved_bullets_stamina_cost = 2
 
 var cut_limb_cooldown = 1
 
@@ -2132,6 +2133,7 @@ function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, b
     toSend.room_number = my_room;
     toSend.user_index = user_id
     toSend.target_id = target_character_number
+    toSend.cover_level = accumulated_cover
 
     if (cover_modifier.isPossible) {
 
@@ -2617,6 +2619,23 @@ function lottery_shot(index, cell) {
   }
 }
 
+function curved_bullets(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]]
+  var attacking_character = character_detailed_info[user_character_number]
+  var bonus_attack = parseInt(attacking_character.intelligence) + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
+
+  var accumulated_cover = get_accumulated_cover(index, user_position);
+  accumulated_cover = Math.max(parseInt(parseFloat(accumulated_cover)/2) - 2, 0)
+  var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon, accumulated_cover)
+  if (toSend == null) {
+    alert("Далековато")
+  } else {
+    socket.sendMessage(toSend);
+  }
+}
+
 function perform_skill(index, cell) {
   switch(character_chosen.skill_id) {
     case 1:
@@ -2697,7 +2716,10 @@ function perform_skill(index, cell) {
       diffuse_landmine(index, cell)
       stop_skill()
       break;
-
+    case 28:
+      curved_bullets(index, cell)
+      stop_skill()
+      break;
     default:
       alert("Unknown targeted skill")
   }
@@ -3002,6 +3024,13 @@ function use_skill(skill_index, character_number, position, cell) {
             alert("Нельзя затягиваться так часто! У вас зависимость")
           }
           break;
+    case 28: // Крученые пули
+          if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
+            choose_character_skill(skill_index, character_number, position, cell)
+          } else {
+            alert("Не хватает действий!")
+          }
+        break;
 
     default:
       alert("Не знаем это умение")
@@ -4205,6 +4234,60 @@ socket.registerMessageHandler((data) => {
           var message = character.name + " хорошечно затягивается. Берегитесь!"
           pushToList(message);
           break;
+
+      case 28: // крученые пули
+          var attacker = character_detailed_info[user_index]
+          var target = character_detailed_info[data.target_id]
+          if (game_state.battle_mod == 1) {
+            character_state.main_action[user_index] = character_state.main_action[user_index] - 1
+            character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+            character_state.stamina[user_index] = character_state.stamina[user_index] - curved_bullets_stamina_cost
+          }
+
+          if (data.cover_level > 0) {
+            var cover_string = "Уровень укрытия: " + data.cover_level
+          } else {
+            var cover_string = ""
+          }
+          switch (data.outcome) {
+            case "KD_block":
+              var message = attacker.name + " пытается закрутить пулю в " + target.name + " (" + data.attack_roll + "), но не пробивает броню. " + cover_string
+              pushToList(message)
+              break;
+            case "evaded":
+              var message = attacker.name + " пытался закрутить пулю в " + target.name + " (" + data.attack_roll + "), однако " + target.name + " удалось увернуться (" + data.evade_roll + "). " + cover_string
+              pushToList(message)
+              if (target.special_type != 'rogue') {
+                character_state.can_evade[data.target_id] = 0
+              }
+              break;
+            case "damage_without_evasion":
+              var message = attacker.name + " успешно закрутил пулю " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться. Атака наносит " + data.damage_roll + " урона. " + cover_string
+              pushToList(message)
+              do_damage(data.target_id, data.damage_roll)
+              break;
+            case "damage_after_evasion":
+              var message = attacker.name + " успешно закрутил пулю " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + "). Атака наносит " + data.damage_roll + " урона. " + cover_string
+              pushToList(message)
+              do_damage(data.target_id, data.damage_roll)
+              character_state.can_evade[data.target_id] = 0
+              break;
+            case "full_crit":
+              var message = attacker.name + " критически атакует " + target.name + "крученой пулей, не оставляя возможности увернуться. Атака наносит " + data.damage_roll + " урона. " + cover_string
+              pushToList(message)
+              do_damage(data.target_id, data.damage_roll)
+              character_state.can_evade[data.target_id] = 0
+              break;
+            case "full_cover":
+              var message = "Несмотря на попытку " + attacker.name + " обкрутить препятствие защищающее " + target.name + ", тот все равно находится в полном укрытии."
+              pushToList(message)
+              break;
+            default:
+              console.log("fucked up resolving damage")
+              break;
+          }
+          break;
+
 
         default:
           alert("Received unknown skill command")
