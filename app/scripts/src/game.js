@@ -1780,17 +1780,8 @@ function perform_attack(index, cell) {
 
   if (isInRange(index, user_position, weapon.range)) {
 
-    var accumulated_cover = 0
-    var candidate_cells = cells_on_line(user_position, index, game_state.size)
-    for (let i = 0; i < candidate_cells.length; i++) {
-      var current_cell = candidate_cells[i]
-      if (game_state.board_state[current_cell] < 0) {// это препятствие
-        var obstacle = obstacle_detailed_info[Math.abs(game_state.board_state[current_cell])]
-        var distance = distance_to_line(user_position, index, game_state.size, current_cell)
-        accumulated_cover = accumulated_cover + compute_cover(distance, obstacle.cover)
-      }
-    }
-    accumulated_cover = Math.ceil(accumulated_cover)
+    var accumulated_cover = get_accumulated_cover(user_position, index)
+
     var cover_modifier = cover_mod(accumulated_cover)
 
 
@@ -2110,7 +2101,22 @@ function big_bro(index, cell) {
 }
 }
 
-function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, bonus_attack, weapon) {
+function get_accumulated_cover(user_pos, target_pos) {
+  var accumulated_cover = 0
+  var candidate_cells = cells_on_line(user_pos, target_pos, game_state.size)
+  for (let i = 0; i < candidate_cells.length; i++) {
+    var current_cell = candidate_cells[i]
+    if (game_state.board_state[current_cell] < 0) {// это препятствие
+      var obstacle = obstacle_detailed_info[Math.abs(game_state.board_state[current_cell])]
+      var distance = distance_to_line(user_pos, target_pos, game_state.size, current_cell)
+      accumulated_cover = accumulated_cover + compute_cover(distance, obstacle.cover)
+    }
+  }
+  accumulated_cover = Math.ceil(accumulated_cover)
+  return accumulated_cover
+}
+
+function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, bonus_attack, weapon, accumulated_cover) {
   if (isInRange(target_pos, user_pos, range)) {
 
     var target_character_number = game_state.board_state[target_pos]
@@ -2118,20 +2124,7 @@ function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, b
     var target_character = character_detailed_info[target_character_number]
     var attacking_character = character_detailed_info[user_id]
 
-    var accumulated_cover = 0
-    var candidate_cells = cells_on_line(user_pos, target_pos, game_state.size)
-    for (let i = 0; i < candidate_cells.length; i++) {
-      var current_cell = candidate_cells[i]
-      if (game_state.board_state[current_cell] < 0) {// это препятствие
-        var obstacle = obstacle_detailed_info[Math.abs(game_state.board_state[current_cell])]
-        var distance = distance_to_line(user_pos, target_pos, game_state.size, current_cell)
-        accumulated_cover = accumulated_cover + compute_cover(distance, obstacle.cover)
-      }
-    }
-    accumulated_cover = Math.ceil(accumulated_cover)
     var cover_modifier = cover_mod(accumulated_cover)
-
-    var attack_roll = roll_attack(weapon.type, user_id, target_character_number, cover_modifier.advantage_bonus)
 
     var toSend = {};
     toSend.command = 'skill';
@@ -2140,35 +2133,42 @@ function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, b
     toSend.user_index = user_id
     toSend.target_id = target_character_number
 
-    if (attack_roll < 20) {// no crit
-      var cumulative_attack_roll = attack_roll + bonus_attack
+    if (cover_modifier.isPossible) {
 
-      toSend.attack_roll = cumulative_attack_roll
+      var attack_roll = roll_attack(weapon.type, user_id, target_character_number, cover_modifier.advantage_bonus)
 
-      if (cumulative_attack_roll > target_character_KD) {// Есть пробитие
-        if (character_state.can_evade[target_character_number] == 1) {
-          var evade_roll = roll_x(20) + parseInt(target_character.agility) + character_state.universal_bonus[target_character_number]
-          toSend.evade_roll = evade_roll
-          if (evade_roll > cumulative_attack_roll) { //succesfully evaded
-            toSend.outcome = "evaded"
+      if (attack_roll < 20) {// no crit
+        var cumulative_attack_roll = attack_roll + bonus_attack + cover_modifier.attack_bonus
+
+        toSend.attack_roll = cumulative_attack_roll
+
+        if (cumulative_attack_roll > target_character_KD) {// Есть пробитие
+          if (character_state.can_evade[target_character_number] == 1) {
+            var evade_roll = roll_x(20) + parseInt(target_character.agility) + character_state.universal_bonus[target_character_number]
+            toSend.evade_roll = evade_roll
+            if (evade_roll > cumulative_attack_roll) { //succesfully evaded
+              toSend.outcome = "evaded"
+            } else {
+              var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number)
+              toSend.damage_roll = damage_roll
+              toSend.outcome = "damage_after_evasion"
+            }
           } else {
             var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number)
             toSend.damage_roll = damage_roll
-            toSend.outcome = "damage_after_evasion"
+            toSend.outcome = "damage_without_evasion"
           }
         } else {
-          var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number)
-          toSend.damage_roll = damage_roll
-          toSend.outcome = "damage_without_evasion"
+          toSend.outcome = "KD_block"
         }
-      } else {
-        toSend.outcome = "KD_block"
+      } else { // full crit
+        toSend.attack_roll = attack_roll
+        var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number)
+        toSend.damage_roll = damage_roll
+        toSend.outcome = "full_crit"
       }
-    } else { // full crit
-      toSend.attack_roll = attack_roll
-      var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number)
-      toSend.damage_roll = damage_roll
-      toSend.outcome = "full_crit"
+    } else {
+      toSend.outcome = "full_cover"
     }
     return toSend
 
@@ -2186,7 +2186,8 @@ function cut_limbs(index, cell) {
     var attacking_character = character_detailed_info[user_character_number]
     var bonus_attack = 2*parseInt(attacking_character.agility) + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
 
-    var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon)
+    var accumulated_cover = get_accumulated_cover(index, user_position)
+    var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon, accumulated_cover)
     if (toSend == null) {
       alert("Далековато")
     } else {
@@ -2224,8 +2225,9 @@ function punch_rainfall(index, cell) {
 
     var total_damage = 0;
     var attacks_successful = 0;
+    var accumulated_cover = get_accumulated_cover(index, user_position);
     for (let i = 0; i < character_state.main_action[user_character_number]; i++) {
-      var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon)
+      var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon, accumulated_cover)
       if (toSend == null) {
         alert("Далековато");
         return;
@@ -2268,7 +2270,8 @@ function shock_wave(index, cell) {
   var attacking_character = character_detailed_info[user_character_number]
   var bonus_attack = parseInt(attacking_character.intelligence) + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
 
-  var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon)
+  var accumulated_cover = get_accumulated_cover(index, user_position);
+  var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon, accumulated_cover)
   if (toSend == null) {
     alert("Далековато")
   } else {
@@ -3426,6 +3429,11 @@ socket.registerMessageHandler((data) => {
       character_state.special_effects[data.character_number] = {}
       character_state.position[data.character_number] = data.cell_id;
 
+      // активация пассивок
+      if (character.hasOwnProperty("adaptive_fighting")) {
+        character_state.special_effects[data.character_number].adaptive_fighting = -1;
+      }
+
 
     } else if (data.command == 'add_obstacle_response') {
       var obstacle = data.obstacle_info;
@@ -3698,6 +3706,10 @@ socket.registerMessageHandler((data) => {
               pushToList(message)
               do_damage(data.target_id, data.damage_roll)
               break;
+            case "full_cover":
+              var message = attacker.name + " пытался подрезать " + target.name + " но тот находится в полном укрытии."
+              pushToList(message)
+              break;
             default:
               console.log("fucked up resolving damage")
               break;
@@ -3927,6 +3939,10 @@ socket.registerMessageHandler((data) => {
           pushToList(message)
           do_damage(data.target_id, data.damage_roll)
           character_state.can_evade[data.target_id] = 0
+          break;
+        case "full_cover":
+          var message = attacker.name + " пытался шокировать " + target.name + " но тот находится в полном укрытии."
+          pushToList(message)
           break;
         default:
           console.log("fucked up resolving damage")
