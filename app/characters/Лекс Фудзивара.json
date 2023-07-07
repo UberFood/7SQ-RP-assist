@@ -1,1 +1,1 @@
-{"name":"Лекс Фудзивара","avatar":"/images/Lex.png","strength":"3","stamina":"4","agility":"6","intelligence":"3", "KD_points": "10", "special_type": "rogue", "inventory": [4, 21], "skillset": [0,2,4,10,11,19,20], "group":"shield", "adaptive_fighting":true}
+{"name":"Лекс Фудзивара","avatar":"/images/Lex.png","strength":"3","stamina":"4","agility":"6","intelligence":"3", "KD_points": "10", "special_type": "rogue", "inventory": [4, 21], "skillset": [2,19,20,0,4,10,11], "group":"shield", "adaptive_fighting":true}
