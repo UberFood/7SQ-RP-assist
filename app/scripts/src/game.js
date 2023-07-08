@@ -471,6 +471,88 @@ function applyFog(index, cell) {
 	}
 }
 
+function fogModeChange() {
+  if (gm_control_mod != 1) {
+    // turn on fog adding mode
+    gm_control_mod = 1;
+    fog_button.text('Выкл Туман Войны');
+		for (let i = 0; i < game_state.size*game_state.size; i++) {
+			if (game_state.fog_state[i] == 1) {
+				var current_cell = document.getElementById("cell_" + i);
+				current_cell.src = FOG_IMAGE;
+			}
+		}
+  } else {
+    // turn off fog adding mode
+    gm_control_mod = 0;
+    fog_button.text('Вкл Туман Войны');
+		for (let i = 0; i < game_state.size*game_state.size; i++) {
+			if (game_state.fog_state[i] == 1) {
+				var current_cell = document.getElementById("cell_" + i);
+				current_cell.src = get_object_picture(game_state.board_state[i]);
+			}
+		}
+  }
+}
+
+function zoneModeChange() {
+  if (gm_control_mod != 2) {
+    // turn on zone adding mode
+    gm_control_mod = 2;
+    zone_button.text('Выкл Зональный режим');
+    zone_number_select.show();
+    fog_zone_button.show();
+    unfog_zone_button.show();
+    search_modificator.show();
+
+    for (let i = 0; i < game_state.size*game_state.size; i++) {
+			if (game_state.zone_state[i] > 0) {
+				var current_zone_text = document.getElementById("zone_text_" + i);
+				current_zone_text.innerHTML = game_state.zone_state[i] + '(' + game_state.search_modificator_state[i] + ')';
+			}
+		}
+  } else {
+    // back to normal mode
+    gm_control_mod = 0;
+    zone_button.text('Вкл Зональный режим');
+    zone_number_select.hide();
+    fog_zone_button.hide();
+    unfog_zone_button.hide();
+    search_modificator.hide();
+
+    for (let i = 0; i < game_state.size*game_state.size; i++) {
+				var current_zone_text = document.getElementById("zone_text_" + i);
+				current_zone_text.innerHTML = '';
+		}
+  }
+}
+
+function fogCurrentZone() {
+  var current_zone = zone_number_select.val();
+  fogParseZone(1, current_zone);
+}
+
+function unfogCurrentZone() {
+  fogParseZone(0, current_zone);
+}
+
+function fogParseZone(mod, current_zone) {
+  var toSend = {};
+  toSend.command = 'update_fog';
+  toSend.room_number = my_room;
+  if (mod == 0) {
+    toSend.update_type = 'remove';
+  } else if (mod == 1) {
+    toSend.update_type = 'add';
+  }
+  for (let i = 0; i < game_state.size * game_state.size; i++) {
+    if (game_state.zone_state[i] == current_zone) {
+      toSend.index = i;
+      socket.sendMessage(toSend);
+    }
+  }
+}
+
 // Helper coordinate related functions
 
 function top_left_coord(coord1, coord2) {
@@ -567,23 +649,7 @@ function tiny_animation(container) {
   }, 50);
 }
 
-
-function fogOrPic(cell_id) {
-  var picture_name = FOG_IMAGE;
-  if ((game_state.fog_state[cell_id] != 1)||(my_role == 'gm')) {
-    var char_id = game_state.board_state[cell_id]
-    picture_name = get_object_picture(char_id);
-    if (char_id > 0 && character_state.invisibility[char_id] != "all" && character_state.invisibility[char_id] != my_name) {
-      picture_name = get_object_picture(0);
-    }
-
-  }
-  return picture_name;
-}
-
-function roll_x(x) {
-  return Math.floor(Math.random() * x) + 1
-}
+// adding objects, characters
 
 function add_object(board_index) {
   clear_containers()
@@ -756,6 +822,56 @@ function add_character(board_index) {
 
 }
 
+// Picture/avatar management
+
+function fogOrPic(cell_id) {
+  var picture_name = FOG_IMAGE;
+  if ((game_state.fog_state[cell_id] != 1)||(my_role == 'gm')) {
+    var char_id = game_state.board_state[cell_id]
+    picture_name = get_object_picture(char_id);
+    if (char_id > 0 && character_state.invisibility[char_id] != "all" && character_state.invisibility[char_id] != my_name) {
+      picture_name = get_object_picture(0);
+    }
+
+  }
+  return picture_name;
+}
+
+function displayFog() {
+	clear_containers()
+
+	var info = document.createElement("p");
+  info.innerHTML = 'Мы не знаем, что это такое. Если бы мы знали что это такое, но мы не знаем.';
+
+	var fog_picture = document.createElement("IMG");
+  fog_picture.src = QUESTION_IMAGE;
+  fog_picture.style.width = '250px';
+  fog_picture.style.height = '250px';
+
+	character_info_container.append(info);
+	character_info_container.append(fog_picture);
+
+tiny_animate_containers()
+}
+
+function get_object_picture(index_in_board_state) {
+  var image = EMPTY_CELL_PIC;
+  var index_in_base;
+  if (index_in_board_state > 0) {
+    index_in_base = index_in_board_state;
+    var character = character_detailed_info[index_in_base];
+    image = character.avatar;
+  } else if (index_in_board_state < 0) {
+    index_in_base = index_in_board_state * (-1);
+    var obstacle = obstacle_detailed_info[index_in_base];
+    image = obstacle.avatar;
+  }
+
+  return image;
+}
+
+// Move - Delete - Select
+
 function move_character(to_index, to_cell) {
   character_chosen.in_process = 0; // end the motion
   var chosen_index = character_chosen.char_position
@@ -865,23 +981,6 @@ function move_character(to_index, to_cell) {
     undo_selection()
   }
 
-}
-
-function displayFog() {
-	clear_containers()
-
-	var info = document.createElement("p");
-  info.innerHTML = 'Мы не знаем, что это такое. Если бы мы знали что это такое, но мы не знаем.';
-
-	var fog_picture = document.createElement("IMG");
-  fog_picture.src = QUESTION_IMAGE;
-  fog_picture.style.width = '250px';
-  fog_picture.style.height = '250px';
-
-	character_info_container.append(info);
-	character_info_container.append(fog_picture);
-
-tiny_animate_containers()
 }
 
 function delete_character(index, character_number) {
@@ -1250,66 +1349,6 @@ function select_character(index, cell) {
 
 }
 
-function choose_character_to_attack(cell) {
-  character_chosen.in_process = 2
-  cell.src = "./images/attack_placeholder.jpg";
-}
-
-function change_character_visibility(character_number) {
-  var toSend = {};
-  toSend.command = "change_character_visibility";
-  toSend.character_number = character_number
-  toSend.room_number = my_room;
-
-  if (character_state.visibility[character_number] == 0) {
-    toSend.new_value = 1
-  } else {
-    toSend.new_value = 0
-  }
-  socket.sendMessage(toSend);
-}
-
-function search_action(search_button) {
-  var index = search_button.index;
-  var character_number = game_state.board_state[index]
-  var character = character_detailed_info[character_number];
-
-  if (!(game_state.battle_mod == 1 && character_state.bonus_action[character_number] < 1)) {
-
-    var name = character.name;
-    var modificator = game_state.search_modificator_state[index];
-    var intelligence = character.intelligence;
-    var roll = rollSearch(parseInt(intelligence), parseInt(modificator));
-    var zone_number = game_state.zone_state[index];
-    pushToList('Персонаж ' + name + ' бросил ' + roll + ' на внимательность');
-
-    var toSend = {};
-    toSend.command = 'search_action';
-    toSend.character_name = name;
-    toSend.roll = roll;
-    toSend.zone_number = zone_number;
-    toSend.room_number = my_room;
-    toSend.player_name = my_name
-    toSend.mines_detected = []
-    toSend.character_number = character_number
-
-    var landmine_candidates = index_in_radius(index, landmine_detection_radius)
-    for (let i = 0; i < landmine_candidates.length; i++) {
-        if (game_state.landmines.positions.includes(landmine_candidates[i])) {
-          toSend.mines_detected.push(landmine_candidates[i])
-        }
-      }
-      socket.sendMessage(toSend);
-
-  } else {
-    alert("Обыск во время боя стоит бонусное действие!")
-  }
-}
-
-function rollSearch(intelligence, mod) {
-  return intelligence + roll_x(20) + mod;
-}
-
 function delete_object_command(index) {
   var toSend = {};
   toSend.command = 'delete_character';
@@ -1374,6 +1413,13 @@ function undo_selection() {
   old_cell.src = character_detailed_info[character_chosen.char_id].avatar;
 }
 
+// attack related helpers
+
+function choose_character_to_attack(cell) {
+  character_chosen.in_process = 2
+  cell.src = "./images/attack_placeholder.jpg";
+}
+
 function stop_attack() {
   character_chosen.in_process = 0
   var old_cell = document.getElementById("cell_" + character_chosen.char_position);
@@ -1386,20 +1432,67 @@ function stop_skill() {
   old_cell.src = character_detailed_info[character_chosen.char_id].avatar;
 }
 
-function get_object_picture(index_in_board_state) {
-  var image = EMPTY_CELL_PIC;
-  var index_in_base;
-  if (index_in_board_state > 0) {
-    index_in_base = index_in_board_state;
-    var character = character_detailed_info[index_in_base];
-    image = character.avatar;
-  } else if (index_in_board_state < 0) {
-    index_in_base = index_in_board_state * (-1);
-    var obstacle = obstacle_detailed_info[index_in_base];
-    image = obstacle.avatar;
-  }
 
-  return image;
+
+
+
+function roll_x(x) {
+  return Math.floor(Math.random() * x) + 1
+}
+
+function change_character_visibility(character_number) {
+  var toSend = {};
+  toSend.command = "change_character_visibility";
+  toSend.character_number = character_number
+  toSend.room_number = my_room;
+
+  if (character_state.visibility[character_number] == 0) {
+    toSend.new_value = 1
+  } else {
+    toSend.new_value = 0
+  }
+  socket.sendMessage(toSend);
+}
+
+function search_action(search_button) {
+  var index = search_button.index;
+  var character_number = game_state.board_state[index]
+  var character = character_detailed_info[character_number];
+
+  if (!(game_state.battle_mod == 1 && character_state.bonus_action[character_number] < 1)) {
+
+    var name = character.name;
+    var modificator = game_state.search_modificator_state[index];
+    var intelligence = character.intelligence;
+    var roll = rollSearch(parseInt(intelligence), parseInt(modificator));
+    var zone_number = game_state.zone_state[index];
+    pushToList('Персонаж ' + name + ' бросил ' + roll + ' на внимательность');
+
+    var toSend = {};
+    toSend.command = 'search_action';
+    toSend.character_name = name;
+    toSend.roll = roll;
+    toSend.zone_number = zone_number;
+    toSend.room_number = my_room;
+    toSend.player_name = my_name
+    toSend.mines_detected = []
+    toSend.character_number = character_number
+
+    var landmine_candidates = index_in_radius(index, landmine_detection_radius)
+    for (let i = 0; i < landmine_candidates.length; i++) {
+        if (game_state.landmines.positions.includes(landmine_candidates[i])) {
+          toSend.mines_detected.push(landmine_candidates[i])
+        }
+      }
+      socket.sendMessage(toSend);
+
+  } else {
+    alert("Обыск во время боя стоит бонусное действие!")
+  }
+}
+
+function rollSearch(intelligence, mod) {
+  return intelligence + roll_x(20) + mod;
 }
 
 function saveBoard() {
@@ -1442,88 +1535,6 @@ function rollInitiative() {
   toSend.room_number = my_room;
   toSend.initiative_state = character_state.initiative;
   socket.sendMessage(toSend);
-}
-
-function fogModeChange() {
-  if (gm_control_mod != 1) {
-    // turn on fog adding mode
-    gm_control_mod = 1;
-    fog_button.text('Выкл Туман Войны');
-		for (let i = 0; i < game_state.size*game_state.size; i++) {
-			if (game_state.fog_state[i] == 1) {
-				var current_cell = document.getElementById("cell_" + i);
-				current_cell.src = FOG_IMAGE;
-			}
-		}
-  } else {
-    // turn off fog adding mode
-    gm_control_mod = 0;
-    fog_button.text('Вкл Туман Войны');
-		for (let i = 0; i < game_state.size*game_state.size; i++) {
-			if (game_state.fog_state[i] == 1) {
-				var current_cell = document.getElementById("cell_" + i);
-				current_cell.src = get_object_picture(game_state.board_state[i]);
-			}
-		}
-  }
-}
-
-function zoneModeChange() {
-  if (gm_control_mod != 2) {
-    // turn on zone adding mode
-    gm_control_mod = 2;
-    zone_button.text('Выкл Зональный режим');
-    zone_number_select.show();
-    fog_zone_button.show();
-    unfog_zone_button.show();
-    search_modificator.show();
-
-    for (let i = 0; i < game_state.size*game_state.size; i++) {
-			if (game_state.zone_state[i] > 0) {
-				var current_zone_text = document.getElementById("zone_text_" + i);
-				current_zone_text.innerHTML = game_state.zone_state[i] + '(' + game_state.search_modificator_state[i] + ')';
-			}
-		}
-  } else {
-    // back to normal mode
-    gm_control_mod = 0;
-    zone_button.text('Вкл Зональный режим');
-    zone_number_select.hide();
-    fog_zone_button.hide();
-    unfog_zone_button.hide();
-    search_modificator.hide();
-
-    for (let i = 0; i < game_state.size*game_state.size; i++) {
-				var current_zone_text = document.getElementById("zone_text_" + i);
-				current_zone_text.innerHTML = '';
-		}
-  }
-}
-
-function fogCurrentZone() {
-  var current_zone = zone_number_select.val();
-  fogParseZone(1, current_zone);
-}
-
-function unfogCurrentZone() {
-  fogParseZone(0, current_zone);
-}
-
-function fogParseZone(mod, current_zone) {
-  var toSend = {};
-  toSend.command = 'update_fog';
-  toSend.room_number = my_room;
-  if (mod == 0) {
-    toSend.update_type = 'remove';
-  } else if (mod == 1) {
-    toSend.update_type = 'add';
-  }
-  for (let i = 0; i < game_state.size * game_state.size; i++) {
-    if (game_state.zone_state[i] == current_zone) {
-      toSend.index = i;
-      socket.sendMessage(toSend);
-    }
-  }
 }
 
 function pushToList(message) {
