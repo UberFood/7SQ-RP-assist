@@ -36,8 +36,6 @@ var SKILL_DESCRIPTION_CONTAINER_SELECTOR = '[data-name="skill-description-contai
 
 var SERVER_ADDRESS = location.origin.replace(/^http/, 'ws');
 
-var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: []};
-
 var my_name = JSON.parse(sessionStorage.getItem('username'));
 var my_role = JSON.parse(sessionStorage.getItem('user_role'));
 var my_room = JSON.parse(sessionStorage.getItem('room_number'));
@@ -152,12 +150,9 @@ const move_action_map = [1, 3, 4, 6, 8, 9, 10, 11, 12, 13, 14, 15]
 const bonus_action_map= [0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3]
 const main_action_map = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
 
-
+var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: [], evade_bonus: []};
 let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: [], battle_mod: 0, landmines: {positions: [], knowers: []}};
 let character_state = CHARACTER_STATE_CONSTANT;
-
-let character_base = [];
-let obstacle_base = [];
 
 let gm_control_mod = 0; // normal mode
 
@@ -1622,6 +1617,12 @@ function roll_attack(type, attacker, target, advantage_bonus) {
   return roll
 }
 
+function roll_evasion(target_character, target_character_number) {
+  console.log("Бонус уворота: " + character_state.evade_bonus[target_character_number])
+  var evade_roll = roll_x(20) + parseInt(target_character.agility) + character_state.universal_bonus[target_character_number] + character_state.evade_bonus[target_character_number]
+  return evade_roll
+}
+
 function cover_mod(accumulated_cover) {
   var mod = {}
   mod.isPossible = true
@@ -1829,7 +1830,7 @@ function perform_attack(index, cell) {
 
         if (cumulative_attack_roll > target_character_KD) {// Есть пробитие
           if (character_state.can_evade[target_character_number] == 1) {
-            var evade_roll = roll_x(20) + parseInt(target_character.agility) + character_state.universal_bonus[target_character_number]
+            var evade_roll = roll_evasion(target_character, target_character_number)
             toSend.evade_roll = evade_roll
             if (evade_roll > cumulative_attack_roll) { //succesfully evaded
               toSend.outcome = "evaded"
@@ -2146,7 +2147,7 @@ function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, b
 
         if (cumulative_attack_roll > target_character_KD) {// Есть пробитие
           if (character_state.can_evade[target_character_number] == 1) {
-            var evade_roll = roll_x(20) + parseInt(target_character.agility) + character_state.universal_bonus[target_character_number]
+            var evade_roll = roll_evasion(target_character, target_character_number)
             toSend.evade_roll = evade_roll
             if (evade_roll > cumulative_attack_roll) { //succesfully evaded
               toSend.outcome = "evaded"
@@ -3457,6 +3458,11 @@ socket.registerMessageHandler((data) => {
       character_state.defensive_advantage[data.character_number] = 0
       character_state.special_effects[data.character_number] = {}
       character_state.position[data.character_number] = data.cell_id;
+      if (character.hasOwnProperty("evade_bonus")) {
+        character_state.evade_bonus[data.character_number] = parseInt(character.evade_bonus);
+      } else {
+        character_state.evade_bonus[data.character_number] = 0;
+      }
 
       // активация пассивок
       if (character.hasOwnProperty("adaptive_fighting")) {
