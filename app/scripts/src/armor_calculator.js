@@ -15,6 +15,7 @@ var MOVE_PRICE_SELECTOR = '[data-name="move_price"]';
 var DODGE_PRICE_SELECTOR = '[data-name="dodge_price"]';
 
 var TOTAL_PRICE_SELECTOR = '[data-name="total_price"]';
+var MOVE_CHANGE_SELECTOR = '[data-name="move_change_display"]';
 
 var module_scale = 1.2;
 var specialization_scale = 2;
@@ -45,6 +46,12 @@ var current_move_price = initial_move_price;
 var current_dodge_price = initial_dodge_price;
 
 var total_cost = 0;
+var move_change = 0;
+
+function update_move_change(update) {
+  move_change = move_change + update;
+  move_change_display.html("Изменение перемещения: " + move_change.toString());
+}
 
 function update_total_cost(price) {
   total_cost = total_cost + price;
@@ -75,6 +82,10 @@ function increase_KD() {
   apply_module_scale();
 
   update_price_display();
+
+  if (current_KD % 3 == 1) {// third KD increase
+    update_move_change(-1);
+  }
 }
 
 function increase_melee_resist() {
@@ -111,6 +122,10 @@ function increase_dodge() {
   apply_module_scale();
 
   update_price_display();
+
+  if (current_dodge % 3 == 0) {// third move increase
+    update_move_change(1);
+  }
 }
 
 
@@ -146,3 +161,6 @@ dodge_price.html("Цена апгрейда: " + current_dodge_price.toString())
 
 var total_price_entry = $(TOTAL_PRICE_SELECTOR);
 total_price_entry.html("Общая стоимость: " + total_cost.toString());
+
+var move_change_display = $(MOVE_CHANGE_SELECTOR);
+move_change_display.html("Изменение перемещения: " + move_change.toString());
