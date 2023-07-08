@@ -150,7 +150,7 @@ const move_action_map = [1, 3, 4, 6, 8, 9, 10, 11, 12, 13, 14, 15]
 const bonus_action_map= [0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3]
 const main_action_map = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
 
-var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: [], evade_bonus: []};
+var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: [], evade_bonus: [], melee_resist: [], bullet_resist: []};
 let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: [], battle_mod: 0, landmines: {positions: [], knowers: []}};
 let character_state = CHARACTER_STATE_CONSTANT;
 
@@ -1993,6 +1993,33 @@ function compute_damage(weapon, character_number, attack_roll, target_number) {
     }
   }
 
+  if (weapon.type == "ranged") {
+    var damage_type = "bullet"
+  } else if (weapon.type == "melee") {
+    var damage_type = "melee"
+  } else if (weapon.type == "energy") {
+      var damage_type = "energy"
+  } else if (weapon.type == "throwing") {
+      var damage_type = "melee"
+  }
+
+  switch(damage_type) {
+    case "melee":
+      var resist = character_state.melee_resist[target_number]
+      console.log("Урон до резиста: " + damage)
+      damage = parseInt(damage * (1.0 - resist))
+      console.log("Урон после резиста: " + damage)
+      break;
+    case "bullet":
+      var resist = character_state.bullet_resist[target_number]
+      console.log("Урон до резиста: " + damage)
+      damage = parseInt(damage * (1.0 - resist))
+      console.log("Урон после резиста: " + damage)
+      break;
+    default:
+      //nothing for now
+  }
+
   return damage
 }
 
@@ -3492,6 +3519,18 @@ socket.registerMessageHandler((data) => {
         character_state.evade_bonus[data.character_number] = parseInt(character.evade_bonus);
       } else {
         character_state.evade_bonus[data.character_number] = 0;
+      }
+
+      if (character.hasOwnProperty("melee_resist")) {
+        character_state.melee_resist[data.character_number] = parseFloat(character.melee_resist)/100;
+      } else {
+        character_state.melee_resist[data.character_number] = 0.0;
+      }
+
+      if (character.hasOwnProperty("bullet_resist")) {
+        character_state.bullet_resist[data.character_number] = parseFloat(character.bullet_resist)/100;
+      } else {
+        character_state.bullet_resist[data.character_number] = 0.0;
       }
 
       // активация пассивок
