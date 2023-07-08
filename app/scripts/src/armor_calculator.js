@@ -25,13 +25,13 @@ var initial_move = 0;
 var initial_dodge = 0;
 
 var initial_KD_price = 50;
-var initial_resist_price = 60;
+var initial_resist_price = 50;
 var initial_move_price = 50;
-var initial_dodge_price = 40;
+var initial_dodge_price = 50;
 
 var step_KD = 1;
 var step_resist = 2.5;
-var step_move = 1;
+var step_move = 2.5;
 var step_dodge = 1;
 
 var current_KD = initial_KD;
@@ -79,7 +79,7 @@ function increase_KD() {
 
 function increase_resist() {
   current_resist = current_resist + step_resist;
-  resist_lvl.html("Резист: " + current_resist.toString() + "%")
+  resist_lvl.html("Милли резист: " + current_resist.toString() + "%")
 
   update_total_cost(current_resist_price)
 
@@ -91,7 +91,7 @@ function increase_resist() {
 
 function increase_move() {
   current_move = current_move + step_move;
-  move_lvl.html("Шагов: " + current_move.toString())
+  move_lvl.html("Стрелковый резист: " + current_move.toString())
 
   update_total_cost(current_move_price)
 
@@ -129,9 +129,9 @@ dodge_button.on('click', increase_dodge);
 var KD_lvl = $(KD_LVL_SELECTOR);
 KD_lvl.html("КД: " + current_KD.toString())
 var resist_lvl = $(RESIST_LVL_SELECTOR);
-resist_lvl.html("Резист: " + current_resist.toString() + "%")
+resist_lvl.html("Милли резист: " + current_resist.toString() + "%")
 var move_lvl = $(MOVE_LVL_SELECTOR);
-move_lvl.html("Шагов: " + current_move.toString())
+move_lvl.html("Стрелковый резист: " + current_move.toString())
 var dodge_lvl = $(DODGE_LVL_SELECTOR);
 dodge_lvl.html("Уворот: " + current_dodge.toString())
 
