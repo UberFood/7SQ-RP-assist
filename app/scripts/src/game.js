@@ -1818,6 +1818,14 @@ function character_KD(target_character_number) {
   return parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
 }
 
+function assign_moves(character_number) {
+  var character = character_detailed_info[character_number]
+  character_state.move_action[character_number] = parseFloat(move_action_map[character.agility]);
+  if (character.hasOwnProperty("extra_movement")) {
+    character_state.move_action[character_number] = character_state.move_action[character_number] + parseFloat(character.extra_movement);
+  }
+}
+
 function weapon_damage_bonus(raw_damage, weapon, character_number) {
   var character = character_detailed_info[character_number]
   var total_damage = raw_damage
@@ -3496,9 +3504,9 @@ socket.registerMessageHandler((data) => {
       game_state.board_state[data.cell_id] = data.character_number;
       character_state.HP[data.character_number] = HP_values[character.stamina];
       character_state.stamina[data.character_number] = stamina_values[character.stamina];
-      character_state.move_action[data.character_number] = parseFloat(move_action_map[character.agility]);
       character_state.bonus_action[data.character_number] = bonus_action_map[character.agility];
       character_state.main_action[data.character_number] = main_action_map[character.agility];
+      assign_moves(data.character_number);
       character_state.initiative[data.character_number] = character.agility;
       character_state.KD_points[data.character_number] = character.KD_points;
       character_state.bonus_KD[data.character_number] = 0;
@@ -4397,7 +4405,7 @@ socket.registerMessageHandler((data) => {
         if (character !== undefined && character !== null && character_state.HP[i] !== null && character_state.HP[i] > 0) {
           character_state.can_evade[i] = 1
           character_state.has_moved[i] = 0
-          character_state.move_action[i] = parseFloat(move_action_map[character.agility]);
+          assign_moves(i)
           character_state.bonus_action[i] = bonus_action_map[character.agility];
           character_state.main_action[i] = main_action_map[character.agility];
 
@@ -4413,7 +4421,7 @@ socket.registerMessageHandler((data) => {
                 tired_object.stage = 3
                 character_state.special_effects[i].tired = tired_object
                 character_state.universal_bonus[i] = character_state.universal_bonus[i] - 3
-                character_state.move_action[i] = parseFloat(Math.ceil(character_state.move_action[i]*0.25))
+                character_state.move_action[i] = parseFloat(character_state.move_action[i]*0.25)
                 if ((character_state.main_action[i] == 1)&&(character_state.bonus_action[i] == 1)) {
                   character_state.bonus_action[i] = 0
                 } else {
@@ -4426,7 +4434,7 @@ socket.registerMessageHandler((data) => {
                 tired_object.stage = 2
                 character_state.special_effects[i].tired = tired_object
                 character_state.universal_bonus[i] = character_state.universal_bonus[i] - 2
-                character_state.move_action[i] = parseFloat(Math.ceil(character_state.move_action[i]*0.5))
+                character_state.move_action[i] = parseFloat(character_state.move_action[i]*0.5)
               }
             } else { // 1я стадия
               var tired_object = {}
@@ -4434,7 +4442,7 @@ socket.registerMessageHandler((data) => {
               tired_object.stage = 1
               character_state.special_effects[i].tired = tired_object
               character_state.universal_bonus[i] = character_state.universal_bonus[i] - 1
-              character_state.move_action[i] = parseFloat(Math.ceil(character_state.move_action[i]*0.75))
+              character_state.move_action[i] = parseFloat(character_state.move_action[i]*0.75)
             }
           } else if (character_state.special_effects[i].hasOwnProperty("tired")) { // не устал -> убрать устлалость если была
             delete character_state.special_effects[i].tired
