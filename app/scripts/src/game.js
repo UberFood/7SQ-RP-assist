@@ -56,6 +56,8 @@ var EMPTY_CELL_PIC = "./images/square.jpg";
 var ZONE_ENDPOINT_PIC = "./images/red_cross.jpg"
 var FOG_IMAGE = "./images/fog.webp";
 var QUESTION_IMAGE = "./images/question.jpg";
+var INVISE_IMAGE = "./images/zorro_mask.jpeg";
+var AIM_IMAGE = "./images/aim.jpg";
 
 var MAX_ZONES = 25;
 var CHAT_CASH = 15;
@@ -1130,10 +1132,26 @@ function select_character(index, cell) {
       move_action_display.id = "move_action_display";
       move_action_display.innerHTML = "Передвижение: " + move_action
 
+      if (character_state.invisibility[character_number] != "all") {// в инвизе
+        var invise_display = document.createElement("IMG");
+        invise_display.src = INVISE_IMAGE;
+        invise_display.style.height = '50px';
+        invise_display.style.width = '50px';
+      }
+
+      if (character_state.special_effects[character_number].hasOwnProperty("aim")) {//  Прицелен
+        var aim_display = document.createElement("IMG");
+        aim_display.src = AIM_IMAGE;
+        aim_display.style.height = '50px';
+        aim_display.style.width = '50px';
+      }
+
 
       weapon_info_container.append(main_action_display)
       weapon_info_container.append(bonus_action_display)
       weapon_info_container.append(move_action_display)
+      weapon_info_container.append(invise_display)
+      weapon_info_container.append(aim_display)
       weapon_info_container.show()
     }
 
@@ -2444,6 +2462,22 @@ function use_skill(skill_index, character_number, position, cell) {
             alert("Не хватает действий!")
           }
         break;
+    case 29: // Прицелиться
+          if (character_state.bonus_action[character_number] > 0) {
+            if (!character_state.special_effects[character_number].hasOwnProperty("aim")) {
+              var toSend = {};
+              toSend.command = 'skill';
+              toSend.room_number = my_room;
+              toSend.skill_index = skill_index
+              toSend.user_index = character_number
+              socket.sendMessage(toSend);
+            } else {
+              alert("Вы уже прицелились - пора шмалять")
+            }
+          } else {
+              alert("Не хватает действий!")
+          }
+          break;
 
     default:
       alert("Не знаем это умение")
@@ -4371,6 +4405,14 @@ socket.registerMessageHandler((data) => {
           }
           break;
 
+      case 29: // Прицелиться
+          if (game_state.battle_mod == 1) {
+            character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+          }
+          var aim_object = {}
+          character_state.special_effects[user_index].aim = aim_object
+          break;
+
 
         default:
           alert("Received unknown skill command")
@@ -4531,6 +4573,10 @@ socket.registerMessageHandler((data) => {
               var message = "Умение Прилив Адреналина у " + character.name + " снова доступно."
               pushToList(message)
             }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("aim")) {
+            delete character_state.special_effects[i].aim
           }
 
           if (character_state.special_effects[i].hasOwnProperty("charge_user")) {
