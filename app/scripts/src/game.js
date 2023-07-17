@@ -1844,13 +1844,17 @@ function assign_moves(character_number) {
   }
 }
 
-function weapon_damage_bonus(raw_damage, weapon, character_number) {
+function weapon_damage_bonus(raw_damage, weapon, character_number, isAimed) {
   var character = character_detailed_info[character_number]
   var total_damage = raw_damage
   if (weapon.type == 'melee') {
     total_damage = total_damage + strength_damage_map[parseInt(character.strength)]
   } else if (weapon.type == 'throwing') {
     total_damage = total_damage + strength_damage_map[Math.ceil(parseInt(character.strength)/2)]
+  } else if (weapon.type == 'ranged') {
+    if (isAimed && weapon.hasOwnProperty("aim_bonus")) {
+      total_damage = total_damage + parseInt(weapon.aim_bonus)
+    }
   }
   total_damage = total_damage + character_state.damage_bonus[character_number]
   return total_damage
@@ -1892,9 +1896,15 @@ function perform_attack(index, cell) {
     if (cover_modifier.isPossible) {
       var attack_roll = roll_attack(weapon.type, user_character_number, target_character_number, cover_modifier.advantage_bonus)
 
+      var isAimed = false;
       if (attack_roll < 20) {// no crit
         if (weapon.type == "ranged") {
           var cumulative_attack_roll = attack_roll + parseInt(attacking_character.intelligence)
+          if (character_state.special_effects[user_character_number].hasOwnProperty("aim")) {// Прицел даблит бонус попадания
+            cumulative_attack_roll = cumulative_attack_roll + parseInt(attacking_character.intelligence);
+            isAimed = true;
+            delete character_state.special_effects[user_character_number].aim
+          }
         } else if (weapon.type == "melee") {
           var cumulative_attack_roll = attack_roll + parseInt(attacking_character.strength)
         } else if (weapon.type == "energy") {
@@ -1917,12 +1927,12 @@ function perform_attack(index, cell) {
             if (evade_roll > cumulative_attack_roll) { //succesfully evaded
               toSend.outcome = "evaded"
             } else {
-              var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
+              var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number, isAimed)
               toSend.damage_roll = damage_roll
               toSend.outcome = "damage_after_evasion"
             }
           } else {
-            var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
+            var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number, isAimed)
             toSend.damage_roll = damage_roll
             toSend.outcome = "damage_without_evasion"
           }
@@ -1931,7 +1941,7 @@ function perform_attack(index, cell) {
         }
       } else { // full crit
         toSend.attack_roll = attack_roll
-        var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
+        var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number, isAimed)
         toSend.damage_roll = damage_roll
         toSend.outcome = "full_crit"
       }
@@ -1947,7 +1957,7 @@ function perform_attack(index, cell) {
   stop_attack()
 }
 
-function compute_damage(weapon, character_number, attack_roll, target_number) {
+function compute_damage(weapon, character_number, attack_roll, target_number, isAimed) {
   var damage = 0
   var character = character_detailed_info[character_number]
 
@@ -1957,50 +1967,50 @@ function compute_damage(weapon, character_number, attack_roll, target_number) {
         damage = damage + roll_x(weapon.damage[1])
       }
 
-      damage = weapon_damage_bonus(damage, weapon, character_number)
+      damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
     } else {
       if (character_state.special_effects[target_number].hasOwnProperty("weakspot") && character_state.special_effects[target_number].weakspot.hunter_id == character_number) {
         switch (attack_roll) {
           case 18:
             damage = weapon.damage[1] * weapon.damage[0]
-            damage = weapon_damage_bonus(damage, weapon, character_number)
+            damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
             damage = damage*2
             break;
           case 19:
           damage = weapon.damage[1] * weapon.damage[0]
-          damage = weapon_damage_bonus(damage, weapon, character_number)
+          damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
           damage = damage*2
           break;
           case 20:
           damage = weapon.damage[1] * weapon.damage[0]
-          damage = weapon_damage_bonus(damage, weapon, character_number)
+          damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
           damage = damage*5
           break;
           default:
             damage = weapon.damage[1] * weapon.damage[0]
-            damage = weapon_damage_bonus(damage, weapon, character_number)
+            damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
         }
       } else {
         switch (attack_roll) {
           case 18:
             damage = weapon.damage[1] * weapon.damage[0]
-            damage = weapon_damage_bonus(damage, weapon, character_number)
+            damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
             break;
           case 19:
           damage = weapon.damage[1] * weapon.damage[0]
-          damage = weapon_damage_bonus(damage, weapon, character_number)
+          damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
           damage = damage*2
           break;
           case 20:
           damage = weapon.damage[1] * weapon.damage[0]
-          damage = weapon_damage_bonus(damage, weapon, character_number)
+          damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
           damage = damage*3
           break;
           default:
           for (let i = 0; i < weapon.damage[0]; i++) {
             damage = damage + roll_x(weapon.damage[1])
           }
-          damage = weapon_damage_bonus(damage, weapon, character_number)
+          damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
         }
       }
     }
@@ -2012,7 +2022,7 @@ function compute_damage(weapon, character_number, attack_roll, target_number) {
     } else {
       damage = weapon.damage[1] * weapon.damage[0]
     }
-    damage = weapon_damage_bonus(damage, weapon, character_number)
+    damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
 
     if (attack_roll == 20) {
       damage = damage * 2
@@ -2083,12 +2093,12 @@ function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, b
             if (evade_roll > cumulative_attack_roll) { //succesfully evaded
               toSend.outcome = "evaded"
             } else {
-              var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number)
+              var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number, isAimed)
               toSend.damage_roll = damage_roll
               toSend.outcome = "damage_after_evasion"
             }
           } else {
-            var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number)
+            var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number, isAimed)
             toSend.damage_roll = damage_roll
             toSend.outcome = "damage_without_evasion"
           }
@@ -2097,7 +2107,7 @@ function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, b
         }
       } else { // full crit
         toSend.attack_roll = attack_roll
-        var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number)
+        var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number, isAimed)
         toSend.damage_roll = damage_roll
         toSend.outcome = "full_crit"
       }

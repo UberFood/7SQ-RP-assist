@@ -1,1 +1,1 @@
-{"name":"Steyr-Mannlicher SSG 04","range":"18", "damage": [1, 12], "type": "ranged", "avatar": "/images/Steyr.jpg"}
+{"name":"Steyr-Mannlicher SSG 04","range":"18", "damage": [1, 12], "aim_bonus": "4", "type": "ranged", "avatar": "/images/Steyr.jpg"}
