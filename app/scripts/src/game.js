@@ -122,7 +122,7 @@ var adrenaline_range = 1
 var poisonous_adrenaline_range = 1
 
 var poisonous_adrenaline_duration = 2
-var poisonous_adrenaline_cooldown = 3
+var poisonous_adrenaline_cooldown = 5
 var poisonous_adrenaline_flat_HP = 5
 var poisonous_adrenaline_flat_stamina = 5
 var poisonous_adrenaline_percent_HP = 0.05
@@ -2085,6 +2085,7 @@ function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, b
         var cumulative_attack_roll = attack_roll + bonus_attack + cover_modifier.attack_bonus
 
         toSend.attack_roll = cumulative_attack_roll
+        var isAimed = false;
 
         if (cumulative_attack_roll > target_character_KD) {// Есть пробитие
           if (character_state.can_evade[target_character_number] == 1) {
