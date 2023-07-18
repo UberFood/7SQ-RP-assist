@@ -33,6 +33,7 @@ var NOTIFICATIONS_LIST_SELECTOR = '[data-name="notifications_list"]';
 var SKILL_MODAL_SELECTOR = '[data-name="skill-modal"]';
 var SKILL_MODAL_CONTENT_SELECTOR = '[data-name="skill-modal-content"]';
 var SKILL_DESCRIPTION_CONTAINER_SELECTOR = '[data-name="skill-description-container"]';
+var NEXT_PAGE_BUTTON_CONTAINER_SELECTOR = '[data-name="next-page-button-container"]';
 
 var SERVER_ADDRESS = location.origin.replace(/^http/, 'ws');
 
@@ -58,6 +59,7 @@ var FOG_IMAGE = "./images/fog.webp";
 var QUESTION_IMAGE = "./images/question.jpg";
 var INVISE_IMAGE = "./images/zorro_mask.jpeg";
 var AIM_IMAGE = "./images/aim.jpg";
+var RIGHT_ARROW_IMAGE = "./images/right_arrow.png";
 
 var MAX_ZONES = 25;
 var CHAT_CASH = 15;
@@ -1111,7 +1113,7 @@ function select_character(index, cell) {
   if (my_role == "gm" || character_state.visibility[character_number] == 1) {
 
     avatar_display.onclick = function() {
-      show_modal(character_number);
+      show_modal(character_number, 0);
     }
 
     avatar_display.onmouseenter = function(event) {
@@ -1512,6 +1514,97 @@ function undo_selection() {
   character_chosen.in_process = 0
   var old_cell = document.getElementById("cell_" + character_chosen.char_position);
   old_cell.src = character_detailed_info[character_chosen.char_id].avatar;
+}
+
+function show_modal(character_number, starting_index) {
+  hide_modal();
+  var character = character_detailed_info[character_number]
+  var skillset = character.skillset
+
+  var skill_table = $("<table>");
+
+  var table_size = 3
+
+  for (let i = 0; i < table_size; i++) {
+    var row = $("<tr>");
+    for (let j = 0; j < table_size; j++) {
+      var index = starting_index + table_size*i + j
+      if (index < skillset.length) {
+        var skill_number = skillset[index]
+        var column = $("<th>");
+        var skill_icon = $("<IMG>");
+        var avatar = QUESTION_IMAGE
+        if (skill_detailed_info[skill_number].hasOwnProperty('avatar')) {
+          avatar = skill_detailed_info[skill_number].avatar
+        }
+        skill_icon.addClass('skill_icon');
+        skill_icon.attr('width', '100px');
+        skill_icon.attr('skill_number', skill_number);
+        skill_icon.attr('height', '100px');
+        skill_icon.attr('src', avatar);
+        skill_icon.on('click', function(event) {
+          var position = character_state.position[character_number]
+          var cell = document.getElementById("cell_" + position);
+          use_skill(event.target.getAttribute('skill_number'), character_number, position, cell)
+          hide_modal()
+        });
+        skill_icon.on('mouseenter', function(event) {
+          var skill_number = event.target.getAttribute('skill_number');
+          var skill_object = skill_detailed_info[skill_number];
+          var skill_name_object = $("<h2>");
+          var skill_name = skill_list[skill_number];
+          skill_name_object.html(skill_name);
+          skill_description_container.append(skill_name_object);
+
+          var skill_cost_object = $("<h2>");
+          if (skill_object.hasOwnProperty('cost')) {
+            var skill_cost = skill_object.cost;
+          } else {
+            var skill_cost = "Неизвестно"
+          }
+          skill_cost_object.html("Требует действий: " + skill_cost);
+          skill_description_container.append(skill_cost_object);
+
+          var skill_description_object = $("<p>");
+          if (skill_object.hasOwnProperty('description')) {
+            var skill_description = skill_object.description;
+          } else {
+            var skill_description = "Мы сами не знаем что оно делает"
+          }
+          skill_description_object.html(skill_description);
+          skill_description_container.append(skill_description_object);
+        })
+
+        skill_icon.on('mouseleave', function(event) {
+          skill_description_container.html('');
+        })
+        column.append(skill_icon);
+        row.append(column);
+      }
+    }
+    skill_table.append(row);
+  }
+  skill_modal_content.append(skill_table);
+
+  if (skillset.length > starting_index + table_size*table_size) {// there are more skills to display
+    var next_page_button = $("<IMG>");
+    next_page_button.attr('width', '100px');
+    next_page_button.attr('height', '50px');
+    next_page_button.attr('src', RIGHT_ARROW_IMAGE);
+    next_page_button.on("click", function(event) {
+      show_modal(character_number, starting_index + table_size*table_size);
+    })
+
+    next_page_button_container.append(next_page_button);
+  }
+  skill_modal.show();
+}
+
+function hide_modal() {
+  skill_modal.hide();
+  skill_modal_content.html("");
+  skill_description_container.html("");
+  next_page_button_container.html("");
 }
 
 // attack related helpers
@@ -3402,83 +3495,6 @@ function compare_initiative(a,b) {
   }
 }
 
-function hide_modal() {
-  skill_modal.hide();
-  skill_modal_content.html("");
-  skill_description_container.html("");
-}
-
-function show_modal(character_number) {
-  var character = character_detailed_info[character_number]
-  var skillset = character.skillset
-
-  var skill_table = $("<table>");
-
-  var table_size = 3
-
-  for (let i = 0; i < table_size; i++) {
-    var row = $("<tr>");
-    for (let j = 0; j < table_size; j++) {
-      var index = table_size*i + j
-      if (index < skillset.length) {
-        var skill_number = skillset[index]
-        var column = $("<th>");
-        var skill_icon = $("<IMG>");
-        var avatar = QUESTION_IMAGE
-        if (skill_detailed_info[skill_number].hasOwnProperty('avatar')) {
-          avatar = skill_detailed_info[skill_number].avatar
-        }
-        skill_icon.addClass('skill_icon');
-        skill_icon.attr('width', '100px');
-        skill_icon.attr('skill_number', skill_number);
-        skill_icon.attr('height', '100px');
-        skill_icon.attr('src', avatar);
-        skill_icon.on('click', function(event) {
-          var position = character_state.position[character_number]
-          var cell = document.getElementById("cell_" + position);
-          use_skill(event.target.getAttribute('skill_number'), character_number, position, cell)
-          hide_modal()
-        });
-        skill_icon.on('mouseenter', function(event) {
-          var skill_number = event.target.getAttribute('skill_number');
-          var skill_object = skill_detailed_info[skill_number];
-          var skill_name_object = $("<h2>");
-          var skill_name = skill_list[skill_number];
-          skill_name_object.html(skill_name);
-          skill_description_container.append(skill_name_object);
-
-          var skill_cost_object = $("<h2>");
-          if (skill_object.hasOwnProperty('cost')) {
-            var skill_cost = skill_object.cost;
-          } else {
-            var skill_cost = "Неизвестно"
-          }
-          skill_cost_object.html("Требует действий: " + skill_cost);
-          skill_description_container.append(skill_cost_object);
-
-          var skill_description_object = $("<p>");
-          if (skill_object.hasOwnProperty('description')) {
-            var skill_description = skill_object.description;
-          } else {
-            var skill_description = "Мы сами не знаем что оно делает"
-          }
-          skill_description_object.html(skill_description);
-          skill_description_container.append(skill_description_object);
-        })
-
-        skill_icon.on('mouseleave', function(event) {
-          skill_description_container.html('');
-        })
-        column.append(skill_icon);
-        row.append(column);
-      }
-    }
-    skill_table.append(row);
-  }
-  skill_modal_content.append(skill_table);
-  skill_modal.show();
-}
-
 //socket.init('ws://localhost:3001');
 socket.init(SERVER_ADDRESS);
 
@@ -4997,6 +5013,8 @@ var skill_modal = $(SKILL_MODAL_SELECTOR);
 var skill_description_container = $(SKILL_DESCRIPTION_CONTAINER_SELECTOR);
 
 var skill_modal_content = $(SKILL_MODAL_CONTENT_SELECTOR);
+
+var next_page_button_container = $(NEXT_PAGE_BUTTON_CONTAINER_SELECTOR);
 
 var span = document.getElementById("skill-modal-close");
 
