@@ -1,1 +1,1 @@
-{"name":"Spas 12","range":"6", "damage": [3, 4], "type": "ranged", "subtype": "drobovik", "avatar": "/images/spas12.png"}
+{"name":"Spas 12","range":"5", "damage": [3, 4], "type": "ranged", "subtype": "drobovik", "avatar": "/images/spas12.png", "slow_scale": "1.0"}

@@ -18,17 +18,17 @@ var TOTAL_PRICE_SELECTOR = '[data-name="total_price"]';
 var MOVE_CHANGE_SELECTOR = '[data-name="move_change_display"]';
 
 var module_scale = 1.2;
-var specialization_scale = 2;
+var specialization_scale = 1.8;
 
 var initial_KD = 10;
 var initial_melee_resist = 0;
 var initial_move = 0;
 var initial_dodge = 0;
 
-var initial_KD_price = 50;
-var initial_melee_resist_price = 50;
-var initial_move_price = 50;
-var initial_dodge_price = 50;
+var initial_KD_price = 100;
+var initial_melee_resist_price = 100;
+var initial_move_price = 100;
+var initial_dodge_price = 100;
 
 var step_KD = 1;
 var step_melee_resist = 5;
