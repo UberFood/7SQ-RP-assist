@@ -1937,7 +1937,7 @@ function assign_moves(character_number) {
   }
 }
 
-function weapon_damage_bonus(raw_damage, weapon, character_number, isAimed) {
+function weapon_damage_bonus(raw_damage, weapon, character_number) {
   var character = character_detailed_info[character_number]
   var total_damage = raw_damage
   if (weapon.type == 'melee') {
@@ -1945,7 +1945,7 @@ function weapon_damage_bonus(raw_damage, weapon, character_number, isAimed) {
   } else if (weapon.type == 'throwing') {
     total_damage = total_damage + strength_damage_map[Math.ceil(parseInt(character.strength)/2)]
   } else if (weapon.type == 'ranged') {
-    if (isAimed && weapon.hasOwnProperty("aim_bonus")) {
+    if (character_state.special_effects[character_number].hasOwnProperty("aim") && weapon.hasOwnProperty("aim_bonus")) {
       total_damage = total_damage + parseInt(weapon.aim_bonus)
     }
   }
@@ -1989,14 +1989,12 @@ function perform_attack(index, cell) {
     if (cover_modifier.isPossible) {
       var attack_roll = roll_attack(weapon.type, user_character_number, target_character_number, cover_modifier.advantage_bonus)
 
-      var isAimed = false;
       if (attack_roll < 20) {// no crit
         if (weapon.type == "ranged") {
           var cumulative_attack_roll = attack_roll + parseInt(attacking_character.intelligence)
           if (character_state.special_effects[user_character_number].hasOwnProperty("aim")) {// Прицел даблит бонус попадания
             cumulative_attack_roll = cumulative_attack_roll + parseInt(attacking_character.intelligence);
-            isAimed = true;
-            delete character_state.special_effects[user_character_number].aim
+            toSend.aim_over = 1;
           }
         } else if (weapon.type == "melee") {
           var cumulative_attack_roll = attack_roll + parseInt(attacking_character.strength)
@@ -2020,12 +2018,12 @@ function perform_attack(index, cell) {
             if (evade_roll > cumulative_attack_roll) { //succesfully evaded
               toSend.outcome = "evaded"
             } else {
-              var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number, isAimed)
+              var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
               toSend.damage_roll = damage_roll
               toSend.outcome = "damage_after_evasion"
             }
           } else {
-            var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number, isAimed)
+            var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
             toSend.damage_roll = damage_roll
             toSend.outcome = "damage_without_evasion"
           }
@@ -2034,7 +2032,7 @@ function perform_attack(index, cell) {
         }
       } else { // full crit
         toSend.attack_roll = attack_roll
-        var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number, isAimed)
+        var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
         toSend.damage_roll = damage_roll
         toSend.outcome = "full_crit"
       }
@@ -2050,7 +2048,7 @@ function perform_attack(index, cell) {
   stop_attack()
 }
 
-function compute_damage(weapon, character_number, attack_roll, target_number, isAimed) {
+function compute_damage(weapon, character_number, attack_roll, target_number) {
   var damage = 0
   var character = character_detailed_info[character_number]
 
@@ -2060,50 +2058,50 @@ function compute_damage(weapon, character_number, attack_roll, target_number, is
         damage = damage + roll_x(weapon.damage[1])
       }
 
-      damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
+      damage = weapon_damage_bonus(damage, weapon, character_number)
     } else {
       if (character_state.special_effects[target_number].hasOwnProperty("weakspot") && character_state.special_effects[target_number].weakspot.hunter_id == character_number) {
         switch (attack_roll) {
           case 18:
             damage = weapon.damage[1] * weapon.damage[0]
-            damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
+            damage = weapon_damage_bonus(damage, weapon, character_number)
             damage = damage*2
             break;
           case 19:
           damage = weapon.damage[1] * weapon.damage[0]
-          damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
+          damage = weapon_damage_bonus(damage, weapon, character_number)
           damage = damage*2
           break;
           case 20:
           damage = weapon.damage[1] * weapon.damage[0]
-          damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
+          damage = weapon_damage_bonus(damage, weapon, character_number)
           damage = damage*5
           break;
           default:
             damage = weapon.damage[1] * weapon.damage[0]
-            damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
+            damage = weapon_damage_bonus(damage, weapon, character_number)
         }
       } else {
         switch (attack_roll) {
           case 18:
             damage = weapon.damage[1] * weapon.damage[0]
-            damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
+            damage = weapon_damage_bonus(damage, weapon, character_number)
             break;
           case 19:
           damage = weapon.damage[1] * weapon.damage[0]
-          damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
+          damage = weapon_damage_bonus(damage, weapon, character_number)
           damage = damage*2
           break;
           case 20:
           damage = weapon.damage[1] * weapon.damage[0]
-          damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
+          damage = weapon_damage_bonus(damage, weapon, character_number)
           damage = damage*3
           break;
           default:
           for (let i = 0; i < weapon.damage[0]; i++) {
             damage = damage + roll_x(weapon.damage[1])
           }
-          damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
+          damage = weapon_damage_bonus(damage, weapon, character_number)
         }
       }
     }
@@ -2115,7 +2113,7 @@ function compute_damage(weapon, character_number, attack_roll, target_number, is
     } else {
       damage = weapon.damage[1] * weapon.damage[0]
     }
-    damage = weapon_damage_bonus(damage, weapon, character_number, isAimed)
+    damage = weapon_damage_bonus(damage, weapon, character_number)
 
     if (attack_roll == 20) {
       damage = damage * 2
@@ -2178,7 +2176,6 @@ function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, b
         var cumulative_attack_roll = attack_roll + bonus_attack + cover_modifier.attack_bonus
 
         toSend.attack_roll = cumulative_attack_roll
-        var isAimed = false;
 
         if (cumulative_attack_roll > target_character_KD) {// Есть пробитие
           if (character_state.can_evade[target_character_number] == 1) {
@@ -2187,12 +2184,12 @@ function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, b
             if (evade_roll > cumulative_attack_roll) { //succesfully evaded
               toSend.outcome = "evaded"
             } else {
-              var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number, isAimed)
+              var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number)
               toSend.damage_roll = damage_roll
               toSend.outcome = "damage_after_evasion"
             }
           } else {
-            var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number, isAimed)
+            var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number)
             toSend.damage_roll = damage_roll
             toSend.outcome = "damage_without_evasion"
           }
@@ -2201,7 +2198,7 @@ function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, b
         }
       } else { // full crit
         toSend.attack_roll = attack_roll
-        var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number, isAimed)
+        var damage_roll = compute_damage(weapon, user_id, attack_roll, target_character_number)
         toSend.damage_roll = damage_roll
         toSend.outcome = "full_crit"
       }
@@ -2583,6 +2580,18 @@ function use_skill(skill_index, character_number, position, cell) {
           }
           break;
 
+    case 30: // быстрая атака
+        if (character_state.bonus_action[character_number] > 0) {
+          if (character_state.special_effects[character_number].hasOwnProperty("quick_attack_ready")) {
+            choose_character_skill(skill_index, character_number, position, cell);
+          } else {
+            alert("Сперва нужно совершить основную атаку!")
+          }
+        } else {
+          alert("Не хватает действий!")
+        }
+        break;
+
     default:
       alert("Не знаем это умение")
   }
@@ -2592,89 +2601,74 @@ function perform_skill(index, cell) {
   switch(character_chosen.skill_id) {
     case 1:
       adrenaline(index, cell)
-      stop_skill()
       break;
     case 2: // Подрезать сухожилия
       cut_limbs(index, cell)
-      stop_skill()
       break;
     case 3: // Слабое место
       weak_spot(index, cell)
-      stop_skill()
       break;
     case 4: // Лечение
       heal(index, cell)
-      stop_skill()
       break;
     case 5: // Большой брат
       big_bro(index, cell)
-      stop_skill()
       break;
     case 7: // пожирание
       devour(index, cell)
-      stop_skill()
       break;
     case 9:
       absolute_recovery(index, cell)
-      stop_skill()
       break;
     case 12:
       gas_bomb(index, cell)
-      stop_skill()
       break;
     case 13:
       light_sound_bomb(index, cell)
-      stop_skill()
       break;
     case 14:
       shock_wave(index, cell)
-      stop_skill()
       break;
     case 15:
       pich_pich_go(index, cell)
-      stop_skill()
       break;
     case 16:
       force_field(index, cell)
-      stop_skill()
       break;
 
     case 19:
       lucky_shot(index, cell)
-      stop_skill()
       break;
 
     case 20:
       lottery_shot(index, cell)
-      stop_skill()
       break;
 
     case 22:
       punch_rainfall(index, cell)
-      stop_skill()
       break;
 
     case 23:
       poisonous_adrenaline(index, cell)
-      stop_skill()
       break;
 
     case 24:
       acid_bomb(index, cell)
-      stop_skill()
       break;
 
     case 26:
       diffuse_landmine(index, cell)
-      stop_skill()
       break;
     case 28:
       curved_bullets(index, cell)
-      stop_skill()
+      break;
+    case 30:
+      quick_attack(index, cell)
       break;
     default:
       alert("Unknown targeted skill")
   }
+  stop_skill()
 }
 
 function choose_character_skill(skill_index, character_number, position, cell) {
@@ -2881,6 +2875,10 @@ function cut_limbs(index, cell) {
     alert("Вы не можете подрезать сухожилья этим оружием")
   }
 
+
+}
+
+function quick_attack(index, cell) {
 
 }
 
@@ -3290,13 +3288,18 @@ function curved_bullets(index, cell) {
   var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]]
   var attacking_character = character_detailed_info[user_character_number]
   var bonus_attack = parseInt(attacking_character.intelligence) + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
-
+  if (character_state.special_effects[user_character_number].hasOwnProperty("aim")) {
+    bonus_attack = bonus_attack + parseInt(attacking_character.intelligence);
+  }
   var accumulated_cover = get_accumulated_cover(index, user_position);
   accumulated_cover = Math.max(parseInt(parseFloat(accumulated_cover)/2) - 2, 0)
   var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon, accumulated_cover)
   if (toSend == null) {
     alert("Далековато")
   } else {
+    if (character_state.special_effects[user_character_number].hasOwnProperty("aim")) {
+      toSend.aim_over = 1;
+    }
     socket.sendMessage(toSend);
   }
 }
@@ -3783,6 +3786,9 @@ socket.registerMessageHandler((data) => {
     } else if (data.command == 'skill_response') {
       var user_index = data.user_index
       character_state.has_moved[user_index] = 1
+      if (data.hasOwnProperty("aim_over")) {
+        delete character_state.special_effects[user_index].aim
+      }
       switch(data.skill_index) {
         case 0: // рывок
             character = character_detailed_info[user_index]
@@ -4851,6 +4857,10 @@ socket.registerMessageHandler((data) => {
       if (game_state.battle_mod == 1) {
         character_state.stamina[data.attacker_id] = character_state.stamina[data.attacker_id] - stamina_attack_cost
         character_state.main_action[data.attacker_id] = character_state.main_action[data.attacker_id] - 1
+      }
+
+      if (data.hasOwnProperty("aim_over")) {
+        delete character_state.special_effects[data.attacker_id].aim
       }
 
       if (data.cover_level > 0) {
