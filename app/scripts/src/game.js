@@ -1982,13 +1982,16 @@ function perform_attack(index, cell) {
     toSend.cover_level = cover_modifier.cover_level
     toSend.user_invisibility_ended = 0
 
+    if (weapon.hasOwnProperty("subtype") && weapon.subtype == "PP") {
+      toSend.quick_attack_ready = true;
+    }
+
     if (character_state.invisibility[user_character_number] != "all" && weapon.type != "throwing") {
       toSend.user_invisibility_ended = 1
     }
 
     if (cover_modifier.isPossible) {
       var attack_roll = roll_attack(weapon.type, user_character_number, target_character_number, cover_modifier.advantage_bonus)
-
       if (attack_roll < 20) {// no crit
         if (weapon.type == "ranged") {
           var cumulative_attack_roll = attack_roll + parseInt(attacking_character.intelligence)
@@ -2879,7 +2882,25 @@ function cut_limbs(index, cell) {
 }
 
 function quick_attack(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]]
+  if (weapon.hasOwnProperty("subtype") && weapon.subtype == "PP") {
+    var attacking_character = character_detailed_info[user_character_number]
+    var bonus_attack = parseInt(attacking_character.intelligence) + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
 
+    var accumulated_cover = get_accumulated_cover(index, user_position)
+    var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon, accumulated_cover)
+    if (toSend == null) {
+      alert("Далековато")
+    } else {
+      toSend.damage_roll = toSend.damage_roll/2; // быстрая атака наносит половину урона
+      socket.sendMessage(toSend);
+    }
+
+  } else {
+    alert("Быструю атаку можно совершить только пистолетом-пулеметом")
+  }
 }
 
 function punch_rainfall(index, cell) {
@@ -4446,6 +4467,67 @@ socket.registerMessageHandler((data) => {
           character_state.special_effects[user_index].aim = aim_object
           break;
 
+      case 30: // быстрая атака
+      var attacker = character_detailed_info[user_index]
+      var target = character_detailed_info[data.target_id]
+      character_state.has_moved[user_index] = 1
+
+      if (character_state.special_effects[user_index].hasOwnProperty("quick_attack_ready")) {
+        delete character_state.special_effects[user_index].quick_attack_ready
+      }
+
+      if (game_state.battle_mod == 1) {
+        character_state.stamina[user_index] = character_state.stamina[user_index] - stamina_attack_cost
+        character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+      }
+
+      if (data.cover_level > 0) {
+        var cover_string = "Уровень укрытия: " + data.cover_level
+      } else {
+        var cover_string = ""
+      }
+      switch (data.outcome) {
+        case "KD_block":
+          var message = attacker.name + " быстро атакует " + target.name + " (" + data.attack_roll + "), но не пробивает броню. " + cover_string
+          pushToList(message)
+          break;
+        case "evaded":
+          var message = attacker.name + " быстро атакует " + target.name + " (" + data.attack_roll + "), однако " + target.name + " удалось увернуться (" + data.evade_roll + "). " + cover_string
+          pushToList(message)
+          if (target.special_type != 'rogue') {
+            character_state.can_evade[data.target_id] = 0
+          }
+          break;
+        case "damage_without_evasion":
+          var message = attacker.name + " успешно быстро атакует " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться. Атака наносит " + data.damage_roll + " урона. " + cover_string
+          pushToList(message)
+          do_damage(data.target_id, data.damage_roll)
+          melee_penalty(data)
+          break;
+        case "damage_after_evasion":
+          var message = attacker.name + " успешно быстро атакует " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + "). Атака наносит " + data.damage_roll + " урона. " + cover_string
+          pushToList(message)
+          do_damage(data.target_id, data.damage_roll)
+          character_state.can_evade[data.target_id] = 0
+          melee_penalty(data)
+          break;
+        case "full_crit":
+          var message = attacker.name + " критически быстро атакует " + target.name + ", не оставляя возможности увернуться. Атака наносит " + data.damage_roll + " урона. " + cover_string
+          pushToList(message)
+          do_damage(data.target_id, data.damage_roll)
+          character_state.can_evade[data.target_id] = 0
+          melee_penalty(data)
+          break;
+        case "full_cover":
+          var message = attacker.name + " пытался быстро атаковать " + target.name + " но тот находится в полном укрытии."
+          pushToList(message)
+          break;
+        default:
+          console.log("fucked up resolving damage")
+          break;
+      }
+          break;
+
 
         default:
           alert("Received unknown skill command")
@@ -4861,6 +4943,10 @@ socket.registerMessageHandler((data) => {
 
       if (data.hasOwnProperty("aim_over")) {
         delete character_state.special_effects[data.attacker_id].aim
+      }
+
+      if (data.hasOwnProperty("quick_attack_ready")) {
+        character_state.special_effects[data.attacker_id].quick_attack_ready = true;
       }
 
       if (data.cover_level > 0) {
