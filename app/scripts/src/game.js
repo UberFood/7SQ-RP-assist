@@ -146,6 +146,8 @@ var tobacco_strike_hp_percentage = 0.1
 var tobacco_strike_bonus = 4
 var tobacco_strike_cooldown = 1
 
+var drobovik_move_reduction_scale = 2;
+
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
 const stamina_values = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195];
@@ -2043,6 +2045,14 @@ function perform_attack(index, cell) {
     } else {
       toSend.outcome = "full_cover"
   }
+
+    if (toSend.hasOwnProperty("damage_roll") && weapon.hasOwnProperty("subtype") && weapon.subtype == "drobovik") {
+      var full_hp = HP_values[parseInt(target_character.stamina)]
+      var current_moves = character_state.move_action[target_character_number]
+      var fraction = parseFloat(toSend.damage_roll)/parseFloat(full_hp)
+      var move_reduction = current_moves * fraction * drobovik_move_reduction_scale;
+      toSend.move_reduction = move_reduction;
+    }
     socket.sendMessage(toSend);
 
   } else {
@@ -4947,6 +4957,10 @@ socket.registerMessageHandler((data) => {
 
       if (data.hasOwnProperty("quick_attack_ready")) {
         character_state.special_effects[data.attacker_id].quick_attack_ready = true;
+      }
+
+      if (data.hasOwnProperty("move_reduction")) {
+        character_state.move_action[data.target_id] = character_state.move_action[data.target_id] - data.move_reduction;
       }
 
       if (data.cover_level > 0) {
