@@ -1,1 +1,1 @@
-{"name":"Чуваува","avatar":"/images/Chuvauva.png","strength":"3","stamina":"3","agility":"3","intelligence":"3", "KD_points": "10", "special_type": "med", "inventory": [6, 3], "skillset": [1,4,10,11,12,24,26,0], "group":"player"}
+{"name":"Чуваува","avatar":"/images/Chuvauva.png","strength":"3","stamina":"3","agility":"3","intelligence":"3", "KD_points": "12", "special_type": "med", "inventory": [4,6,7], "skillset": [1,4,10,11,12,24,26,0,29,30], "group":"player","evade_bonus": "2","melee_resist": "5"}

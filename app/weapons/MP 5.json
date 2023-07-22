@@ -1,1 +1,1 @@
-{"name":"MP 5","range":"12", "damage": [2, 6], "type": "ranged", "avatar": "/images/mp5.png"}
+{"name":"MP 5","range":"7", "damage": [2, 6], "type": "ranged", "subtype": "PP","avatar": "/images/mp5.png"}
