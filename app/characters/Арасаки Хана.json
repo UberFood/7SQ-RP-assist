@@ -1,1 +1,1 @@
-{"name":"Арасаки Хана","avatar":"/images/hanna.jpg","strength":"5","stamina":"4","agility":"6","intelligence":"1", "KD_points": "10", "special_type": "rogue", "inventory": [23, 4], "skillset": [2,17,0,4,10,11,29], "group":"shield", "evade_bonus": "2"}
+{"name":"Арасаки Хана","avatar":"/images/hanna.jpg","strength":"5","stamina":"4","agility":"6","intelligence":"1", "KD_points": "10", "special_type": "rogue", "inventory": [26, 4], "skillset": [2,17,0,4,10,11,29], "group":"shield", "evade_bonus": "4", "bullet_resist": "5", "extra_movement":"1"}

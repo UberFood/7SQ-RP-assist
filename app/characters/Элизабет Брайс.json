@@ -1,1 +1,1 @@
-{"name":"Элизабет Брайс","avatar":"/images/eli_brice.jpg","strength":"1","stamina":"5","agility":"2","intelligence":"4", "KD_points": "10", "special_type": "sniper", "inventory": [2, 0], "skillset": [3,28,4,10,11,0,26,29], "group":"player"}
+{"name":"Элизабет Брайс","avatar":"/images/eli_brice.jpg","strength":"1","stamina":"4","agility":"3","intelligence":"4", "KD_points": "11", "special_type": "sniper", "inventory": [8], "skillset": [3,28,4,10,11,0,26,29], "group":"player", "evade_bonus": "1"}
