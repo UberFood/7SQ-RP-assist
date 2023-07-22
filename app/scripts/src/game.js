@@ -151,6 +151,7 @@ var safety_service_cooldown = 1;
 var safety_service_duration = 1;
 var safety_service_defensive_advantage = 1;
 var safety_service_evade_bonus = 3;
+var safety_service_bonus_actions_cost = 2;
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
