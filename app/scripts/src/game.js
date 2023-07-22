@@ -146,6 +146,12 @@ var tobacco_strike_hp_percentage = 0.1
 var tobacco_strike_bonus = 4
 var tobacco_strike_cooldown = 1
 
+var safety_service_range = 2;
+var safety_service_cooldown = 1;
+var safety_service_duration = 1;
+var safety_service_defensive_advantage = 1;
+var safety_service_evade_bonus = 3;
+
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
 const stamina_values = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195];
@@ -2604,6 +2610,18 @@ function use_skill(skill_index, character_number, position, cell) {
         }
         break;
 
+    case 31: // служба спасения
+          if (character_state.bonus_action[character_number] > 1) {// два бонусных
+            if (!character_state.special_effects[character_number].hasOwnProperty("safety_service_user")) {
+              choose_character_skill(skill_index, character_number, position, cell);
+            } else {
+              alert("Умение все еще на кулдауне")
+            }
+          } else {
+            alert("Не хватает действий!")
+          }
+          break;
+
     default:
       alert("Не знаем это умение")
   }
@@ -2677,6 +2695,9 @@ function perform_skill(index, cell) {
     case 30:
       quick_attack(index, cell)
       break;
+    case 31:
+      safety_service(index, cell)
+      break;
     default:
       alert("Unknown targeted skill")
   }
@@ -2689,6 +2710,27 @@ function choose_character_skill(skill_index, character_number, position, cell) {
   character_chosen.char_id = character_number
   character_chosen.char_position = position
   cell.src = "./images/Chidori.webp";
+}
+
+function safety_service(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  if (isInRange(index, user_position, safety_service_range)) {
+    var target_character_number = game_state.board_state[index]
+    if (!character_state.special_effects[target_character_number].hasOwnProperty("safety_service_target")) {
+      var toSend = {};
+      toSend.command = 'skill';
+      toSend.skill_index = character_chosen.skill_id
+      toSend.room_number = my_room;
+      toSend.user_index = user_character_number
+      toSend.target_id = target_character_number
+      socket.sendMessage(toSend);
+    } else {
+      alert("Эта цель уже под защитой")
+    }
+  } else {
+    alert("Вы не можете защищать с такого расстояния")
+  }
 }
 
 function weak_spot(index, cell) {
@@ -4537,6 +4579,25 @@ socket.registerMessageHandler((data) => {
       }
           break;
 
+      case 31: // служба спасения
+        if (game_state.battle_mod == 1) {
+          character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - safety_service_bonus_actions_cost
+        }
+        var savior = character_detailed_info[user_index]
+        var target = character_detailed_info[data.target_id]
+        var message = savior.name + " не даст в обиду " +  target.name
+        pushToList(message)
+        character_state.defensive_advantage[data.target_id] = character_state.defensive_advantage[data.target_id] + safety_service_defensive_advantage
+        character_state.evade_bonus[data.target_id] = character_state.evade_bonus[data.target_id] + safety_service_evade_bonus
+
+        var safety_service_target_object = {}
+        safety_service_target_object.duration = safety_service_duration
+        character_state.special_effects[data.target_id].safety_service_target = safety_service_target_object
+
+        var safety_service_user_object = {}
+        safety_service_user_object.cooldown = safety_service_cooldown
+        character_state.special_effects[user_index].safety_service_user = safety_service_user_object
+        break;
 
         default:
           alert("Received unknown skill command")
@@ -4631,6 +4692,24 @@ socket.registerMessageHandler((data) => {
               pushToList(message)
             } else {
               character_state.special_effects[i].action_splash.cooldown = character_state.special_effects[i].action_splash.cooldown - 1
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("safety_service_user")) {
+            if (character_state.special_effects[i].safety_service_user.cooldown == 0) {
+              delete character_state.special_effects[i].safety_service_user
+            } else {
+              character_state.special_effects[i].safety_service_user.cooldown = character_state.special_effects[i].safety_service_user.cooldown - 1
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("safety_service_target")) {
+            if (character_state.special_effects[i].safety_service_target.duration == 0) {
+              character_state.defensive_advantage[i] = character_state.defensive_advantage[i] - safety_service_defensive_advantage
+              character_state.evade_bonus[i] = character_state.evade_bonus[i] - safety_service_evade_bonus
+              delete character_state.special_effects[i].safety_service_target
+            } else {
+              character_state.special_effects[i].safety_service_target.duration = character_state.special_effects[i].safety_service_target.duration - 1
             }
           }
 
