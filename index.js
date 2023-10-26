@@ -345,6 +345,28 @@ wss.on('connection', (ws) => {
         }
         console.log('Character list saved succesfully.')
       });
+    } else if (data.command == 'guild_sim_init') {
+      var character_list_unparsed = fs.readFileSync('./app/guild_sim_fighters/character_list.json');
+      var character_list = JSON.parse(character_list_unparsed);
+      var response = {}
+      response.command = 'guild_sim_init_response'
+      response.character_list = character_list
+
+      var character_detailed_info = []
+      for (character_name of character_list) {
+        var filename = './app/guild_sim_fighters/' + character_name + '.json'
+        if (fs.existsSync(filename)) {
+          var current_character = JSON.parse(fs.readFileSync(filename));
+        } else {
+          var current_character = {}
+        }
+        character_detailed_info.push(current_character)
+      }
+      response.character_detailed_info = character_detailed_info
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(response));
+      });
+
     }
     else {
       console.log('fucking pog ' + data['command']);

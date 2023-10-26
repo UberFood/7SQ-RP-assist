@@ -3,12 +3,18 @@
   <head>
     <meta charset="utf-8">
     <title>Guild Simulator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
+    <link charset="utf-8" rel="stylesheet" type="text/css" href="/stylesheets/guild_sim.css">
   </head>
 
   <body>
     <div className="Character">
 
-      		<h1>Guild Simulator</h1>
+    <h1>Guild Simulator</h1>
+
+    <div class="horizontal-container">
+
+      <div class="vertical-container">
 
 		<h2> Имя персонажа </h2>
 		<input maxLength = "25" id="name" required='1'></input>
@@ -29,6 +35,14 @@
 		<input maxLength = "3" id="speed" required='1'></input>
 
 		<button class="butt" data-name="add_character_button">Добавить персонажа</button>
+
+    </div>
+
+    <div class="box" data-name="fighters_display">
+
+    </div>
+
+    </div>
 
     </div>
 

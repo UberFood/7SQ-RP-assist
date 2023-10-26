@@ -1,0 +1,165 @@
+@font-face {
+  font-family: lakeshore;
+
+  src: url('fonts/LAKESHOR-webfont.eot');
+  src: url('fonts/LAKESHOR-webfont.eot?#iefix') format('embedded-opentype'),
+       url('fonts/LAKESHOR-webfont.woff') format('woff'),
+       url('fonts/LAKESHOR-webfont.ttf') format('truetype'),
+       url('fonts/LAKESHOR-webfont.svg#lakeshore') format('svg');
+
+  font-weight: normal;
+  font-style: normal;
+}
+
+.horizontal-container {
+  display: flex;
+  flex-direction: row;
+  height: 50%;
+}
+
+.vertical-container {
+  display: flex;
+  flex-direction: column;
+  width: 25%;
+  align-items: center;
+  justify-content: center;
+}
+
+body
+{
+	color: white;
+  /*background: rgb(145,172,198);
+  background: linear-gradient(176deg, rgba(145,172,198,1) 43%, rgba(203,203,203,1) 100%); */
+}
+
+h1 {
+	color: black;
+}
+
+h2 {
+	color: black;
+}
+
+h4 {
+	color: red;
+}
+
+input {
+  padding:7px 0 7px 25px;
+  border-radius: 20px;
+  border: 1px solid #dbdbdb;
+  box-shadow:4px 4px 10px rgba(0,0,0,0.06);
+  background-color: #f5f5f5;
+  font-family:Arial;
+}
+
+button {
+box-shadow: 3px 4px 0px 0px #91b8b3;
+background:linear-gradient(to bottom, #9c9c9c 5%, #d6d6d6 100%);
+background-color:#9c9c9c;
+border-radius:15px;
+border:1px solid #566963;
+display:inline-block;
+cursor:pointer;
+color:#000000;
+font-family:Arial;
+padding:7px 25px;
+text-decoration:none;
+text-shadow:0px 1px 0px #2b665e;
+transition-duration: 1s;
+}
+button:hover {
+background:linear-gradient(to bottom, #d6d6d6 5%, #9c9c9c 100%);
+background-color:#d6d6d6;
+}
+button:active {
+position:relative;
+top:1px;
+}
+
+.button_list {
+  list-style: none;
+}
+
+.page_title {
+  font-size: 30px;
+  font-family: lakeshore;
+}
+
+  a
+  {
+    text-decoration: none;
+        color: white;
+  }
+    a:hover {
+        color: chartreuse;
+    }
+    .App {
+        text-align: center;
+        font-size: 20px;
+    }
+    .App button {
+        background-color: blue;
+        color: white;
+        text-decoration: none;
+        margin-right: 20px;
+        margin-left: 20px;
+        height: 60px;
+        width: 200px;
+        border-radius: 10px 10px;
+        font-size: 20px;
+        font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+    }
+    .App button:hover {
+        background-color: blue;
+        color:  chartreuse;
+        text-decoration: none;
+        background-color: firebrick;
+    }
+
+.butt {
+    background-color: blue;
+    color: white;
+    text-decoration: none;
+    margin-right: 20px;
+    margin-left: 20px;
+    height: 60px;
+    width: 200px;
+    border-radius: 10px 10px;
+    font-size: 20px;
+    font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+}
+
+select {
+    background-color: blue;
+    color: white;
+    text-decoration: none;
+    margin-right: 20px;
+    margin-left: 20px;
+    height: 60px;
+    width: 200px;
+    border-radius: 10px 10px;
+    font-size: 20px;
+    font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: black;
+}
+
+.App-link {
+  color: black;
+}
+
+
+html, body {
+  height: 100vh;
+  overflow: auto;
+}

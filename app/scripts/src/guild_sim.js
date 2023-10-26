@@ -6,6 +6,10 @@ var SERVER_ADDRESS = location.origin.replace(/^http/, 'ws');
 var my_name = JSON.parse(sessionStorage.getItem('username'));
 
 var ADD_CHARACTER_BUTTON_SELECTOR = '[data-name="add_character_button"]';
+var FIGHTERS_DISPLAY_SELECTOR = '[data-name="fighters_display"]';
+
+var character_list = [];
+var character_detailed_info = [];
 
 function addCharacter() {
 	var name_string = document.getElementById("name").value;
@@ -29,24 +33,28 @@ socket.init(SERVER_ADDRESS);
 
 socket.registerOpenHandler(() => {
   var toSend = {};
-  toSend.command = 'add_character_permission';
-  toSend.from_name = my_name;
-  toSend.password = JSON.parse(sessionStorage.getItem('gm_password'));
+  toSend.command = 'guild_sim_init';
   socket.sendMessage(toSend);
 });
 
 socket.registerMessageHandler((data) => {
   console.log(data);
-  if (data.to_name == my_name) {
-    if (data.command == 'add_character_permission_server') {
-      if (data.isValid == 0) {
-        alert('Нарушаем');
-        window.location.href = "/";
-      }
-    }
-  }
+	character_list = data.character_list;
+	character_detailed_info = data.character_detailed_info;
+
+	for (let i = 0; i < character_list.length; i++) {
+		var character = character_detailed_info[i]
+		var query_string = '<img> id="fighter_image_' + i + '"'
+		var img = $(query_string)
+		img.attr('src', character.avatar);
+		img.attr('height', '50px');
+		img.attr('width', '50px');
+		img.appendTo(fighters_display_container);
+	}
 
 });
 
 var add_character_button = $(ADD_CHARACTER_BUTTON_SELECTOR);
 add_character_button.on('click', addCharacter);
+
+var fighters_display_container = $(FIGHTERS_DISPLAY_SELECTOR);
