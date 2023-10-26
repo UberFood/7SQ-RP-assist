@@ -4,6 +4,7 @@ var GM_BUTTON_SELECTOR = '[data-name="sign_gm_button"]';
 var CREATE_CHAR_BUTTON_SELECTOR = '[data-name="create_char_button"]';
 var ROOM_NUMBER_SELECT_SELECTOR = '[data-name="room_number_select"]';
 var ARMOR_CALCULATOR_BUTTON_SELECTOR = '[data-name="armor_calculator_button"]';
+var GUILD_SIM_BUTTON_SELECTOR = '[data-name="guild_sim_button"]';
 
 var MAX_ROOMS = 2;
 
@@ -53,6 +54,16 @@ function open_armor_calculator() {
   window.location.href = "/armor_calculator.html";
 }
 
+function open_guild_sim() {
+  var password = document.getElementById('password').value;
+  var username = document.getElementById('player_name').value;
+
+  sessionStorage.setItem('gm_password', JSON.stringify(password));
+  sessionStorage.setItem('username', JSON.stringify(username));
+
+  window.location.href = "/guild_sim.html";
+}
+
 var player_button = $(PLAYER_BUTTON_SELECTOR);
 player_button.on('click', signPlayer);
 
@@ -64,6 +75,9 @@ create_char_button.on('click', createChar);
 
 var armor_calculator_button = $(ARMOR_CALCULATOR_BUTTON_SELECTOR);
 armor_calculator_button.on('click', open_armor_calculator);
+
+var guild_sim_button = $(GUILD_SIM_BUTTON_SELECTOR);
+guild_sim_button.on('click', open_guild_sim);
 
 var room_number_select = $(ROOM_NUMBER_SELECT_SELECTOR);
 for (let i = 1; i < MAX_ROOMS + 1; i++) {

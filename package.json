@@ -12,7 +12,8 @@
     "build game": "browserify -d app/scripts/src/game.js -o app/scripts/dist/game.js",
     "watch game": "watchify -v -d app/scripts/src/game.js -o app/scripts/dist/game.js",
     "watch character": "watchify -v -d app/scripts/src/character.js -o app/scripts/dist/character.js",
-    "watch armor": "watchify -v -d app/scripts/src/armor_calculator.js -o app/scripts/dist/armor_calculator.js"
+    "watch armor": "watchify -v -d app/scripts/src/armor_calculator.js -o app/scripts/dist/armor_calculator.js",
+    "watch guild": "watchify -v -d app/scripts/src/guild_sim.js -o app/scripts/dist/guild_sim.js"
   },
   "browserify": {
     "transform": [

@@ -323,6 +323,28 @@ wss.on('connection', (ws) => {
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(data));
       });
+    } else if (data.command == 'guild_sim_new_char') {
+      var character = data.character;
+      fs.writeFile('./app/guild_sim_fighters/' + character.name + '.json', JSON.stringify(character), function(err) {
+        if (err) {
+          console.log('There has been an error saving current character');
+          console.log(err.message);
+          return;
+        }
+        console.log('Current character saved succesfully.')
+      });
+
+      var character_list_unparsed = fs.readFileSync('./app/guild_sim_fighters/character_list.json');
+      var character_list = JSON.parse(character_list_unparsed);
+      character_list.push(character.name);
+      fs.writeFile('./app/guild_sim_fighters/character_list.json', JSON.stringify(character_list), function(err) {
+        if (err) {
+          console.log('There has been an error saving character list.');
+          console.log(err.message);
+          return;
+        }
+        console.log('Character list saved succesfully.')
+      });
     }
     else {
       console.log('fucking pog ' + data['command']);
