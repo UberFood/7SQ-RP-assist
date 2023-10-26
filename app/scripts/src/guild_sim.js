@@ -8,6 +8,8 @@ var my_name = JSON.parse(sessionStorage.getItem('username'));
 var ADD_CHARACTER_BUTTON_SELECTOR = '[data-name="add_character_button"]';
 var FIGHTERS_DISPLAY_SELECTOR = '[data-name="fighters_display"]';
 var CHARACTER_DISPLAY_SELECTOR = '[data-name="character_display"]';
+var FIGHTERS_SELECT_SELECTOR = '[data-name="fighters_select"]';
+var ADD_FIGHTER_BUTTON_SELECTOR = '[data-name="add_fighter_button"]';
 
 var character_list = [];
 var character_detailed_info = [];
@@ -67,6 +69,10 @@ function select_character(character_number) {
 	character_info_container.append(intelligence_display);
 }
 
+function addFighterToTeam(team) {
+	console.log(team)
+}
+
 function clear_containers() {
 	character_info_container.html("");
 }
@@ -94,8 +100,12 @@ socket.registerMessageHandler((data) => {
 		img.click(function() {
 			select_character(i);
 		});
-
 		img.appendTo(fighters_display_container);
+
+		var option = $("<option>");
+		option.html(character.name);
+		option.attr("value", i);
+		fighters_select.append(option)
 	}
 
 });
@@ -103,6 +113,13 @@ socket.registerMessageHandler((data) => {
 var add_character_button = $(ADD_CHARACTER_BUTTON_SELECTOR);
 add_character_button.on('click', addCharacter);
 
+var add_fighter_button = $(ADD_FIGHTER_BUTTON_SELECTOR);
+add_fighter_button.on('click', function(event) {
+	addFighterToTeam(event.target.getAttribute('team'));
+});
+
 var fighters_display_container = $(FIGHTERS_DISPLAY_SELECTOR);
 
 var character_info_container = $(CHARACTER_DISPLAY_SELECTOR);
+
+var fighters_select = $(FIGHTERS_SELECT_SELECTOR);
