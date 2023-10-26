@@ -7,6 +7,7 @@ var my_name = JSON.parse(sessionStorage.getItem('username'));
 
 var ADD_CHARACTER_BUTTON_SELECTOR = '[data-name="add_character_button"]';
 var FIGHTERS_DISPLAY_SELECTOR = '[data-name="fighters_display"]';
+var CHARACTER_DISPLAY_SELECTOR = '[data-name="character_display"]';
 
 var character_list = [];
 var character_detailed_info = [];
@@ -29,6 +30,47 @@ function addCharacter() {
   document.location.reload();
 }
 
+function select_character(character_number) {
+	clear_containers();
+	var character = character_detailed_info[character_number];
+	let name = character.name;
+	let avatar = character.avatar;
+
+	var name_display = document.createElement("h2");
+	name_display.innerHTML = name;
+
+	var avatar_container = document.createElement("div");
+	var avatar_display = document.createElement("IMG");
+	avatar_display.src = avatar;
+	avatar_display.style.width = '250px';
+	avatar_display.style.height = '250px';
+
+	avatar_container.appendChild(avatar_display)
+
+	var strength_display = document.createElement("h2");
+	strength_display.innerHTML = "Cила: " + character.strength;
+
+	var stamina_display = document.createElement("h2");
+	stamina_display.innerHTML = "Телосложение: " + character.stamina;
+
+	var speed_display = document.createElement("h2");
+	speed_display.innerHTML = "Скорость: " + character.speed;
+
+	var intelligence_display = document.createElement("h2");
+	intelligence_display.innerHTML = "Интеллект: " + character.intelligence;
+
+	character_info_container.append(name_display);
+	character_info_container.append(avatar_container);
+	character_info_container.append(strength_display);
+	character_info_container.append(stamina_display);
+	character_info_container.append(speed_display);
+	character_info_container.append(intelligence_display);
+}
+
+function clear_containers() {
+	character_info_container.html("");
+}
+
 socket.init(SERVER_ADDRESS);
 
 socket.registerOpenHandler(() => {
@@ -47,8 +89,12 @@ socket.registerMessageHandler((data) => {
 		var query_string = '<img> id="fighter_image_' + i + '"'
 		var img = $(query_string)
 		img.attr('src', character.avatar);
-		img.attr('height', '50px');
-		img.attr('width', '50px');
+		img.attr('height', '100px');
+		img.attr('width', '100px');
+		img.click(function() {
+			select_character(i);
+		});
+
 		img.appendTo(fighters_display_container);
 	}
 
@@ -58,3 +104,5 @@ var add_character_button = $(ADD_CHARACTER_BUTTON_SELECTOR);
 add_character_button.on('click', addCharacter);
 
 var fighters_display_container = $(FIGHTERS_DISPLAY_SELECTOR);
+
+var character_info_container = $(CHARACTER_DISPLAY_SELECTOR);
