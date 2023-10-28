@@ -284,6 +284,25 @@ function construct_board(new_game_state) {
         }
 
       };
+      button.draggable = true;
+      button.ondragover = function(event) {
+        event.preventDefault();
+      }
+      button.ondragstart = function(event) {
+        var cell = event.target;
+        var index = cell.row * game_state.size + cell.column;
+        var character_number = game_state.board_state[index];
+        if (character_number > 0 && (my_role == "gm" || character_state.visibility[character_number] == 1)) {
+          choose_character_to_move(index, cell)
+        }
+      }
+      button.ondrop = function(event) {
+        var cell = event.target;
+        var index = cell.row * game_state.size + cell.column;
+        if (character_chosen.in_process == 1 && game_state.board_state[index] == 0) {
+          move_character(index, cell)
+        }
+      }
       var cell_wrap = document.createElement("th");
       cell_wrap.appendChild(button);
       cell_wrap.className = "cell_wrap";
