@@ -1330,18 +1330,21 @@ function select_character(index, cell) {
     socket.sendMessage(toSend);
   }
 
-  var weapon_select = document.createElement("select");
-  weapon_select.id = "weapon_chosen";
+  //var weapon_select = document.createElement("select");
+  //weapon_select.id = "weapon_chosen";
 
   var inventory = character.inventory
 
+  /*
   for (let i = 0; i < inventory.length; i++) {
     var current_option = document.createElement("option");
     current_option.innerHTML = weapon_list[inventory[i]];
     current_option.value = inventory[i];
     weapon_select.appendChild(current_option);
   }
+  */
 
+  /*
   var pick_weapon_button = document.createElement("button");
   pick_weapon_button.innerHTML = "Сменить оружие";
   pick_weapon_button.index = index;
@@ -1351,6 +1354,7 @@ function select_character(index, cell) {
 
     change_weapon(character_number, weapon_index)
   }
+  */
 
   var default_weapon_index = character_state.current_weapon[character_number]
   character_chosen.weapon_id = default_weapon_index
@@ -1388,11 +1392,14 @@ function select_character(index, cell) {
     }
   }
 
+  /*
   var skill_select = document.createElement("select");
   skill_select.id = "skill_chosen";
+  */
 
   var skillset = character.skillset
 
+  /*
   for (let i = 0; i < skillset.length; i++) {
     var current_option = document.createElement("option");
     current_option.innerHTML = skill_list[skillset[i]];
@@ -1407,6 +1414,7 @@ function select_character(index, cell) {
     var skill_index = skill_select.value
     use_skill(skill_index, character_number, index, cell)
   }
+  */
 
 
   var button_list = document.createElement("ul");
@@ -1429,12 +1437,12 @@ function select_character(index, cell) {
     line8.appendChild(change_character_visibility_button);
   }
   line4.appendChild(search_button);
-  line5.appendChild(pick_weapon_button);
-  line5.appendChild(weapon_select);
+  //line5.appendChild(pick_weapon_button);
+  //line5.appendChild(weapon_select);
   line6.appendChild(attack_button);
   line7.appendChild(simple_roll_button);
-  line9.appendChild(skill_button);
-  line9.appendChild(skill_select);
+  //line9.appendChild(skill_button);
+  //line9.appendChild(skill_select);
 
   button_list.appendChild(line1);
   if (my_role == "gm") {
@@ -1443,9 +1451,9 @@ function select_character(index, cell) {
     button_list.appendChild(line8);
   }
   button_list.appendChild(line4);
-  button_list.appendChild(line5);
+  //button_list.appendChild(line5);
   button_list.appendChild(line6);
-  button_list.appendChild(line9);
+  //button_list.appendChild(line9);
   button_list.appendChild(line7);
 
   character_info_container.append(button_list);
