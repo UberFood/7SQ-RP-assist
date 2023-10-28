@@ -3203,7 +3203,9 @@ function gas_bomb(index, cell) {
     toSend.threshold = gas_bomb_threshold
     socket.sendMessage(toSend);
 
-    add_obstacle_command(index, gas_bomb_obstacle)
+    if (game_state.board_state[index] == 0) {// анимация только в пустую клетку
+      add_obstacle_command(index, gas_bomb_obstacle)
+    }
   } else {
     alert("Мало каши ели для такого броска")
   }
