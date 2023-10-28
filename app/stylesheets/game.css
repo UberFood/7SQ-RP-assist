@@ -332,6 +332,11 @@ html, body {
   color: black;
   font-size: 15;
   font-weight: bold;
+  border: 2px solid #dedede;
+  background-color: #f1f1f1;
+  border-radius: 5px;
+  padding: 10px;
+  margin: 10px 0;
 }
 
 .notifications_list_element {
