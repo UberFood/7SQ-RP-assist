@@ -292,7 +292,7 @@ function construct_board(new_game_state) {
         var cell = event.target;
         var index = cell.row * game_state.size + cell.column;
         var character_number = game_state.board_state[index];
-        if (character_number > 0 && (my_role == "gm" || character_state.visibility[character_number] == 1)) {
+        if (character_number > 0 && (my_role == "gm" || character_state.visibility[character_number] == 1) && (character_state.invisibility[character_number] == 'all' || character_state.invisibility[character_number] == my_name)) {
           choose_character_to_move(index, cell)
         }
       }
