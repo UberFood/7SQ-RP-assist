@@ -1087,6 +1087,47 @@ function delete_character(index, character_number) {
   socket.sendMessage(toSend);
 }
 
+function change_weapon(character_number, weapon_index) {
+  character_state.current_weapon[character_number] = weapon_index
+  character_chosen.weapon_id = weapon_index
+
+  var weapon = weapon_detailed_info[weapon_index]
+
+  var weapon_mini_display = document.getElementById("weapon_mini_display");
+  weapon_mini_display.src = weapon.avatar;
+}
+
+function display_weapon_detailed(weapon_index, container, showImage) {
+  var default_weapon = weapon_detailed_info[weapon_index]
+
+  var weapon_range_display = document.createElement("h2");
+  weapon_range_display.id = "weapon_range_display";
+  weapon_range_display.innerHTML = "Дальность: " + default_weapon.range
+
+  var weapon_damage_display = document.createElement("h2");
+  weapon_damage_display.id = "weapon_damage_display";
+  weapon_damage_display.innerHTML = "Урон: " + default_weapon.damage[0] + 'd' + default_weapon.damage[1]
+
+  var weapon_name_display = document.createElement("h2");
+  weapon_name_display.id = "weapon_name_display";
+  weapon_name_display.innerHTML = default_weapon.name
+
+  if (showImage) {
+    var weapon_avatar_display = document.createElement("IMG");
+    weapon_avatar_display.id = "weapon_avatar_display"
+    weapon_avatar_display.src = default_weapon.avatar;
+    weapon_avatar_display.style.width = '250px';
+    weapon_avatar_display.style.height = '250px';
+  }
+  container.append(weapon_name_display)
+  if (showImage) {
+    container.append(weapon_avatar_display)
+  }
+  container.append(weapon_range_display)
+  container.append(weapon_damage_display)
+  container.show()
+}
+
 function select_character(index, cell) {
   var character_number = game_state.board_state[index]
 
@@ -1308,12 +1349,7 @@ function select_character(index, cell) {
     var weapon_select = document.getElementById("weapon_chosen")
     var weapon_index = weapon_select.value
 
-    character_state.current_weapon[character_number] = weapon_index
-    character_chosen.weapon_id = weapon_index
-
-    var weapon = weapon_detailed_info[weapon_index]
-
-    weapon_mini_display.src = weapon.avatar;
+    change_weapon(character_number, weapon_index)
   }
 
   var default_weapon_index = character_state.current_weapon[character_number]
@@ -1326,37 +1362,17 @@ function select_character(index, cell) {
   weapon_mini_display.style.width = '80px';
   weapon_mini_display.style.height = '80px';
   weapon_mini_display.onmouseenter = function(event) {
-    var default_weapon_index = character_state.current_weapon[character_number]
-    var default_weapon = weapon_detailed_info[default_weapon_index]
-
-    var weapon_range_display = document.createElement("h2");
-    weapon_range_display.id = "weapon_range_display";
-    weapon_range_display.innerHTML = "Дальность: " + default_weapon.range
-
-    var weapon_damage_display = document.createElement("h2");
-    weapon_damage_display.id = "weapon_damage_display";
-    weapon_damage_display.innerHTML = "Урон: " + default_weapon.damage[0] + 'd' + default_weapon.damage[1]
-
-    var weapon_name_display = document.createElement("h2");
-    weapon_name_display.id = "weapon_name_display";
-    weapon_name_display.innerHTML = default_weapon.name
-
-    var weapon_avatar_display = document.createElement("IMG");
-    weapon_avatar_display.id = "weapon_avatar_display"
-    weapon_avatar_display.src = default_weapon.avatar;
-    weapon_avatar_display.style.width = '250px';
-    weapon_avatar_display.style.height = '250px';
-
-    weapon_info_container.append(weapon_name_display)
-    weapon_info_container.append(weapon_avatar_display)
-    weapon_info_container.append(weapon_range_display)
-    weapon_info_container.append(weapon_damage_display)
-    weapon_info_container.show()
+    var weapon_index = character_state.current_weapon[character_number]
+    display_weapon_detailed(weapon_index, weapon_info_container, true)
   }
 
   weapon_mini_display.onmouseleave = function(event) {
     weapon_info_container.html("")
     weapon_info_container.hide()
+  }
+
+  weapon_mini_display.onclick = function() {
+    show_weapon_modal(character_number, 0);
   }
 
   avatar_container.append(weapon_mini_display)
@@ -1521,6 +1537,68 @@ function undo_selection() {
   character_chosen.in_process = 0
   var old_cell = document.getElementById("cell_" + character_chosen.char_position);
   old_cell.src = character_detailed_info[character_chosen.char_id].avatar;
+}
+
+function show_weapon_modal(character_number, starting_index) {
+  hide_modal()
+  var character = character_detailed_info[character_number]
+  var inventory = character.inventory
+
+  var weapon_table = $("<table>");
+  var table_size = 3
+
+  for (let i = 0; i < table_size; i++) {
+    var row = $("<tr>");
+    for (let j = 0; j < table_size; j++) {
+      var index = starting_index + table_size*i + j
+      if (index < inventory.length) {
+        var weapon_number = inventory[index]
+        var column = $("<th>");
+        var weapon_icon = $("<IMG>");
+        var avatar = QUESTION_IMAGE
+        if (weapon_detailed_info[weapon_number].hasOwnProperty('avatar')) {
+          avatar = weapon_detailed_info[weapon_number].avatar
+        }
+        weapon_icon.addClass('weapon_icon');
+        weapon_icon.attr('width', '100px');
+        weapon_icon.attr('weapon_number', weapon_number);
+        weapon_icon.attr('height', '100px');
+        weapon_icon.attr('src', avatar);
+        weapon_icon.on('click', function(event) {
+          var weapon_num = event.target.getAttribute('weapon_number');
+          change_weapon(character_number, weapon_num);
+          hide_modal()
+        });
+        weapon_icon.on('mouseenter', function(event) {
+          var weapon_num = event.target.getAttribute('weapon_number');
+          display_weapon_detailed(weapon_num, skill_description_container, false)
+        })
+
+        weapon_icon.on('mouseleave', function(event) {
+          skill_description_container.html('');
+        })
+        column.append(weapon_icon);
+        row.append(column);
+      }
+    }
+    weapon_table.append(row);
+  }
+  skill_modal_content.append(weapon_table);
+
+  if (inventory.length > starting_index + table_size*table_size) {// there are more skills to display
+    var next_page_button = $("<IMG>");
+    next_page_button.attr('width', '100px');
+    next_page_button.attr('height', '50px');
+    next_page_button.attr('src', RIGHT_ARROW_IMAGE);
+    next_page_button.on("click", function(event) {
+      show_weapon_modal(character_number, starting_index + table_size*table_size);
+    })
+
+    next_page_button_container.append(next_page_button);
+  }
+  skill_modal.show();
+
+
 }
 
 function show_modal(character_number, starting_index) {
