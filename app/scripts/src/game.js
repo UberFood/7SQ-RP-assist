@@ -156,6 +156,15 @@ var safety_service_defensive_advantage = 1;
 var safety_service_evade_bonus = 3;
 var safety_service_bonus_actions_cost = 2;
 
+var calingalator_range = 1.6;
+var calingalator_obstacle = 20;
+var calingalator_duration = 3;
+var calingalator_stamina_cost = 3;
+var calingalator_radius = 1.6;
+var calingalator_skill_cooldown = 10;
+var calingalator_flat_heal = 5;
+var calingalator_roll_heal = 5;
+
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
 const stamina_values = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195];
@@ -2731,6 +2740,18 @@ function use_skill(skill_index, character_number, position, cell) {
           }
           break;
 
+    case 32: // Кальингаллятор
+        if (!character_state.special_effects[character_number].hasOwnProperty("calingalator_user")) {
+          if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
+            choose_character_skill(skill_index, character_number, position, cell)
+          } else {
+            alert("Не хватает действий!")
+          }
+        } else {
+          alert("Чрезмерное калингалирование вредит вашему здоровью! (кулдаун)")
+        }
+        break;
+
     default:
       alert("Не знаем это умение")
   }
@@ -2806,6 +2827,9 @@ function perform_skill(index, cell) {
       break;
     case 31:
       safety_service(index, cell)
+      break;
+    case 32:
+      calingalator(index, cell)
       break;
     default:
       alert("Unknown targeted skill")
@@ -3214,6 +3238,30 @@ function gas_bomb(index, cell) {
   }
 }
 
+function calingalator(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  var character = character_detailed_info[user_character_number]
+  if (game_state.board_state[index] == 0) {// устанавливается только в пустую клетку
+    if (isInRange(index, user_position, calingalator_range)) {
+      var toSend = {};
+      toSend.command = 'skill';
+      toSend.skill_index = character_chosen.skill_id
+      toSend.room_number = my_room;
+      toSend.user_index = user_character_number
+      toSend.position = index
+      socket.sendMessage(toSend);
+
+      add_obstacle_command(index, calingalator_obstacle)
+
+    } else {
+      alert("Кальингаллятор можно установить лишь в пределах 1.5 клетки от вас")
+    }
+  } else {
+    alert("Кальингаллятор можно установить лишь в пустую клетку")
+  }
+}
+
 function diffuse_landmine(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
@@ -3507,6 +3555,20 @@ function apply_bomb(position, radius) {
       }
       character_state.bonus_action[target_character_number] = character_state.bonus_action[target_character_number] - 1
       character_state.main_action[target_character_number] = character_state.main_action[target_character_number] - 1
+    }
+  }
+}
+
+function apply_calingalator(position, radius, flat_heal, roll_heal) {
+  var candidate_cells = index_in_radius(position, radius)
+  for (let i = 0; i < candidate_cells.length; i++) {
+    var target_character_number = game_state.board_state[candidate_cells[i]]
+    if (target_character_number > 0) {// персонаж в радиусе для отхила
+      var character = character_detailed_info[target_character_number]
+      var rolled_heal = flat_heal + roll_x(roll_heal);
+      character_state.HP[target_character_number] = Math.min(character_state.HP[target_character_number] + rolled_heal, HP_values[character.stamina]);
+      var message = character.name + " вдыхает целебные пары и восстанавливает " + rolled_heal + " хп."
+      pushToList(message)
     }
   }
 }
@@ -4724,6 +4786,29 @@ socket.registerMessageHandler((data) => {
         character_state.special_effects[user_index].safety_service_user = safety_service_user_object
         break;
 
+      case 32: // кальингалятор
+        character = character_detailed_info[user_index]
+        character_state.main_action[user_index] = character_state.main_action[user_index] - 1
+        character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+        character_state.stamina[user_index] = character_state.stamina[user_index] - calingalator_stamina_cost
+
+        var message = character.name + " устанавливает кальингалятор. Собирайтесь вокруг!."
+        pushToList(message)
+
+        var calingalator_object = {}
+        calingalator_object.type = "calingalator"
+        calingalator_object.position = data.position
+        calingalator_object.duration = calingalator_duration
+        calingalator_object.radius = calingalator_radius
+        calingalator_object.flat_heal = calingalator_flat_heal
+        calingalator_object.roll_heal = calingalator_roll_heal
+        game_state.terrain_effects.push(calingalator_object)
+
+        var calingalator_user = {}
+        calingalator_user.cooldown = calingalator_skill_cooldown
+        character_state.special_effects[user_index].calingalator_user = calingalator_user
+          break;
+
         default:
           alert("Received unknown skill command")
       }
@@ -4744,6 +4829,16 @@ socket.registerMessageHandler((data) => {
                   game_state.terrain_effects[i] = null
                 } else {
                   game_state.terrain_effects[i].radius = game_state.terrain_effects[i].radius + 1
+                }
+                break;
+            case "calingalator":
+                apply_calingalator(game_state.terrain_effects[i].position, game_state.terrain_effects[i].radius, game_state.terrain_effects[i].flat_heal, game_state.terrain_effects[i].roll_heal);
+                game_state.terrain_effects[i].duration = game_state.terrain_effects[i].duration - 1
+                if (game_state.terrain_effects[i].duration == 0) {
+                  if (my_role == "gm") {
+                    delete_object_command(game_state.terrain_effects[i].position)
+                  }
+                  game_state.terrain_effects[i] = null
                 }
                 break;
             default:
@@ -4825,6 +4920,14 @@ socket.registerMessageHandler((data) => {
               delete character_state.special_effects[i].safety_service_user
             } else {
               character_state.special_effects[i].safety_service_user.cooldown = character_state.special_effects[i].safety_service_user.cooldown - 1
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("calingalator_user")) {
+            if (character_state.special_effects[i].calingalator_user.cooldown == 0) {
+              delete character_state.special_effects[i].calingalator_user
+            } else {
+              character_state.special_effects[i].calingalator_user.cooldown = character_state.special_effects[i].calingalator_user.cooldown - 1
             }
           }
 
