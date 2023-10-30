@@ -22,6 +22,8 @@ var LANDMINE_BUTTON_SELECTOR = '[data-name="landmine_button"]';
 var FOG_ZONE_BUTTON_SELECTOR = '[data-name="fog_zone_button"]';
 var UNFOG_ZONE_BUTTON_SELECTOR = '[data-name="unfog_zone_button"]';
 
+var SAVES_SELECT_SELECTOR = '[data-name="saves_select"]';
+
 var ZONE_NUMBER_SELECTOR = '[data-name="zone_number_select"]';
 var SEARCH_MODIFICATOR_SELECTOR = '[data-name="search_modificator"]';
 
@@ -50,6 +52,7 @@ var weapon_list = [];
 var weapon_detailed_info = [];
 var skill_list = [];
 var skill_detailed_info;
+var saves_list = [];
 
 var TINY_EFFECT_CLASS = 'is-tiny';
 
@@ -213,7 +216,7 @@ function createBoard() {
 }
 
 function loadBoard() {
-  var name = document.getElementById("map_name").value;
+  var name = saves_select.val();
   var toSend = {};
   toSend.command = 'load_game';
   toSend.save_name = name;
@@ -3714,6 +3717,7 @@ socket.registerMessageHandler((data) => {
         next_round_button.show();
         battle_mod_button.show();
         sync_button.show();
+        saves_select.show();
 
         document.onkeydown = function (e) {
             var keyCode = e.keyCode;
@@ -3734,6 +3738,14 @@ socket.registerMessageHandler((data) => {
       weapon_detailed_info = data.weapon_detailed_info
       skill_detailed_info = data.skill_detailed_info
       skill_list = data.skill_list
+      saves_list = data.saves_list
+
+      for (let i = 0; i < saves_list.length; i++) {
+        var current_option = $("<option>");
+        current_option.text(saves_list[i]);
+        current_option.val(saves_list[i]);
+        saves_select.append(current_option);
+      }
 
     } else if (data.command == 'construct_board_response') {
       clear_character_state()
@@ -3923,6 +3935,11 @@ socket.registerMessageHandler((data) => {
     } else if (data.command == 'save_game_response') {
       if (data.success == 1) {
         alert('Game ' + data.save_name + ' saved succesfully');
+        saves_list.push(data.save_name);
+        var current_option = $("<option>");
+        current_option.text(data.save_name);
+        current_option.val(data.save_name);
+        saves_select.append(current_option);
       } else {
         alert('Game with name ' + data.save_name + ' already exist!');
       }
@@ -5277,6 +5294,9 @@ for (let i = 1; i < MAX_ZONES; i++) {
   current_option.val(i);
   zone_number_select.append(current_option);
 }
+
+var saves_select = $(SAVES_SELECT_SELECTOR);
+saves_select.hide();
 
 var search_modificator = $(SEARCH_MODIFICATOR_SELECTOR);
 search_modificator.hide();

@@ -86,6 +86,10 @@ wss.on('connection', (ws) => {
       var skill_list = JSON.parse(skill_list_unparsed);
       answer.skill_list = skill_list;
 
+      var saves_list_unparsed = fs.readFileSync('./app/saves/saves_list.json');
+      var saves_list = JSON.parse(saves_list_unparsed);
+      answer.saves_list = saves_list;
+
       var skill_detailed_info = [];
 
       for (skill_name of skill_list) {
@@ -227,6 +231,18 @@ wss.on('connection', (ws) => {
       if (fs.existsSync('./app/saves/' + data.save_name + '.json')) {
         response.success = 0;
       } else {
+        var saves_list_unparsed = fs.readFileSync('./app/saves/saves_list.json');
+        var saves_list = JSON.parse(saves_list_unparsed);
+        saves_list.push(data.save_name);
+        fs.writeFile('./app/saves/saves_list.json', JSON.stringify(saves_list), function(err) {
+          if (err) {
+            console.log('There has been an error adding new save to a list.');
+            console.log(err.message);
+            return;
+          }
+          console.log('Save list saved succesfully.')
+        });
+
         fs.writeFile('./app/saves/' + data.save_name + '.json', JSON.stringify(data.full_game_state), function(err) {
           if (err) {
             console.log('There has been an error saving game state.');
