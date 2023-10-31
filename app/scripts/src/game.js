@@ -304,15 +304,17 @@ function construct_board(new_game_state) {
         var cell = event.target;
         var index = cell.row * game_state.size + cell.column;
         var character_number = game_state.board_state[index];
-        if (character_number > 0 && (my_role == "gm" || character_state.visibility[character_number] == 1) && (character_state.invisibility[character_number] == 'all' || character_state.invisibility[character_number] == my_name)) {
+        if (character_number > 0 && (my_role == "gm" || character_state.visibility[character_number] == 1) && (character_state.invisibility[character_number] == 'all' || character_state.invisibility[character_number] == my_name) && (my_role == "gm" || game_state.fog_state[index] == 0)) {
           choose_character_to_move(index, cell)
         }
       }
       button.ondrop = function(event) {
         var cell = event.target;
         var index = cell.row * game_state.size + cell.column;
-        if (character_chosen.in_process == 1 && game_state.board_state[index] == 0) {
+        if (character_chosen.in_process == 1 && game_state.board_state[index] == 0 && (my_role == "gm" || game_state.fog_state[index] == 0)) {
           move_character(index, cell)
+        } else {
+          undo_selection();
         }
       }
       var cell_wrap = document.createElement("th");
@@ -985,7 +987,11 @@ function get_object_picture(index_in_board_state) {
   if (index_in_board_state > 0) {
     index_in_base = index_in_board_state;
     var character = character_detailed_info[index_in_base];
-    image = character.avatar;
+    if (character.hasOwnProperty("chibi_avatar")) {
+      image = character.chibi_avatar;
+    } else {
+      image = character.avatar;
+    }
   } else if (index_in_board_state < 0) {
     index_in_base = index_in_board_state * (-1);
     var obstacle = obstacle_detailed_info[index_in_base];
@@ -1573,9 +1579,11 @@ function choose_character_to_move(index, cell) {
 }
 
 function undo_selection() {
-  character_chosen.in_process = 0
-  var old_cell = document.getElementById("cell_" + character_chosen.char_position);
-  old_cell.src = character_detailed_info[character_chosen.char_id].avatar;
+  if (character_chosen.in_process != 0) {
+    character_chosen.in_process = 0
+    var old_cell = document.getElementById("cell_" + character_chosen.char_position);
+    old_cell.src = get_object_picture(character_chosen.char_id);
+  }
 }
 
 function show_weapon_modal(character_number, starting_index) {
@@ -1741,13 +1749,13 @@ function choose_character_to_attack(cell) {
 function stop_attack() {
   character_chosen.in_process = 0
   var old_cell = document.getElementById("cell_" + character_chosen.char_position);
-  old_cell.src = character_detailed_info[character_chosen.char_id].avatar;
+  old_cell.src = get_object_picture(character_chosen.char_id);
 }
 
 function stop_skill() {
   character_chosen.in_process = 0
   var old_cell = document.getElementById("cell_" + character_chosen.char_position);
-  old_cell.src = character_detailed_info[character_chosen.char_id].avatar;
+  old_cell.src = get_object_picture(character_chosen.char_id);
 }
 
 
@@ -3813,13 +3821,13 @@ socket.registerMessageHandler((data) => {
       clear_character_state()
       construct_board(data.game_state);
     } else if (data.command == 'add_character_response') {
+      game_state.board_state[data.cell_id] = data.character_number;
       var character = data.character_info;
       character_detailed_info[data.character_number] = character;
       if (!((my_role == 'player')&&(game_state.fog_state[data.cell_id] == 1))) {
         var cell = document.getElementById("cell_" + data.cell_id);
-        cell.src = character.avatar;
+        cell.src = get_object_picture(data.character_number);
       }
-      game_state.board_state[data.cell_id] = data.character_number;
       character_state.HP[data.character_number] = HP_values[character.stamina];
       character_state.stamina[data.character_number] = stamina_values[character.stamina];
       character_state.bonus_action[data.character_number] = bonus_action_map[character.agility];
@@ -3885,7 +3893,7 @@ socket.registerMessageHandler((data) => {
 
         var position = character_state.position[id];
         var to_cell = document.getElementById('cell_' + position);
-        var avatar = character_detailed_info[id].avatar;
+        var avatar = get_object_picture(id);
         to_cell.src = avatar;
       }
 
@@ -3948,7 +3956,7 @@ socket.registerMessageHandler((data) => {
 
       if (!(((my_role == 'player')&&(game_state.fog_state[to_index] == 1)) || (character_state.invisibility[data.character_number] != "all" && character_state.invisibility[data.character_number] != my_name))) {
         var to_cell = document.getElementById('cell_' + to_index);
-        to_cell.src = data.character_avatar;
+        to_cell.src = get_object_picture(data.character_number);
       }
 
       game_state.board_state[from_index] = 0;
