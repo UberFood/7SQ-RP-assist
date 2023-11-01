@@ -5398,4 +5398,3 @@ document.onkeydown = function (e) {
 };
 
 setInterval(reconnect, 30*1000)
-setInterval(poke_server, 45*1000)
