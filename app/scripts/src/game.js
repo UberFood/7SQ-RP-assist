@@ -202,6 +202,9 @@ function reconnect() {
     console.log('Hopefully reconnected (pray)');
   } else {
     console.log('Was online anyway');
+    var toSend = {};
+    toSend.command = 'ignore_me';
+    socket.sendMessage(toSend);
   }
 }
 
@@ -4865,6 +4868,7 @@ socket.registerMessageHandler((data) => {
                 break;
             default:
                 console.log("Messed up resolving terrain effects")
+                console.log(game_state.terrain_effects[i].type);
             }
         }
       }
@@ -5393,4 +5397,5 @@ document.onkeydown = function (e) {
     }
 };
 
-setInterval(reconnect, 15*1000)
+setInterval(reconnect, 30*1000)
+setInterval(poke_server, 45*1000)

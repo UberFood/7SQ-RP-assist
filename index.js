@@ -361,6 +361,8 @@ wss.on('connection', (ws) => {
         }
         console.log('Character list saved succesfully.')
       });
+    } else if (data.command == 'ignore_me') {
+      // ignoring
     } else if (data.command == 'guild_sim_init') {
       var character_list_unparsed = fs.readFileSync('./app/guild_sim_fighters/character_list.json');
       var character_list = JSON.parse(character_list_unparsed);
