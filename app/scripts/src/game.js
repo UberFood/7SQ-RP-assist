@@ -2460,7 +2460,7 @@ function use_skill(skill_index, character_number, position, cell) {
     break;
 
     case 6: // Поднять щиты
-    if (character_state.main_action[character_number] > 0) {
+    if (character_state.main_action[character_number] > 0 || character_state.special_effects[character_number].hasOwnProperty("shield_up")) {
       var toSend = {};
       toSend.command = 'skill';
       toSend.room_number = my_room;
@@ -3543,6 +3543,20 @@ function curved_bullets(index, cell) {
   }
 }
 
+// helper function patterns
+function check_cooldown(character_number, effect, message) {
+  if (character_state.special_effects[character_number].hasOwnProperty(effect)) {
+    if (character_state.special_effects[character_number][effect].cooldown == 0) {
+      delete character_state.special_effects[character_number][effect]
+      if (message.length > 0) {
+        pushToList(message)
+      }
+    } else {
+      character_state.special_effects[character_number][effect].cooldown = character_state.special_effects[character_number][effect].cooldown - 1
+    }
+  }
+}
+
 // прок газовой гранаты
 function apply_bomb(position, radius) {
   var candidate_cells = index_in_radius(position, radius)
@@ -4229,8 +4243,8 @@ socket.registerMessageHandler((data) => {
           break;
         case 6: // поднять щиты
           var shield = character_detailed_info[user_index]
-          character_state.main_action[user_index] = character_state.main_action[user_index] - 1
           if (data.outcome == "shield_up") {
+            character_state.main_action[user_index] = character_state.main_action[user_index] - 1
             character_state.bonus_KD[user_index] = character_state.bonus_KD[user_index] + shield_up_KD
             var shield_up_object = {}
             shield_up_object.stamina_cost = shield_up_stamina_cost
@@ -4903,41 +4917,17 @@ socket.registerMessageHandler((data) => {
             delete character_state.special_effects[i].tired
           }
 
-          if (character_state.special_effects[i].hasOwnProperty("light_sound_bomb_user")) {
-            if (character_state.special_effects[i].light_sound_bomb_user.cooldown == 0) {
-              delete character_state.special_effects[i].light_sound_bomb_user
-              var message = "Светошумовая граната у" + character.name + " готова к использованию."
-              pushToList(message)
-            } else {
-              character_state.special_effects[i].light_sound_bomb_user.cooldown = character_state.special_effects[i].light_sound_bomb_user.cooldown - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("action_splash")) {
-            if (character_state.special_effects[i].action_splash.cooldown == 0) {
-              delete character_state.special_effects[i].action_splash
-              var message = character.name + " вновь может использовать всплеск действий."
-              pushToList(message)
-            } else {
-              character_state.special_effects[i].action_splash.cooldown = character_state.special_effects[i].action_splash.cooldown - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("safety_service_user")) {
-            if (character_state.special_effects[i].safety_service_user.cooldown == 0) {
-              delete character_state.special_effects[i].safety_service_user
-            } else {
-              character_state.special_effects[i].safety_service_user.cooldown = character_state.special_effects[i].safety_service_user.cooldown - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("calingalator_user")) {
-            if (character_state.special_effects[i].calingalator_user.cooldown == 0) {
-              delete character_state.special_effects[i].calingalator_user
-            } else {
-              character_state.special_effects[i].calingalator_user.cooldown = character_state.special_effects[i].calingalator_user.cooldown - 1
-            }
-          }
+          check_cooldown(i, "light_sound_bomb_user", "Светошумовая граната у " + character.name + " готова к использованию.");
+          check_cooldown(i, "action_splash", character.name + " вновь может использовать всплеск действий.");
+          check_cooldown(i, "safety_service_user", "");
+          check_cooldown(i, "calingalator_user", "");
+          check_cooldown(i, "gas_bomb_user", "Газовая граната у " + character.name + " готова к использованию.");
+          check_cooldown(i, "acid_bomb_user", "Кислотная граната у " + character.name + " готова к использованию.");
+          check_cooldown(i, "force_field_user", "Силовое поле у " + character.name + " снова заряжено.");
+          check_cooldown(i, "charge_user", "");
+          check_cooldown(i, "cut_limb_user", "");
+          check_cooldown(i, "adrenaline_user", "Умение Прилив Адреналина у " + character.name + " снова доступно.");
+          check_cooldown(i, "poisonous_adrenaline_user", "Умение Адреналиновый Потоп у " + character.name + " снова доступно.");
 
           if (character_state.special_effects[i].hasOwnProperty("safety_service_target")) {
             if (character_state.special_effects[i].safety_service_target.duration == 0) {
@@ -4946,36 +4936,6 @@ socket.registerMessageHandler((data) => {
               delete character_state.special_effects[i].safety_service_target
             } else {
               character_state.special_effects[i].safety_service_target.duration = character_state.special_effects[i].safety_service_target.duration - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("gas_bomb_user")) {
-            if (character_state.special_effects[i].gas_bomb_user.cooldown == 0) {
-              delete character_state.special_effects[i].gas_bomb_user
-              var message = "Газовая граната у" + character.name + " готова к использованию."
-              pushToList(message)
-            } else {
-              character_state.special_effects[i].gas_bomb_user.cooldown = character_state.special_effects[i].gas_bomb_user.cooldown - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("acid_bomb_user")) {
-            if (character_state.special_effects[i].acid_bomb_user.cooldown == 0) {
-              delete character_state.special_effects[i].acid_bomb_user
-              var message = "Кислотная граната у" + character.name + " готова к использованию."
-              pushToList(message)
-            } else {
-              character_state.special_effects[i].acid_bomb_user.cooldown = character_state.special_effects[i].acid_bomb_user.cooldown - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("force_field_user")) {
-            if (character_state.special_effects[i].force_field_user.cooldown == 0) {
-              delete character_state.special_effects[i].force_field_user
-              var message = "Силовое поле у " + character.name + " снова заряжено."
-              pushToList(message)
-            } else {
-              character_state.special_effects[i].force_field_user.cooldown = character_state.special_effects[i].force_field_user.cooldown - 1
             }
           }
 
@@ -5005,42 +4965,8 @@ socket.registerMessageHandler((data) => {
               delete character_state.special_effects[i].pich_pich_target
           }
 
-          if (character_state.special_effects[i].hasOwnProperty("adrenaline_user")) {
-            character_state.special_effects[i].adrenaline_user.cooldown = character_state.special_effects[i].adrenaline_user.cooldown - 1
-            if (character_state.special_effects[i].adrenaline_user.cooldown == 0) {
-              delete character_state.special_effects[i].adrenaline_user
-              var message = "Умение Прилив Адреналина у " + character.name + " снова доступно."
-              pushToList(message)
-            }
-          }
-
           if (character_state.special_effects[i].hasOwnProperty("aim")) {
             delete character_state.special_effects[i].aim
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("charge_user")) {
-            if (character_state.special_effects[i].charge_user.cooldown == 0) {
-              delete character_state.special_effects[i].charge_user
-            } else {
-              character_state.special_effects[i].charge_user.cooldown = character_state.special_effects[i].charge_user.cooldown - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("cut_limb_user")) {
-            if (character_state.special_effects[i].cut_limb_user.cooldown == 0) {
-              delete character_state.special_effects[i].cut_limb_user
-            } else {
-              character_state.special_effects[i].cut_limb_user.cooldown = character_state.special_effects[i].cut_limb_user.cooldown - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("poisonous_adrenaline_user")) {
-            character_state.special_effects[i].poisonous_adrenaline_user.cooldown = character_state.special_effects[i].poisonous_adrenaline_user.cooldown - 1
-            if (character_state.special_effects[i].poisonous_adrenaline_user.cooldown == 0) {
-              delete character_state.special_effects[i].poisonous_adrenaline_user
-              var message = "Умение Адреналиновый Потоп у " + character.name + " снова доступно."
-              pushToList(message)
-            }
           }
 
           if (character_state.special_effects[i].hasOwnProperty("adrenaline_target")) {
