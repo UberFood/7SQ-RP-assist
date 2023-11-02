@@ -5030,6 +5030,23 @@ socket.registerMessageHandler((data) => {
             }
           }
 
+          if (character_state.special_effects[i].hasOwnProperty("calingalator_target")) {
+            if (character_state.special_effects[i].calingalator_target.duration == 0) {
+              var reverse_penalty = character_state.special_effects[i].calingalator_target.penalty * (-1)
+              change_character_property("attack_bonus", i, reverse_penalty);
+              if (character_state.special_effects[i].calingalator_target.stage == 3) {
+                change_character_property("melee_advantage", i, 1);
+                change_character_property("ranged_advantage", i, 1);
+              } else if (character_state.special_effects[i].calingalator_target.stage == 4) {
+                change_character_property("melee_advantage", i, -1);
+                change_character_property("ranged_advantage", i, -1);
+              }
+              delete character_state.special_effects[i].calingalator_target
+            } else {
+              character_state.special_effects[i].calingalator_target.duration = character_state.special_effects[i].calingalator_target.duration - 1
+            }
+          }
+
           if (character_state.special_effects[i].hasOwnProperty("pich_pich_user")) {
             if (character_state.special_effects[i].pich_pich_user.cooldown == 0) {
               delete character_state.special_effects[i].pich_pich_user
