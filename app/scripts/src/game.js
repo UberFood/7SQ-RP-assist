@@ -164,8 +164,14 @@ var calingalator_radius = 1.6;
 var calingalator_skill_cooldown = 10;
 var calingalator_flat_heal = 5;
 var calingalator_roll_heal = 5;
-var calingalator_poisoning_duration = 5;
-var calingalator_penalty = -1;
+var calingalator_poisoning_duration_stage1 = 5;
+var calingalator_poisoning_duration_stage2 = 7;
+var calingalator_poisoning_duration_stage3 = 10;
+var calingalator_poisoning_duration_enlightened = 10;
+var calingalator_penalty_stage1 = -1;
+var calingalator_penalty_stage2 = -2;
+var calingalator_penalty_stage3 = -3;
+var calingalator_penalty_enlightened = 3;
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
@@ -3610,14 +3616,64 @@ function apply_calingalator(position, radius, flat_heal, roll_heal) {
 
       var note = "";
       if (character_state.special_effects[target_character_number].hasOwnProperty("calingalator_target")) {
+        var stage = character_state.special_effects[target_character_number].calingalator_target.stage;
+        switch(stage) {
+          case 1:
+            var coin = roll_x(2);
+            if (coin == 2) {
+              character_state.special_effects[target_character_number].calingalator_target.stage = 2;
+              character_state.special_effects[target_character_number].calingalator_target.duration = calingalator_poisoning_duration_stage2;
+              character_state.special_effects[target_character_number].calingalator_target.penalty = calingalator_penalty_stage2;
+              change_character_property("attack_bonus", target_character_number, calingalator_penalty_stage2 - calingalator_penalty_stage1)
+              note = "Калингалятор вновь ударил " + character.name + " в голову. Вторая стадия отравления. Может пора остановится?.."
+            } else {
+              note = "На этот раз " + character.name + " избежал негативных эффектов калингалятора. Стадия остается первой."
+            }
+            break;
+          case 2:
+            var coin = roll_x(10);
+            if (coin < 5) {//1-4 = bad roll, poisoning
+              character_state.special_effects[target_character_number].calingalator_target.stage = 3;
+              character_state.special_effects[target_character_number].calingalator_target.duration = calingalator_poisoning_duration_stage3;
+              character_state.special_effects[target_character_number].calingalator_target.penalty = calingalator_penalty_stage3;
+              change_character_property("attack_bonus", target_character_number, calingalator_penalty_stage3 - calingalator_penalty_stage2)
+              change_character_property("melee_advantage", target_character_number, -1)
+              change_character_property("ranged_advantage", target_character_number, -1)
+              note = character.name + " стоило остановиться раньше. Теперь головокружение останется с вами надолго."
+            } else if (coin < 10) {// 5-9 no effect, keep rolling
+              note = character.name + " ходит по очень тонкому льду. Стадия остается второй. Пока что."
+            } else {// You are enlightened
+              character_state.special_effects[target_character_number].calingalator_target.stage = 4;
+              character_state.special_effects[target_character_number].calingalator_target.duration = calingalator_poisoning_duration_enlightened;
+              character_state.special_effects[target_character_number].calingalator_target.penalty = calingalator_penalty_enlightened;
+              change_character_property("attack_bonus", target_character_number, calingalator_penalty_enlightened - calingalator_penalty_stage3)
+              change_character_property("melee_advantage", target_character_number, 1)
+              change_character_property("ranged_advantage", target_character_number, 1)
+              note = "Только раз я видел такую силу... " + character.name + " достиг Просвящения и будет нести его в мир."
+            }
+            break;
 
+          case 3:
+            character_state.special_effects[target_character_number].calingalator_target.duration = calingalator_poisoning_duration_stage3;
+            note = character.name + " может хватит уже?"
+            break;
+
+          case 4:
+            note = "Просвященный " + character.name + " продолжает делиться своим искусством. Невероятное зрелище."
+            break;
+
+          default:
+            console.log("Так преисполниться не должно быть возможно");
+
+        }
       } else {
         var coin = roll_x(2);
         if (coin == 2) {
           var calingalator_target_object = {}
-          calingalator_target_object.duration = calingalator_poisoning_duration;
-          calingalator_target_object.penalty = calingalator_penalty
-          change_character_property("attack_bonus", target_character_number, calingalator_penalty)
+          calingalator_target_object.duration = calingalator_poisoning_duration_stage1;
+          calingalator_target_object.penalty = calingalator_penalty_stage1
+          calingalator_target_object.stage = 1;
+          change_character_property("attack_bonus", target_character_number, calingalator_target_object.penalty)
           character_state.special_effects[target_character_number].calingalator_target = calingalator_target_object
           note = "Калингалятор слегка ударил " + character.name + " в голову. Первая стадия отравления."
         } else {
@@ -5428,4 +5484,4 @@ document.onkeydown = function (e) {
     }
 };
 
-setInterval(reconnect, 30*1000)
+setInterval(reconnect, 15*1000)
