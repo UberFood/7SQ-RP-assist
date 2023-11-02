@@ -157,13 +157,15 @@ var safety_service_evade_bonus = 3;
 var safety_service_bonus_actions_cost = 2;
 
 var calingalator_range = 1.6;
-var calingalator_obstacle = 20;
+var calingalator_obstacle = 25;
 var calingalator_duration = 3;
 var calingalator_stamina_cost = 3;
 var calingalator_radius = 1.6;
 var calingalator_skill_cooldown = 10;
 var calingalator_flat_heal = 5;
 var calingalator_roll_heal = 5;
+var calingalator_poisoning_duration = 5;
+var calingalator_penalty = -1;
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
@@ -2144,6 +2146,8 @@ function perform_attack(index, cell) {
 
         var attack_bonus = character_state.attack_bonus[user_character_number]
         var universal_bonus = character_state.universal_bonus[user_character_number]
+        console.log("Бонус атаки: " + attack_bonus);
+        console.log("Бонус всеобщий: " + universal_bonus);
 
         cumulative_attack_roll = cumulative_attack_roll + attack_bonus + universal_bonus + cover_modifier.attack_bonus
 
@@ -3560,6 +3564,15 @@ function check_cooldown(character_number, effect, message) {
   }
 }
 
+function restore_hp(character_number, amount) {
+  var character = character_detailed_info[character_number]
+  character_state.HP[character_number] = Math.min(character_state.HP[character_number] + amount, HP_values[character.stamina]);
+}
+
+function change_character_property(property, character_number, amount) {
+  character_state[property][character_number] = character_state[property][character_number] + amount
+}
+
 // прок газовой гранаты
 function apply_bomb(position, radius) {
   var candidate_cells = index_in_radius(position, radius)
@@ -3591,9 +3604,27 @@ function apply_calingalator(position, radius, flat_heal, roll_heal) {
     if (target_character_number > 0) {// персонаж в радиусе для отхила
       var character = character_detailed_info[target_character_number]
       var rolled_heal = flat_heal + roll_x(roll_heal);
-      character_state.HP[target_character_number] = Math.min(character_state.HP[target_character_number] + rolled_heal, HP_values[character.stamina]);
+      restore_hp(target_character_number, rolled_heal);
       var message = character.name + " вдыхает целебные пары и восстанавливает " + rolled_heal + " хп."
       pushToList(message)
+
+      var note = "";
+      if (character_state.special_effects[target_character_number].hasOwnProperty("calingalator_target")) {
+
+      } else {
+        var coin = roll_x(2);
+        if (coin == 2) {
+          var calingalator_target_object = {}
+          calingalator_target_object.duration = calingalator_poisoning_duration;
+          calingalator_target_object.penalty = calingalator_penalty
+          change_character_property("attack_bonus", target_character_number, calingalator_penalty)
+          character_state.special_effects[target_character_number].calingalator_target = calingalator_target_object
+          note = "Калингалятор слегка ударил " + character.name + " в голову. Первая стадия отравления."
+        } else {
+          note = character.name + " избежал негативных эффектов калингалятора. Виртуоз!"
+        }
+      }
+      pushToList(note);
     }
   }
 }
