@@ -133,7 +133,7 @@ var poisonous_adrenaline_flat_stamina = 5
 var poisonous_adrenaline_percent_HP = 0.05
 var poisonous_adrenaline_percent_stamina = 0.05
 
-var adrenaline_cooldown = 3
+var adrenaline_cooldown = 4
 
 var acid_bomb_duration = 2 // 2+1 really
 var acid_bomb_cooldown = 5
@@ -1707,6 +1707,18 @@ function show_modal(character_number, starting_index) {
           }
           skill_cost_object.html("Требует действий: " + skill_cost);
           skill_description_container.append(skill_cost_object);
+
+          if (skill_object.hasOwnProperty("cooldown")) {
+            var skill_cooldown_header = $("<h2>");
+            var text = "Кулдаун: " + skill_object.cooldown;
+            if (character_state.special_effects[character_number].hasOwnProperty(skill_object.cooldown_object_name)) {
+              text = text + " (осталось " + character_state.special_effects[character_number][skill_object.cooldown_object_name].cooldown + ")";
+            } else {
+              text = text + " (Готово)";
+            }
+            skill_cooldown_header.html(text);
+            skill_description_container.append(skill_cooldown_header);
+          }
 
           var skill_description_object = $("<p>");
           if (skill_object.hasOwnProperty('description')) {

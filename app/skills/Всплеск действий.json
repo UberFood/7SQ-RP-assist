@@ -1,1 +1,1 @@
-{"avatar":"/images/action_splash.png", "description":"Превращает бонусные действия в обычные.", "cost":"все бонусные"}
+{"avatar":"/images/action_splash.png", "description":"Превращает бонусные действия в обычные.", "cost":"все бонусные", "cooldown":"4", "cooldown_object_name":"action_splash"}

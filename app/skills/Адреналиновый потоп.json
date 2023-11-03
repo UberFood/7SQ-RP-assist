@@ -1,1 +1,1 @@
-{"avatar":"/images/poisonous_adrenaline.png", "description":"Дает цели d4 действий на этот и следующий ход (нечетные = основные, четные = перемещение), однако сжигает хп и выносливость по окончании.", "cost":"-"}
+{"avatar":"/images/poisonous_adrenaline.png", "cooldown":"5", "cooldown_object_name":"poisonous_adrenaline_user", "description":"Дает цели d4 действий на этот и следующий ход (нечетные = основные, четные = перемещение), однако сжигает хп и выносливость по окончании.", "cost":"-"}
