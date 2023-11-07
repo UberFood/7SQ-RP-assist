@@ -63,6 +63,7 @@ var QUESTION_IMAGE = "./images/question.jpg";
 var INVISE_IMAGE = "./images/zorro_mask.jpeg";
 var AIM_IMAGE = "./images/aim.jpg";
 var RIGHT_ARROW_IMAGE = "./images/right_arrow.png";
+var ARMOR_IMAGE = "./images/armor.jpg";
 
 var MAX_ZONES = 25;
 var CHAT_CASH = 15;
@@ -962,6 +963,10 @@ function add_character(board_index) {
 
 // Picture/avatar management
 
+function armor_image(character_number) {
+  return ARMOR_IMAGE;
+}
+
 function fogOrPic(cell_id) {
   var picture_name = FOG_IMAGE;
   if ((game_state.fog_state[cell_id] != 1)||(my_role == 'gm')) {
@@ -1176,6 +1181,29 @@ function display_weapon_detailed(weapon_index, container, showImage) {
   container.show()
 }
 
+function display_armor_detailed(character_number, container) {
+  var KD_display = document.createElement("h2");
+  var KD_value = parseInt(character_state.KD_points[character_number]) + parseInt(character_state.bonus_KD[character_number])
+  KD_display.innerHTML = "КД: " + KD_value;
+
+  var melee_resist_display = document.createElement("h2");
+  var melee_resist = character_state.melee_resist[character_number]*100;
+  melee_resist_display.innerHTML = "Милли резист: " + melee_resist + "%";
+
+  var bullet_resist_display = document.createElement("h2");
+  var bullet_resist = character_state.bullet_resist[character_number]*100;
+  bullet_resist_display.innerHTML = "Стрелковый резист: " + bullet_resist + "%";
+
+  var evade_bonus_display = document.createElement("h2");
+  evade_bonus_display.innerHTML = "Уклонение: " + character_state.evade_bonus[character_number];
+
+  container.append(KD_display);
+  container.append(melee_resist_display);
+  container.append(bullet_resist_display);
+  container.append(evade_bonus_display);
+  container.show();
+}
+
 function select_character(index, cell) {
   var character_number = game_state.board_state[index]
 
@@ -1270,10 +1298,6 @@ function select_character(index, cell) {
   var intelligence_display = document.createElement("h2");
   intelligence_display.innerHTML = "Интеллект: " + character.intelligence;
 
-  var KD_value = parseInt(character_state.KD_points[character_number]) + parseInt(character_state.bonus_KD[character_number])
-  var KD_display = document.createElement("h2");
-  KD_display.innerHTML = "КД: " + KD_value;
-
   var hp_percent = parseFloat(character_state.HP[character_number])/parseFloat(HP_values[character.stamina])
   hp_percent = Math.floor(hp_percent*100)
 
@@ -1295,7 +1319,6 @@ function select_character(index, cell) {
   character_info_container.append(stamina_display);
   character_info_container.append(agility_display);
   character_info_container.append(intelligence_display);
-  character_info_container.append(KD_display);
   character_info_container.append(HP_display);
   character_info_container.append(tired_display);
   character_info_container.append(initiative_display);
@@ -1411,8 +1434,9 @@ function select_character(index, cell) {
   var weapon_mini_display = document.createElement("IMG");
   weapon_mini_display.id = "weapon_mini_display"
   weapon_mini_display.src = default_weapon.avatar;
-  weapon_mini_display.style.width = '80px';
-  weapon_mini_display.style.height = '80px';
+  //weapon_mini_display.style.width = '80px';
+  //weapon_mini_display.style.height = '80px';
+  weapon_mini_display.classList.add("mini_display");
   weapon_mini_display.onmouseenter = function(event) {
     var weapon_index = character_state.current_weapon[character_number]
     display_weapon_detailed(weapon_index, weapon_info_container, true)
@@ -1428,6 +1452,23 @@ function select_character(index, cell) {
   }
 
   avatar_container.append(weapon_mini_display)
+
+  var armor_mini_display = document.createElement("IMG");
+  armor_mini_display.id = "armor_mini_display";
+  armor_mini_display.src = armor_image(character_number);
+  //armor_mini_display.style.width = '80px';
+  //armor_mini_display.style.height = '80px';
+  armor_mini_display.classList.add("mini_display");
+  armor_mini_display.onmouseenter = function(event) {
+    display_armor_detailed(character_number, weapon_info_container)
+  }
+
+  armor_mini_display.onmouseleave = function(event) {
+    weapon_info_container.html("")
+    weapon_info_container.hide()
+  }
+
+  avatar_container.append(armor_mini_display)
 
   var attack_button = document.createElement("button");
   attack_button.innerHTML = "Атаковать";

@@ -39,6 +39,13 @@
 
 }
 
+.mini_display {
+  margin-right: 1px;
+  margin-left: 1px;
+  height: 80px;
+  width: 80px;
+}
+
 #skill-panel {
   margin-top: 1px;
   margin-bottom: 1px;
