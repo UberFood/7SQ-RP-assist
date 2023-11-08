@@ -363,6 +363,12 @@ wss.on('connection', (ws) => {
       });
     } else if (data.command == 'ignore_me') {
       // ignoring
+    } else if (data.command == 'apply_effect') {
+      data.command = 'apply_effect_response';
+      data.to_name = 'all';
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(data));
+      });
     } else if (data.command == 'guild_sim_init') {
       var character_list_unparsed = fs.readFileSync('./app/guild_sim_fighters/character_list.json');
       var character_list = JSON.parse(character_list_unparsed);

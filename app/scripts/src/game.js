@@ -182,6 +182,7 @@ const move_action_map = [1, 3, 4, 6, 8, 9, 10, 11, 12, 13, 14, 15]
 const bonus_action_map= [0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3]
 const main_action_map = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
 
+var effect_list = ["Увеличить силу", "Увеличить телосложение", "Увеличить ловкость", "Увеличить интеллект", "Уменьшить силу", "Уменьшить телосложение", "Уменьшить ловкость", "Уменьшить интеллект"];
 var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: [], evade_bonus: [], melee_resist: [], bullet_resist: []};
 let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: [], battle_mod: 0, landmines: {positions: [], knowers: []}};
 let character_state = CHARACTER_STATE_CONSTANT;
@@ -1378,7 +1379,27 @@ function select_character(index, cell) {
     var damage_field = document.createElement("input");
     damage_field.id = "damage_field";
     damage_field.type = "number";
-    damage_field.placeholder = "Значение урона";
+    damage_field.placeholder = "Урон";
+
+    var effect_select = document.createElement("select");
+    effect_select.id = "effect_select";
+
+    for (let i = 0; i < effect_list.length; i++) {
+      var current_option = document.createElement("option");
+      current_option.innerHTML = effect_list[i];
+      current_option.value = i;
+      effect_select.appendChild(current_option);
+    }
+
+    var effect_button = document.createElement("button");
+    effect_button.innerHTML = "Применить эффект";
+    effect_button.onclick = function(event) {
+      var effect_select = document.getElementById("effect_select");
+      var effect_index = effect_select.value;
+      send_effect_command(character_number, effect_index);
+    }
+  }
+
 
   }
 
@@ -1401,31 +1422,7 @@ function select_character(index, cell) {
     socket.sendMessage(toSend);
   }
 
-  //var weapon_select = document.createElement("select");
-  //weapon_select.id = "weapon_chosen";
-
   var inventory = character.inventory
-
-  /*
-  for (let i = 0; i < inventory.length; i++) {
-    var current_option = document.createElement("option");
-    current_option.innerHTML = weapon_list[inventory[i]];
-    current_option.value = inventory[i];
-    weapon_select.appendChild(current_option);
-  }
-  */
-
-  /*
-  var pick_weapon_button = document.createElement("button");
-  pick_weapon_button.innerHTML = "Сменить оружие";
-  pick_weapon_button.index = index;
-  pick_weapon_button.onclick = function(event) {
-    var weapon_select = document.getElementById("weapon_chosen")
-    var weapon_index = weapon_select.value
-
-    change_weapon(character_number, weapon_index)
-  }
-  */
 
   var default_weapon_index = character_state.current_weapon[character_number]
   character_chosen.weapon_id = default_weapon_index
@@ -1434,8 +1431,6 @@ function select_character(index, cell) {
   var weapon_mini_display = document.createElement("IMG");
   weapon_mini_display.id = "weapon_mini_display"
   weapon_mini_display.src = default_weapon.avatar;
-  //weapon_mini_display.style.width = '80px';
-  //weapon_mini_display.style.height = '80px';
   weapon_mini_display.classList.add("mini_display");
   weapon_mini_display.onmouseenter = function(event) {
     var weapon_index = character_state.current_weapon[character_number]
@@ -1456,8 +1451,6 @@ function select_character(index, cell) {
   var armor_mini_display = document.createElement("IMG");
   armor_mini_display.id = "armor_mini_display";
   armor_mini_display.src = armor_image(character_number);
-  //armor_mini_display.style.width = '80px';
-  //armor_mini_display.style.height = '80px';
   armor_mini_display.classList.add("mini_display");
   armor_mini_display.onmouseenter = function(event) {
     display_armor_detailed(character_number, weapon_info_container)
@@ -1481,30 +1474,7 @@ function select_character(index, cell) {
     }
   }
 
-  /*
-  var skill_select = document.createElement("select");
-  skill_select.id = "skill_chosen";
-  */
-
   var skillset = character.skillset
-
-  /*
-  for (let i = 0; i < skillset.length; i++) {
-    var current_option = document.createElement("option");
-    current_option.innerHTML = skill_list[skillset[i]];
-    current_option.value = skillset[i];
-    skill_select.appendChild(current_option);
-  }
-
-  var skill_button = document.createElement("button");
-  skill_button.innerHTML = "Использовать умение";
-  skill_button.onclick = function(event) {
-    var skill_select = document.getElementById("skill_chosen")
-    var skill_index = skill_select.value
-    use_skill(skill_index, character_number, index, cell)
-  }
-  */
-
 
   var button_list = document.createElement("ul");
   button_list.className = "button_list";
@@ -1517,6 +1487,7 @@ function select_character(index, cell) {
   var line7 = document.createElement("li");
   var line8 = document.createElement("li");
   var line9 = document.createElement("li");
+  var line10 = document.createElement("li");
 
   line1.appendChild(move_button);
   if (my_role == "gm") {
@@ -1524,26 +1495,25 @@ function select_character(index, cell) {
     line3.appendChild(damage_button);
     line3.appendChild(damage_field);
     line8.appendChild(change_character_visibility_button);
+    line9.appendChild(effect_select);
+    line10.appendChild(effect_button);
   }
   line4.appendChild(search_button);
-  //line5.appendChild(pick_weapon_button);
-  //line5.appendChild(weapon_select);
   line6.appendChild(attack_button);
   line7.appendChild(simple_roll_button);
-  //line9.appendChild(skill_button);
-  //line9.appendChild(skill_select);
+
 
   button_list.appendChild(line1);
+  button_list.appendChild(line4);
+  button_list.appendChild(line6);
+  button_list.appendChild(line7);
   if (my_role == "gm") {
     button_list.appendChild(line2);
     button_list.appendChild(line3);
     button_list.appendChild(line8);
+    button_list.appendChild(line9);
+    button_list.appendChild(line10);
   }
-  button_list.appendChild(line4);
-  //button_list.appendChild(line5);
-  button_list.appendChild(line6);
-  //button_list.appendChild(line9);
-  button_list.appendChild(line7);
 
   character_info_container.append(button_list);
 
@@ -1570,6 +1540,15 @@ function select_character(index, cell) {
 
 }
 
+function send_effect_command(character_number, effect_index) {
+  var toSend = {};
+  toSend.command = 'apply_effect';
+  toSend.room_number = my_room;
+  toSend.effect_number = effect_index;
+  toSend.character_number = character_number;
+  socket.sendMessage(toSend);
+
+  alert("Вы применили эффект");
 }
 
 function delete_object_command(index) {
@@ -3632,6 +3611,45 @@ function change_character_property(property, character_number, amount) {
   character_state[property][character_number] = character_state[property][character_number] + amount
 }
 
+function change_character_detailed_attribute(attribute, character_number, amount) {
+  character_detailed_info[character_number][attribute] = parseInt(character_detailed_info[character_number][attribute]) + amount
+}
+
+function apply_effect(character_number, effect_number) {
+  console.log(effect_number);
+  effect_number = parseInt(effect_number);
+  switch (effect_number) {
+    case 0: // увеличить силу
+      change_character_detailed_attribute("strength", character_number, 1);
+      break;
+    case 1: // увеличить телосложение
+      change_character_detailed_attribute("stamina", character_number, 1);
+      break;
+    case 2: // увеличить ловкость
+      change_character_detailed_attribute("agility", character_number, 1);
+      break;
+    case 3: // увеличить интеллект
+      change_character_detailed_attribute("intelligence", character_number, 1);
+      break;
+
+    case 4: // уменьшить силу
+      change_character_detailed_attribute("strength", character_number, -1);
+      break;
+    case 5: // уменьшить телосложение
+      change_character_detailed_attribute("stamina", character_number, -1);
+      break;
+    case 6: // уменьшить ловкость
+      change_character_detailed_attribute("agility", character_number, -1);
+      break;
+    case 7: // уменьшить интеллект
+      change_character_detailed_attribute("intelligence", character_number, -1);
+      break;
+
+    default:
+      console.log("Tried to apply unknown effect")
+  }
+}
+
 // прок газовой гранаты
 function apply_bomb(position, radius) {
   var candidate_cells = index_in_radius(position, radius)
@@ -5409,6 +5427,8 @@ socket.registerMessageHandler((data) => {
           console.log("fucked up resolving damage")
           break;
       }
+    } else if (data.command == 'apply_effect_response') {
+      apply_effect(data.character_number, data.effect_number);
     } else if (data.command == 'search_action_response') {
       if (my_role == 'gm') {
         pushToList(data.character_name + ' бросил ' + data.roll + ' на внимательность в зоне ' + data.zone_number);
