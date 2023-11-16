@@ -174,6 +174,12 @@ var calingalator_penalty_stage2 = -2;
 var calingalator_penalty_stage3 = -3;
 var calingalator_penalty_enlightened = 3;
 
+var belvet_buff_range = 1.6;
+var belvet_buff_skill_duration = 1;
+var belvet_buff_attack_bonus = 2;
+var belvet_buff_melee_advantage = 1;
+var belvet_buff_ranged_advantage = 1;
+
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
 const stamina_values = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195];
@@ -2805,6 +2811,14 @@ function use_skill(skill_index, character_number, position, cell) {
         }
         break;
 
+    case 33: // Бафф Бельвет
+        if (character_state.main_action[character_number] > 0) {
+            choose_character_skill(skill_index, character_number, position, cell);
+        } else {
+            alert("Не хватает действий!")
+        }
+        break;
+
     default:
       alert("Не знаем это умение")
   }
@@ -2884,6 +2898,9 @@ function perform_skill(index, cell) {
     case 32:
       calingalator(index, cell)
       break;
+    case 33:
+      belvet_buff(index, cell)
+      break;
     default:
       alert("Unknown targeted skill")
   }
@@ -2916,6 +2933,27 @@ function safety_service(index, cell) {
     }
   } else {
     alert("Вы не можете защищать с такого расстояния")
+  }
+}
+
+function belvet_buff(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  if (isInRange(index, user_position, belvet_buff_range)) {
+    var target_character_number = game_state.board_state[index]
+    if (!character_state.special_effects[target_character_number].hasOwnProperty("belvet_buff_target")) {
+      var toSend = {};
+      toSend.command = 'skill';
+      toSend.skill_index = character_chosen.skill_id
+      toSend.room_number = my_room;
+      toSend.user_index = user_character_number
+      toSend.target_id = target_character_number
+      socket.sendMessage(toSend);
+    } else {
+      alert("На этом персонаже уже есть активный бафф этого типа (увы)")
+    }
+  } else {
+    alert("Вы не можете баффать (хе-хе) с такого расстояния")
   }
 }
 
@@ -4992,6 +5030,54 @@ socket.registerMessageHandler((data) => {
         character_state.special_effects[user_index].calingalator_user = calingalator_user
           break;
 
+      case 33: // бафф бельвет
+          if (game_state.battle_mod == 1) {
+            change_character_property("main_action", user_index, -1);
+          }
+          var target_id = data.target_id;
+
+          var buffer = character_detailed_info[user_index]
+          var target = character_detailed_info[target_id]
+
+          // Непосредственно бафф
+          var belvet_buff_target_object = {};
+          belvet_buff_target_object.duration = belvet_buff_skill_duration;
+          belvet_buff_target_object.attack_bonus = belvet_buff_attack_bonus;
+          belvet_buff_target_object.melee_advantage = belvet_buff_melee_advantage;
+          belvet_buff_target_object.ranged_advantage = belvet_buff_ranged_advantage;
+          character_state.special_effects[target_id].belvet_buff_target = belvet_buff_target_object;
+          change_character_property("attack_bonus", target_id, belvet_buff_attack_bonus);
+          change_character_property("melee_advantage", target_id, belvet_buff_melee_advantage);
+          change_character_property("ranged_advantage", target_id, belvet_buff_ranged_advantage);
+
+
+          // Подсчет скрытых стаков
+          if (character_state.special_effects[target_id].hasOwnProperty("belvet_buff_stacks")) {
+            var belvet_buff_stacks_object = character_state.special_effects[target_id].belvet_buff_stacks;
+          } else {
+            var belvet_buff_stacks_object = {};
+            belvet_buff_stacks_object.stacks = 0;
+          }
+          belvet_buff_stacks_object.stacks = belvet_buff_stacks_object.stacks + 1;
+          character_state.special_effects[target_id].belvet_buff_stacks = belvet_buff_stacks_object;
+
+          // Наконец, добавляем в список целей у юзера
+          if (character_state.special_effects[user_index].hasOwnProperty("belvet_buff_user")) {
+            if (!character_state.special_effects[user_index].belvet_buff_user.targets_set.has(target_id)) {
+              character_state.special_effects[user_index].belvet_buff_user.targets_set.add(target_id);
+            }
+          } else {
+            var belvet_buff_user_object = {};
+            belvet_buff_user_object.targets_set = new Set();
+            belvet_buff_user_object.targets_set.add(target_id);
+            character_state.special_effects[user_index].belvet_buff_user = belvet_buff_user_object;
+          }
+          var message = buffer.name + " усиливает атаки " + target.name + ". Не забудьте сказать спасибо!";
+          pushToList(message);
+
+
+          break;
+
         default:
           alert("Received unknown skill command")
       }
@@ -5098,6 +5184,17 @@ socket.registerMessageHandler((data) => {
               delete character_state.special_effects[i].safety_service_target
             } else {
               character_state.special_effects[i].safety_service_target.duration = character_state.special_effects[i].safety_service_target.duration - 1
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("belvet_buff_target")) {
+            if (character_state.special_effects[i].belvet_buff_target.duration == 0) {
+              change_character_property("attack_bonus", i, -1*character_state.special_effects[i].belvet_buff_target.attack_bonus);
+              change_character_property("melee_advantage", i, -1*character_state.special_effects[i].belvet_buff_target.melee_advantage);
+              change_character_property("ranged_advantage", i, -1*character_state.special_effects[i].belvet_buff_target.ranged_advantage);
+              delete character_state.special_effects[i].belvet_buff_target
+            } else {
+              character_state.special_effects[i].belvet_buff_target.duration = character_state.special_effects[i].belvet_buff_target.duration - 1
             }
           }
 
