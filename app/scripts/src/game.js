@@ -64,6 +64,7 @@ var INVISE_IMAGE = "./images/zorro_mask.jpeg";
 var AIM_IMAGE = "./images/aim.jpg";
 var RIGHT_ARROW_IMAGE = "./images/right_arrow.png";
 var ARMOR_IMAGE = "./images/armor.jpg";
+var SPIRIT_IMAGE = "./images/chakra.jpg";
 
 var MAX_ZONES = 25;
 var CHAT_CASH = 15;
@@ -970,6 +971,10 @@ function add_character(board_index) {
 
 // Picture/avatar management
 
+function spirit_image(character_number) {
+  return SPIRIT_IMAGE;
+}
+
 function armor_image(character_number) {
   return ARMOR_IMAGE;
 }
@@ -1204,10 +1209,38 @@ function display_armor_detailed(character_number, container) {
   var evade_bonus_display = document.createElement("h2");
   evade_bonus_display.innerHTML = "Уклонение: " + character_state.evade_bonus[character_number];
 
+  var defensive_advantage_display = document.createElement("h2");
+  defensive_advantage_display.innerHTML = "Уязвимость: " + character_state.defensive_advantage[character_number];
+
   container.append(KD_display);
   container.append(melee_resist_display);
   container.append(bullet_resist_display);
   container.append(evade_bonus_display);
+  container.append(defensive_advantage_display);
+  container.show();
+}
+
+function display_spirit_detailed(character_number, container) {
+  var attack_bonus_display = document.createElement("h2");
+  attack_bonus_display.innerHTML = "Бонус атаки: " + character_state.attack_bonus[character_number];
+
+  var damage_bonus_display = document.createElement("h2");
+  damage_bonus_display.innerHTML = "Бонус урона: " + character_state.damage_bonus[character_number];
+
+  var universal_bonus_display = document.createElement("h2");
+  universal_bonus_display.innerHTML = "Всеобщий бонус: " + character_state.universal_bonus[character_number];
+
+  var melee_advantage_display = document.createElement("h2");
+  melee_advantage_display.innerHTML = "Melee adv: " + character_state.melee_advantage[character_number];
+
+  var ranged_advantage_display = document.createElement("h2");
+  ranged_advantage_display.innerHTML = "Ranged adv: " + character_state.ranged_advantage[character_number];
+
+  container.append(attack_bonus_display);
+  container.append(damage_bonus_display);
+  container.append(universal_bonus_display);
+  container.append(melee_advantage_display);
+  container.append(ranged_advantage_display);
   container.show();
 }
 
@@ -1468,6 +1501,21 @@ function select_character(index, cell) {
   }
 
   avatar_container.append(armor_mini_display)
+
+  var spirit_mini_display = document.createElement("IMG");
+  spirit_mini_display.id = "spirit_mini_display";
+  spirit_mini_display.src = spirit_image(character_number);
+  spirit_mini_display.classList.add("mini_display");
+  spirit_mini_display.onmouseenter = function(event) {
+    display_spirit_detailed(character_number, weapon_info_container)
+  }
+
+  spirit_mini_display.onmouseleave = function(event) {
+    weapon_info_container.html("")
+    weapon_info_container.hide()
+  }
+
+  avatar_container.append(spirit_mini_display)
 
   var attack_button = document.createElement("button");
   attack_button.innerHTML = "Атаковать";
