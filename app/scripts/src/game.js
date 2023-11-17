@@ -189,7 +189,7 @@ const move_action_map = [1, 3, 4, 6, 8, 9, 10, 11, 12, 13, 14, 15]
 const bonus_action_map= [0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3]
 const main_action_map = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
 
-var effect_list = ["Увеличить силу", "Увеличить телосложение", "Увеличить ловкость", "Увеличить интеллект", "Уменьшить силу", "Уменьшить телосложение", "Уменьшить ловкость", "Уменьшить интеллект"];
+var effect_list = ["Увеличить силу", "Увеличить телосложение", "Увеличить ловкость", "Увеличить интеллект", "Увеличить КД", "Уменьшить силу", "Уменьшить телосложение", "Уменьшить ловкость", "Уменьшить интеллект", "Уменьшить КД"];
 var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: [], evade_bonus: [], melee_resist: [], bullet_resist: []};
 let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: [], battle_mod: 0, landmines: {positions: [], knowers: []}};
 let character_state = CHARACTER_STATE_CONSTANT;
@@ -3710,6 +3710,15 @@ function apply_effect(character_number, effect_number) {
       break;
     case 1: // увеличить телосложение
       change_character_detailed_attribute("stamina", character_number, 1);
+      var character = character_detailed_info[character_number];
+      var stamina = character.stamina;
+
+      var hp_upgrade = HP_values[stamina] - HP_values[stamina - 1];
+      change_character_property("HP", character_number, hp_upgrade);
+
+      var stamina_upgrade = stamina_values[stamina] - stamina_values[stamina - 1];
+      change_character_property("stamina", character_number, stamina_upgrade);
+
       break;
     case 2: // увеличить ловкость
       change_character_detailed_attribute("agility", character_number, 1);
@@ -3717,20 +3726,32 @@ function apply_effect(character_number, effect_number) {
     case 3: // увеличить интеллект
       change_character_detailed_attribute("intelligence", character_number, 1);
       break;
+    case 4: // увеличить КД
+      change_character_property("bonus_KD", character_number, 1);
+      break;
 
-    case 4: // уменьшить силу
+    case 5: // уменьшить силу
       change_character_detailed_attribute("strength", character_number, -1);
       break;
-    case 5: // уменьшить телосложение
+    case 6: // уменьшить телосложение
       change_character_detailed_attribute("stamina", character_number, -1);
+      var character = character_detailed_info[character_number];
+      var stamina = character.stamina;
+      var hp_upgrade = Math.max(HP_values[stamina] - HP_values[stamina + 1], -1*character_state.HP[character_number] + 1);
+      change_character_property("HP", character_number, hp_upgrade);
+
+      var stamina_upgrade = Math.max(stamina_values[stamina] - stamina_values[stamina + 1], -1*character_state.stamina[character_number] + 1);
+      change_character_property("stamina", character_number, stamina_upgrade);
       break;
-    case 6: // уменьшить ловкость
+    case 7: // уменьшить ловкость
       change_character_detailed_attribute("agility", character_number, -1);
       break;
-    case 7: // уменьшить интеллект
+    case 8: // уменьшить интеллект
       change_character_detailed_attribute("intelligence", character_number, -1);
       break;
-
+    case 9: // уменьшить КД
+      change_character_property("bonus_KD", character_number, -1);
+      break;
     default:
       console.log("Tried to apply unknown effect")
   }
