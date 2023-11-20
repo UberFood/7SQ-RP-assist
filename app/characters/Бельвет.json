@@ -1,1 +1,1 @@
-{"name":"Изабелла Веттори","avatar":"/images/belvet.jpg", "strength":"1","stamina":"2","agility":"2","intelligence":"2", "KD_points": "10", "special_type": "mutant", "inventory": [28,29,30], "skillset": [33,34,4,0,10,11,26,29], "group":"mutant"}
+{"name":"Изабелла Веттори","avatar":"/images/belvet.jpg", "secondary_avatar":"/images/belvet_transformed.jpg", "strength":"1","stamina":"2","agility":"2","intelligence":"2", "KD_points": "10", "special_type": "mutant", "inventory": [28,29,30], "skillset": [33,34,4,0,10,11,26,29], "group":"mutant"}

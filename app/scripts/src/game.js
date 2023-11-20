@@ -2988,14 +2988,12 @@ function choose_character_skill(skill_index, character_number, position, cell) {
 }
 
 function belvet_transformation(user_index, skill_index) {
-  console.log(character_state.special_effects[user_index].belvet_buff_user);
   var user =  character_detailed_info[user_index];
   var targets_set = character_state.special_effects[user_index].belvet_buff_user.targets_set;
   var total_upgrade = 0;
   var rolled_buffs_targets = [];
   var rolled_buffs_outcomes = [];
   for (var target_id of targets_set) {
-    console.log("Entered for of iterator");
     var target = character_detailed_info[target_id];
     var target_stacks = character_state.special_effects[target_id].belvet_buff_stacks.stacks;
     var buffs_array = [];
@@ -3782,7 +3780,7 @@ function change_character_detailed_attribute(attribute, character_number, amount
 }
 
 function apply_effect(character_number, effect_number) {
-  
+
   effect_number = parseInt(effect_number);
   switch (effect_number) {
     case 0: // увеличить силу
@@ -5216,13 +5214,13 @@ socket.registerMessageHandler((data) => {
 
           // Наконец, добавляем в список целей у юзера
           if (character_state.special_effects[user_index].hasOwnProperty("belvet_buff_user")) {
-            if (!character_state.special_effects[user_index].belvet_buff_user.targets_set.has(target_id)) {
-              character_state.special_effects[user_index].belvet_buff_user.targets_set.add(target_id);
+            if (!character_state.special_effects[user_index].belvet_buff_user.targets_set.includes(target_id)) {
+              character_state.special_effects[user_index].belvet_buff_user.targets_set.push(target_id);
             }
           } else {
             var belvet_buff_user_object = {};
-            belvet_buff_user_object.targets_set = new Set();
-            belvet_buff_user_object.targets_set.add(target_id);
+            belvet_buff_user_object.targets_set = [];
+            belvet_buff_user_object.targets_set.push(target_id);
             character_state.special_effects[user_index].belvet_buff_user = belvet_buff_user_object;
           }
           var message = buffer.name + " усиливает атаки " + target.name + ". Не забудьте сказать спасибо!";
@@ -5270,6 +5268,16 @@ socket.registerMessageHandler((data) => {
           }
         }
         character_state.special_effects[user_index].belvet_buff_user.transformed = {};
+        if (user.hasOwnProperty("secondary_avatar")) {
+          var temp = user.avatar;
+          character_detailed_info[user_index].avatar = character_detailed_info[user_index].secondary_avatar;
+          character_detailed_info[user_index].secondary_avatar = temp;
+          var char_position = character_state.position[user_index];
+          if (!(((my_role == 'player')&&(game_state.fog_state[char_position] == 1)) || (character_state.invisibility[user_index] != "all" && character_state.invisibility[user_index] != my_name))) {
+            var to_cell = document.getElementById('cell_' + char_position);
+            to_cell.src = get_object_picture(user_index);
+          }
+        }
         var message = user.name + " открывает свою истинную сущность, получая " + data.total_upgrade + " усилений. Удачной охоты!";
         pushToList(message);
         break;
