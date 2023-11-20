@@ -190,6 +190,18 @@ const bonus_action_map= [0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3]
 const main_action_map = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
 
 var effect_list = ["Увеличить силу", "Увеличить телосложение", "Увеличить ловкость", "Увеличить интеллект", "Увеличить КД", "Уменьшить силу", "Уменьшить телосложение", "Уменьшить ловкость", "Уменьшить интеллект", "Уменьшить КД"];
+var INCREASE_STRENGTH = 0;
+var INCREASE_STAMINA = 1;
+var INCREASE_AGILITY = 2;
+var INCREASE_INT = 3;
+var INCREASE_KD = 4;
+var DECREASE_STRENGTH = 5;
+var DECREASE_STAMINA = 6;
+var DECREASE_AGILITY = 7;
+var DECREASE_INT = 8;
+var DECREASE_KD = 9;
+
+
 var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: [], evade_bonus: [], melee_resist: [], bullet_resist: []};
 let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: [], battle_mod: 0, landmines: {positions: [], knowers: []}};
 let character_state = CHARACTER_STATE_CONSTANT;
@@ -2867,6 +2879,18 @@ function use_skill(skill_index, character_number, position, cell) {
         }
         break;
 
+    case 34: // Трансформация Бельвет
+      if (character_state.special_effects[character_number].hasOwnProperty("belvet_buff_user")) {
+        if (!character_state.special_effects[character_number].belvet_buff_user.hasOwnProperty("transformed")) {
+          belvet_transformation(character_number, skill_index);
+        } else {
+          alert("Вы уже открыли свою истинную сущность - повторная трансформация невозможна!");
+        }
+      } else {
+        alert("Вы должны сперва подготовиться к трансформации, собрав достаточно днк противников");
+      }
+        break;
+
     default:
       alert("Не знаем это умение")
   }
@@ -2961,6 +2985,62 @@ function choose_character_skill(skill_index, character_number, position, cell) {
   character_chosen.char_id = character_number
   character_chosen.char_position = position
   cell.src = "./images/Chidori.webp";
+}
+
+function belvet_transformation(user_index, skill_index) {
+  console.log(character_state.special_effects[user_index].belvet_buff_user);
+  var user =  character_detailed_info[user_index];
+  var targets_set = character_state.special_effects[user_index].belvet_buff_user.targets_set;
+  var total_upgrade = 0;
+  var rolled_buffs_targets = [];
+  var rolled_buffs_outcomes = [];
+  for (var target_id of targets_set) {
+    console.log("Entered for of iterator");
+    var target = character_detailed_info[target_id];
+    var target_stacks = character_state.special_effects[target_id].belvet_buff_stacks.stacks;
+    var buffs_array = [];
+    var rolled_array = [0,0,0,0,0];
+    buffs_array.push(target.strength);
+    buffs_array.push(target.stamina);
+    buffs_array.push(target.agility);
+    buffs_array.push(target.intelligence);
+    buffs_array.push(character_state.KD_points[target_id] - 8);
+    var total_roll = target.strength + target.stamina + target.agility + target.intelligence + character_state.KD_points[target_id] - 8;
+    while (target_stacks > 0 && total_roll > 0) {
+      var roll = roll_x(total_roll);
+      if (roll <= buffs_array[0]) {// strength
+        buffs_array[0] -= 1;
+        rolled_array[0] += 1;
+      } else if (roll <= buffs_array[0] + buffs_array[1]) {//stamina
+        buffs_array[1] -= 1;
+        rolled_array[1] += 1;
+      } else if (roll <= buffs_array[0] + buffs_array[1] + buffs_array[2]) {// agility
+        buffs_array[2] -= 1;
+        rolled_array[2] += 1;
+      } else if (roll <= buffs_array[0] + buffs_array[1] + buffs_array[2] + buffs_array[3]) {// intelligence
+        buffs_array[3] -= 1;
+        rolled_array[3] += 1;
+      } else {// KD
+        buffs_array[4] -= 1;
+        rolled_array[4] += 1;
+      }
+      total_roll -= 1;
+      target_stacks -= 1;
+      total_upgrade += 1;
+    }
+    rolled_buffs_targets.push(target_id);
+    rolled_buffs_outcomes.push(rolled_array);
+  }
+  var toSend = {};
+  toSend.command = 'skill';
+  toSend.room_number = my_room;
+  toSend.skill_index = skill_index
+  toSend.user_index = user_index
+  toSend.total_upgrade = total_upgrade;
+  toSend.rolled_buffs_targets = rolled_buffs_targets
+  toSend.rolled_buffs_outcomes = rolled_buffs_outcomes;
+  socket.sendMessage(toSend);
+
 }
 
 function safety_service(index, cell) {
@@ -3702,7 +3782,7 @@ function change_character_detailed_attribute(attribute, character_number, amount
 }
 
 function apply_effect(character_number, effect_number) {
-  console.log(effect_number);
+  
   effect_number = parseInt(effect_number);
   switch (effect_number) {
     case 0: // увеличить силу
@@ -4106,6 +4186,10 @@ socket.registerMessageHandler((data) => {
       game_state.board_state[data.cell_id] = data.character_number;
       var character = data.character_info;
       character_detailed_info[data.character_number] = character;
+      character_detailed_info[data.character_number].strength = parseInt(character.strength);
+      character_detailed_info[data.character_number].stamina = parseInt(character.stamina);
+      character_detailed_info[data.character_number].agility = parseInt(character.agility);
+      character_detailed_info[data.character_number].intelligence = parseInt(character.intelligence);
       if (!((my_role == 'player')&&(game_state.fog_state[data.cell_id] == 1))) {
         var cell = document.getElementById("cell_" + data.cell_id);
         cell.src = get_object_picture(data.character_number);
@@ -4116,7 +4200,7 @@ socket.registerMessageHandler((data) => {
       character_state.main_action[data.character_number] = main_action_map[character.agility];
       assign_moves(data.character_number);
       character_state.initiative[data.character_number] = character.agility;
-      character_state.KD_points[data.character_number] = character.KD_points;
+      character_state.KD_points[data.character_number] = parseInt(character.KD_points);
       character_state.bonus_KD[data.character_number] = 0;
       character_state.can_evade[data.character_number] = 1;
       character_state.has_moved[data.character_number] = 0;
@@ -5143,9 +5227,52 @@ socket.registerMessageHandler((data) => {
           }
           var message = buffer.name + " усиливает атаки " + target.name + ". Не забудьте сказать спасибо!";
           pushToList(message);
-
-
           break;
+
+      case 34: // трансформация Бельвет
+        var user =  character_detailed_info[user_index];
+        for (let j = 0; j < data.rolled_buffs_targets.length; j++) {
+          var target_id = data.rolled_buffs_targets[j];
+          var rolled_buffs_array = data.rolled_buffs_outcomes[j];
+          var i = 0;
+          while (i < 5) {
+            if (rolled_buffs_array[i] > 0) {
+              rolled_buffs_array[i] -= 1;
+              switch(i) {
+                case 0: //strength
+                  apply_effect(user_index, INCREASE_STRENGTH);
+                  apply_effect(target_id, DECREASE_STRENGTH);
+                  break;
+
+                case 1:
+                  apply_effect(user_index, INCREASE_STAMINA);
+                  apply_effect(target_id, DECREASE_STAMINA);
+                  break;
+
+                case 2:
+                  apply_effect(user_index, INCREASE_AGILITY);
+                  apply_effect(target_id, DECREASE_AGILITY);
+                  break;
+
+                case 3:
+                  apply_effect(user_index, INCREASE_INT);
+                  apply_effect(target_id, DECREASE_INT);
+                  break;
+
+                case 4:
+                  apply_effect(user_index, INCREASE_KD);
+                  apply_effect(target_id, DECREASE_KD);
+                  break;
+              }
+            } else {
+              i +=1;
+            }
+          }
+        }
+        character_state.special_effects[user_index].belvet_buff_user.transformed = {};
+        var message = user.name + " открывает свою истинную сущность, получая " + data.total_upgrade + " усилений. Удачной охоты!";
+        pushToList(message);
+        break;
 
         default:
           alert("Received unknown skill command")
