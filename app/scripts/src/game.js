@@ -1402,7 +1402,13 @@ function select_character(index, cell) {
     }
 
     var change_character_visibility_button = document.createElement("button");
-    change_character_visibility_button.innerHTML = "Изменить видимость";
+    var visibility_message = "";
+    if (character_state.visibility[character_number] == 0) {
+      visibility_message = "Открыть доступ";
+    } else {
+      visibility_message = "Закрыть доступ";
+    }
+    change_character_visibility_button.innerHTML = visibility_message;
     change_character_visibility_button.onclick = function(event) {
       change_character_visibility(character_number);
     }
@@ -1494,7 +1500,9 @@ function select_character(index, cell) {
   }
 
   weapon_mini_display.onclick = function() {
-    show_weapon_modal(character_number, 0);
+    if (my_role == "gm" || character_state.visibility[character_number] == 1) {
+      show_weapon_modal(character_number, 0);
+    }
   }
 
   avatar_container.append(weapon_mini_display)
