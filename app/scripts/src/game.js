@@ -2144,6 +2144,8 @@ function start_new_round() {
   toSend.command = 'new_round';
   toSend.room_number = my_room;
   var save_roll = []
+  var calingalator_heal_roll_list = []
+  var calingalator_coin_flip = []
 
   for (let i = 1; i < character_state.can_evade.length; i++) {
     var character = character_detailed_info[i]
@@ -2151,9 +2153,13 @@ function start_new_round() {
       if (character_state.special_effects[i].hasOwnProperty("gas_bomb_poison")) {
         save_roll[i] = roll_x(20) + parseInt(character.stamina)
       }
+      calingalator_heal_roll_list[i] = roll_x(calingalator_roll_heal);
+      calingalator_coin_flip[i] = roll_x(10);
     }
   }
   toSend.save_roll_list = save_roll
+  toSend.calingalator_heal_roll_list = calingalator_heal_roll_list
+  toSend.calingalator_coin_flip = calingalator_coin_flip
 
   socket.sendMessage(toSend);
 }
@@ -3867,24 +3873,24 @@ function apply_bomb(position, radius) {
   }
 }
 
-function apply_calingalator(position, radius, flat_heal, roll_heal) {
+function apply_calingalator(position, radius, flat_heal, roll_heal, heal_roll_list, coin_flip_list) {
   var candidate_cells = index_in_radius(position, radius)
   for (let i = 0; i < candidate_cells.length; i++) {
     var target_character_number = game_state.board_state[candidate_cells[i]]
     if (target_character_number > 0) {// персонаж в радиусе для отхила
       var character = character_detailed_info[target_character_number]
-      var rolled_heal = flat_heal + roll_x(roll_heal);
+      var rolled_heal = flat_heal + heal_roll_list[target_character_number];
       restore_hp(target_character_number, rolled_heal);
       var message = character.name + " вдыхает целебные пары и восстанавливает " + rolled_heal + " хп."
       pushToList(message)
+      var coin = coin_flip_list[target_character_number];
 
       var note = "";
       if (character_state.special_effects[target_character_number].hasOwnProperty("calingalator_target")) {
         var stage = character_state.special_effects[target_character_number].calingalator_target.stage;
         switch(stage) {
           case 1:
-            var coin = roll_x(2);
-            if (coin == 2) {
+            if (coin > 5) {
               character_state.special_effects[target_character_number].calingalator_target.stage = 2;
               character_state.special_effects[target_character_number].calingalator_target.duration = calingalator_poisoning_duration_stage2;
               character_state.special_effects[target_character_number].calingalator_target.penalty = calingalator_penalty_stage2;
@@ -3895,7 +3901,6 @@ function apply_calingalator(position, radius, flat_heal, roll_heal) {
             }
             break;
           case 2:
-            var coin = roll_x(10);
             if (coin < 5) {//1-4 = bad roll, poisoning
               character_state.special_effects[target_character_number].calingalator_target.stage = 3;
               character_state.special_effects[target_character_number].calingalator_target.duration = calingalator_poisoning_duration_stage3;
@@ -3910,7 +3915,7 @@ function apply_calingalator(position, radius, flat_heal, roll_heal) {
               character_state.special_effects[target_character_number].calingalator_target.stage = 4;
               character_state.special_effects[target_character_number].calingalator_target.duration = calingalator_poisoning_duration_enlightened;
               character_state.special_effects[target_character_number].calingalator_target.penalty = calingalator_penalty_enlightened;
-              change_character_property("attack_bonus", target_character_number, calingalator_penalty_enlightened - calingalator_penalty_stage3)
+              change_character_property("attack_bonus", target_character_number, calingalator_penalty_enlightened - calingalator_penalty_stage2)
               change_character_property("melee_advantage", target_character_number, 1)
               change_character_property("ranged_advantage", target_character_number, 1)
               note = "Только раз я видел такую силу... " + character.name + " достиг Просвящения и будет нести его в мир."
@@ -3931,8 +3936,7 @@ function apply_calingalator(position, radius, flat_heal, roll_heal) {
 
         }
       } else {
-        var coin = roll_x(2);
-        if (coin == 2) {
+        if (coin > 5) {
           var calingalator_target_object = {}
           calingalator_target_object.duration = calingalator_poisoning_duration_stage1;
           calingalator_target_object.penalty = calingalator_penalty_stage1
@@ -5313,7 +5317,7 @@ socket.registerMessageHandler((data) => {
                 }
                 break;
             case "calingalator":
-                apply_calingalator(game_state.terrain_effects[i].position, game_state.terrain_effects[i].radius, game_state.terrain_effects[i].flat_heal, game_state.terrain_effects[i].roll_heal);
+                apply_calingalator(game_state.terrain_effects[i].position, game_state.terrain_effects[i].radius, game_state.terrain_effects[i].flat_heal, game_state.terrain_effects[i].roll_heal, data.calingalator_heal_roll_list, data.calingalator_coin_flip);
                 game_state.terrain_effects[i].duration = game_state.terrain_effects[i].duration - 1
                 if (game_state.terrain_effects[i].duration == 0) {
                   if (my_role == "gm") {
@@ -5377,17 +5381,17 @@ socket.registerMessageHandler((data) => {
             delete character_state.special_effects[i].tired
           }
 
-          check_cooldown(i, "light_sound_bomb_user", "Светошумовая граната у " + character.name + " готова к использованию.");
-          check_cooldown(i, "action_splash", character.name + " вновь может использовать всплеск действий.");
+          check_cooldown(i, "light_sound_bomb_user", "");
+          check_cooldown(i, "action_splash", "");
           check_cooldown(i, "safety_service_user", "");
           check_cooldown(i, "calingalator_user", "");
-          check_cooldown(i, "gas_bomb_user", "Газовая граната у " + character.name + " готова к использованию.");
-          check_cooldown(i, "acid_bomb_user", "Кислотная граната у " + character.name + " готова к использованию.");
-          check_cooldown(i, "force_field_user", "Силовое поле у " + character.name + " снова заряжено.");
+          check_cooldown(i, "gas_bomb_user", "");
+          check_cooldown(i, "acid_bomb_user", "");
+          check_cooldown(i, "force_field_user", "");
           check_cooldown(i, "charge_user", "");
           check_cooldown(i, "cut_limb_user", "");
-          check_cooldown(i, "adrenaline_user", "Умение Прилив Адреналина у " + character.name + " снова доступно.");
-          check_cooldown(i, "poisonous_adrenaline_user", "Умение Адреналиновый Потоп у " + character.name + " снова доступно.");
+          check_cooldown(i, "adrenaline_user", "");
+          check_cooldown(i, "poisonous_adrenaline_user", "");
 
           if (character_state.special_effects[i].hasOwnProperty("safety_service_target")) {
             if (character_state.special_effects[i].safety_service_target.duration == 0) {
@@ -5848,6 +5852,7 @@ notifications_container.hide();
 var character_info_container = $(CHARACTER_INFO_CONTANER_SELECTOR);
 
 var weapon_info_container = $(WEAPON_INFO_CONTANER_SELECTOR);
+weapon_info_container.hide();
 
 var initiative_order_container = $(INITIATIVE_ORDER_CONTANER_SELECTOR);
 
