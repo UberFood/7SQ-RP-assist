@@ -181,6 +181,11 @@ var belvet_buff_attack_bonus = 2;
 var belvet_buff_melee_advantage = 1;
 var belvet_buff_ranged_advantage = 1;
 
+var hook_cooldown = 2;
+var hook_duration = 1;
+var hook_defensive_advantage = -1;
+var hook_range = 3;
+
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
 const stamina_values = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195];
@@ -670,6 +675,8 @@ function coord_to_index(coord, size) {
 
 function index_to_coordinates(index, size) {
   var toRet = {}
+  console.log(index);
+  console.log(size);
   toRet.x = Math.floor(index/size)
   toRet.y = index % size
   return toRet
@@ -2905,6 +2912,18 @@ function use_skill(skill_index, character_number, position, cell) {
       }
         break;
 
+    case 35: // хук
+        if (!character_state.special_effects[character_number].hasOwnProperty("hook_user")) {
+          if (character_state.bonus_action[character_number] > 0) {
+            choose_character_skill(skill_index, character_number, position, cell)
+          } else {
+            alert("Не хватает действий!")
+          }
+        } else {
+          alert("Умение все еще на кулдауне!")
+        }
+        break;
+
     default:
       alert("Не знаем это умение")
   }
@@ -2987,6 +3006,11 @@ function perform_skill(index, cell) {
     case 33:
       belvet_buff(index, cell)
       break;
+
+    case 35:
+      hook(index, cell)
+      break;
+
     default:
       alert("Unknown targeted skill")
   }
@@ -2999,6 +3023,54 @@ function choose_character_skill(skill_index, character_number, position, cell) {
   character_chosen.char_id = character_number
   character_chosen.char_position = position
   cell.src = "./images/Chidori.webp";
+}
+
+function hook(index, cell) {
+  var user_position = character_chosen.char_position;
+  if (isInRange(index, user_position, hook_range)) {
+    var target_position = index;
+    var user_character_number = character_chosen.char_id;
+    var target_character_number = game_state.board_state[target_position];
+    if (target_character_number > 0) {
+      var user_coord = index_to_coordinates(user_position, game_state.size);
+      var target_coord = index_to_coordinates(target_position, game_state.size);
+      var updated_coord = user_coord;
+      var vector = {}
+      vector.x = (target_coord.x - user_coord.x);
+      vector.y = (target_coord.y - user_coord.y);
+      if (vector.x > 0) {
+        updated_coord.x += 1;
+      } else if (vector.x < 0) {
+        updated_coord.x -= 1;
+      }
+
+      if (vector.y > 0) {
+        updated_coord.y += 1;
+      } else if (vector.y < 0) {
+        updated_coord.y -= 1;
+      }
+      var toSend = {}
+      toSend.command = 'skill';
+      toSend.skill_index = character_chosen.skill_id
+      toSend.room_number = my_room;
+      toSend.user_index = user_character_number
+      toSend.target_id = target_character_number
+      var new_position = coord_to_index(updated_coord, game_state.size)
+      if (game_state.board_state[new_position] == 0) {
+        toSend.hook_possible = true;
+        toSend.old_position = target_position;
+        toSend.new_position = new_position;
+      } else {
+        toSend.hook_possible = false;
+      }
+      socket.sendMessage(toSend);
+    } else {
+      alert("Ваши цели за пределами моего понимания, поэтому нет");
+    }
+  } else {
+    alert("Максимальный радиус хука - 3 клетки");
+  }
+
 }
 
 function belvet_transformation(user_index, skill_index) {
@@ -3846,6 +3918,23 @@ function apply_effect(character_number, effect_number) {
       break;
     default:
       console.log("Tried to apply unknown effect")
+  }
+}
+
+function forced_movement(from_index, to_index, character_number) {
+  console.log("Forced move");
+  game_state.board_state[to_index] = character_number;
+  character_state.position[character_number] = to_index;
+  game_state.board_state[from_index] = 0;
+
+  if (!(((my_role == 'player')&&(game_state.fog_state[to_index] == 1)) || (character_state.invisibility[character_number] != "all" && character_state.invisibility[character_number] != my_name))) {
+    var to_cell = document.getElementById('cell_' + to_index);
+    to_cell.src = get_object_picture(character_number);
+  }
+
+  if (!((my_role == 'player')&&(game_state.fog_state[from_index] == 1))) {
+    var old_cell = document.getElementById("cell_" + from_index);
+    old_cell.src = EMPTY_CELL_PIC;
   }
 }
 
@@ -5292,6 +5381,30 @@ socket.registerMessageHandler((data) => {
         }
         var message = user.name + " открывает свою истинную сущность, получая " + data.total_upgrade + " усилений. Удачной охоты!";
         pushToList(message);
+        break;
+
+      case 35: // хук
+        var user = character_detailed_info[user_index];
+        var target = character_detailed_info[data.target_id];
+
+        var hook_user_object = {}
+        hook_user_object.cooldown = hook_cooldown
+        character_state.special_effects[user_index].hook_user = hook_user_object
+
+        var hook_target_object = {}
+        hook_target_object.duration = hook_duration
+        hook_target_object.defensive_advantage = hook_defensive_advantage
+        character_state.special_effects[data.target_id].hook_target = hook_target_object
+
+        character_state.defensive_advantage[data.target_id] += hook_defensive_advantage;
+
+        if (data.hook_possible) {
+          forced_movement(data.old_position, data.new_position, data.target_id);
+        }
+
+        var message = user.name + " хукает " + target.name;
+        pushToList(message);
+
         break;
 
         default:
