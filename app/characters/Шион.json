@@ -1,1 +1,2 @@
-{"name":"Шион","avatar":"/images/Shion_color.jpg", "chibi_avatar":"/images/chibi_shion.png", "strength":"6","stamina":"2","agility":"3","intelligence":"2", "KD_points": "10", "special_type": "rogue", "inventory": [4, 1], "skillset": [0,2,4,10,11], "group":"player"}
+{"name":"Шион","avatar":"/images/Shion_color.jpg", "chibi_avatar":"/images/chibi_shion.png", "strength":"6","stamina":"2","agility":"3","intelligence":"2", "KD_points": "13", "special_type": "rogue", "inventory": [4, 1], "skillset": [0,2,4,10,11], "group":"player", "bullet_resist": "10", "melee_resist": "10", "extra_movement":"-1", "evade_bonus": "0"}
+
