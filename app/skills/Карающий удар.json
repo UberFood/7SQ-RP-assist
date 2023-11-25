@@ -1,0 +1,1 @@
+{"avatar":"/images/punishing_strike.jpg", "cooldown":"3", "cooldown_object_name":"punishing_strike_user", "description":"Совершает базовую атаку, и при попадании умножает урон в зависимости от уязвимости цели (x1.5 за -1, x2 за -2 и т.д)", "cost":"1 основное + 1 бонусное"}

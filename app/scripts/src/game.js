@@ -186,6 +186,9 @@ var hook_duration = 1;
 var hook_defensive_advantage = -1;
 var hook_range = 3;
 
+var punishing_strike_cooldown = 3;
+var punishing_strike_multiplyer = 0.5;
+
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
 const stamina_values = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195];
@@ -675,8 +678,6 @@ function coord_to_index(coord, size) {
 
 function index_to_coordinates(index, size) {
   var toRet = {}
-  console.log(index);
-  console.log(size);
   toRet.x = Math.floor(index/size)
   toRet.y = index % size
   return toRet
@@ -2924,6 +2925,18 @@ function use_skill(skill_index, character_number, position, cell) {
         }
         break;
 
+    case 36: // карающий удар
+      if (!character_state.special_effects[character_number].hasOwnProperty("punishing_strike_user")) {
+        if (character_state.bonus_action[character_number] > 0 && character_state.main_action[character_number] > 0) {
+          choose_character_skill(skill_index, character_number, position, cell)
+        } else {
+          alert("Не хватает действий!")
+        }
+      } else {
+        alert("Умение все еще на кулдауне!")
+      }
+      break;
+
     default:
       alert("Не знаем это умение")
   }
@@ -3009,6 +3022,10 @@ function perform_skill(index, cell) {
 
     case 35:
       hook(index, cell)
+      break;
+
+    case 36:
+      punishing_strike(index, cell);
       break;
 
     default:
@@ -3330,6 +3347,44 @@ function big_bro(index, cell) {
 } else {
   alert("Большой брат не достает до малого!")
 }
+}
+
+function punishing_strike(index, cell) {
+  var target_character_number = game_state.board_state[index]
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]];
+  var attacking_character = character_detailed_info[user_character_number]
+  var stat_bonus;
+  switch(weapon.type) {
+    case "melee":
+      stat_bonus = attacking_character.strength;
+      break;
+    case "ranged":
+      stat_bonus = attacking_character.intelligence;
+      break;
+    case "energy":
+      stat_bonus = attacking_character.intelligence;
+      break;
+    default:
+      stat_bonus = 0;
+  }
+  console.log(stat_bonus);
+  var bonus_attack = stat_bonus + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
+  var accumulated_cover = get_accumulated_cover(index, user_position)
+  var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon, accumulated_cover);
+  if (toSend == null) {
+    alert("Далековато")
+  } else {
+    if (toSend.outcome == "damage_after_evasion" || toSend.outcome == "damage_without_evasion" || toSend.outcome == "full_crit") {
+      var damage_roll = toSend.damage_roll
+      var multiplyer = 1.0 - punishing_strike_multiplyer*(character_state.defensive_advantage[target_character_number]);
+      toSend.damage_roll *= multiplyer;
+    } else {
+      toSend.skill_outcome = "fail"
+    }
+    socket.sendMessage(toSend);
+  }
 }
 
 // increase attack roll by agility bonus (2*mod)
@@ -3922,7 +3977,6 @@ function apply_effect(character_number, effect_number) {
 }
 
 function forced_movement(from_index, to_index, character_number) {
-  console.log("Forced move");
   game_state.board_state[to_index] = character_number;
   character_state.position[character_number] = to_index;
   game_state.board_state[from_index] = 0;
@@ -5411,6 +5465,58 @@ socket.registerMessageHandler((data) => {
 
         break;
 
+      case 36: // punishing_strike
+        var attacker = character_detailed_info[user_index]
+        var target = character_detailed_info[data.target_id]
+        if (game_state.battle_mod == 1) {
+          character_state.main_action[user_index] -= 1
+          character_state.bonus_action[user_index] -= 1
+        }
+
+        var punishing_strike_user_object = {}
+        punishing_strike_user_object.cooldown = punishing_strike_cooldown
+        character_state.special_effects[user_index].punishing_strike_user = punishing_strike_user_object
+
+        switch (data.outcome) {
+          case "KD_block":
+            var message = attacker.name + " пытается покарать " + target.name + " (" + data.attack_roll + "), но не пробивает броню."
+            pushToList(message)
+            break;
+          case "evaded":
+            var message = attacker.name + " пытается покарать " + target.name + " (" + data.attack_roll + "), однако " + target.name + " удалось увернуться (" + data.evade_roll + ")."
+            pushToList(message)
+            if (target.special_type != 'rogue') {
+              character_state.can_evade[data.target_id] = 0
+            }
+            break;
+          case "damage_without_evasion":
+            var message = attacker.name + " применяет карающий удар к " + target.name + " (" + data.attack_roll + "), который больше не может уворачиваться, нанося " + data.damage_roll + " урона."
+            pushToList(message)
+            do_damage(data.target_id, data.damage_roll)
+            character_state.can_evade[data.target_id] = 0
+            break;
+          case "damage_after_evasion":
+            var message = attacker.name + " применяет карающий удар к " + target.name + " (" + data.attack_roll + "), который не смог увернуться (" + data.evade_roll + "), нанося " + data.damage_roll + " урона."
+            pushToList(message)
+            do_damage(data.target_id, data.damage_roll)
+            character_state.can_evade[data.target_id] = 0
+            break;
+          case "full_crit":
+            var message = "Судный день наступил для " + target.name + ". " + attacker.name + " критически карает противника, не оставляя возможности увернуться. Атака наносит " + data.damage_roll + " урона."
+            pushToList(message)
+            do_damage(data.target_id, data.damage_roll)
+            character_state.can_evade[data.target_id] = 0
+            break;
+          case "full_cover":
+            var message = attacker.name + " пытался покарать " + target.name + " но тот находится в полном укрытии."
+            pushToList(message)
+            break;
+          default:
+            console.log("fucked up resolving punishment")
+            break;
+        }
+        break;
+
         default:
           alert("Received unknown skill command")
       }
@@ -5510,6 +5616,7 @@ socket.registerMessageHandler((data) => {
           check_cooldown(i, "adrenaline_user", "");
           check_cooldown(i, "poisonous_adrenaline_user", "");
           check_cooldown(i, "hook_user", "");
+          check_cooldown(i, "punishing_strike_user", "");
 
           if (character_state.special_effects[i].hasOwnProperty("safety_service_target")) {
             if (character_state.special_effects[i].safety_service_target.duration == 0) {
