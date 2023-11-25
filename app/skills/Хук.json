@@ -1,1 +1,1 @@
-{"avatar":"/images/lasso.jpg", "description":"Притягивает противника ближе и накладывает уязвимость на этот и следующий ход", "cost":"1 бонусное"}
+{"avatar":"/images/lasso.jpg", "cooldown":"2", "cooldown_object_name":"hook_user", "description":"Притягивает противника ближе и накладывает уязвимость на этот и следующий ход", "cost":"1 бонусное"}

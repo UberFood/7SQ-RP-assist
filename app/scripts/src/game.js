@@ -5387,6 +5387,10 @@ socket.registerMessageHandler((data) => {
         var user = character_detailed_info[user_index];
         var target = character_detailed_info[data.target_id];
 
+        if (game_state.battle_mod == 1) {
+          character_state.bonus_action[user_index] -= 1
+        }
+
         var hook_user_object = {}
         hook_user_object.cooldown = hook_cooldown
         character_state.special_effects[user_index].hook_user = hook_user_object
@@ -5505,6 +5509,7 @@ socket.registerMessageHandler((data) => {
           check_cooldown(i, "cut_limb_user", "");
           check_cooldown(i, "adrenaline_user", "");
           check_cooldown(i, "poisonous_adrenaline_user", "");
+          check_cooldown(i, "hook_user", "");
 
           if (character_state.special_effects[i].hasOwnProperty("safety_service_target")) {
             if (character_state.special_effects[i].safety_service_target.duration == 0) {
@@ -5524,6 +5529,15 @@ socket.registerMessageHandler((data) => {
               delete character_state.special_effects[i].belvet_buff_target
             } else {
               character_state.special_effects[i].belvet_buff_target.duration = character_state.special_effects[i].belvet_buff_target.duration - 1
+            }
+          }
+
+          if (character_state.special_effects[i].hasOwnProperty("hook_target")) {
+            if (character_state.special_effects[i].hook_target.duration == 0) {
+              change_character_property("defensive_advantage", i, -1*character_state.special_effects[i].hook_target.defensive_advantage);
+              delete character_state.special_effects[i].hook_target
+            } else {
+              character_state.special_effects[i].hook_target.duration -= 1
             }
           }
 
