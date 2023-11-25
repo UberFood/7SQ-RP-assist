@@ -1,0 +1,1 @@
+{"name":"Охранник Тянк","avatar":"/images/chibi_robot4.png", "strength":"4","stamina":"4","agility":"3","intelligence":"1", "KD_points": "12", "special_type": "tank", "inventory": [25,7], "skillset": [5,6,21,16,4,0,10,11,26,29,30], "group":"mutant", "bullet_resist": "5", "evade_bonus": "2"}
