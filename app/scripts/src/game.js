@@ -4403,85 +4403,87 @@ socket.registerMessageHandler((data) => {
     } else if (data.command == 'move_character_response') {
       var to_index = data.to_index;
       var from_index = data.from_index;
-      game_state.board_state[to_index] = data.character_number;
-      character_state.position[data.character_number] = to_index;
+      
+      if (game_state.board_state[to_index] == 0) {
+        game_state.board_state[to_index] = data.character_number;
+        character_state.position[data.character_number] = to_index;
 
-      for (let i = 0; i < data.invisibility_ended_id.length; i++) {
-        var id = data.invisibility_ended_id[i];
-        character_state.invisibility[id] = "all";
+        for (let i = 0; i < data.invisibility_ended_id.length; i++) {
+          var id = data.invisibility_ended_id[i];
+          character_state.invisibility[id] = "all";
 
-        var position = character_state.position[id];
-        var to_cell = document.getElementById('cell_' + position);
-        var avatar = get_object_picture(id);
-        to_cell.src = avatar;
-      }
+          var position = character_state.position[id];
+          var to_cell = document.getElementById('cell_' + position);
+          var avatar = get_object_picture(id);
+          to_cell.src = avatar;
+        }
 
-      var character = character_detailed_info[data.character_number]
+        var character = character_detailed_info[data.character_number]
 
-      if (!character.hasOwnProperty("landmine_immune")) {
-        for (let i = 0; i < data.mines_exploded.length; i++) {
-          var mine_position = data.mines_exploded[i]
-          var cell = document.getElementById('cell_' + mine_position);
-          cell.src = fogOrPic(mine_position)
-          var index = game_state.landmines.positions.indexOf(mine_position)
-          if (index > -1) {
-            game_state.landmines.positions.splice(index,1)
+        if (!character.hasOwnProperty("landmine_immune")) {
+          for (let i = 0; i < data.mines_exploded.length; i++) {
+            var mine_position = data.mines_exploded[i]
+            var cell = document.getElementById('cell_' + mine_position);
+            cell.src = fogOrPic(mine_position)
+            var index = game_state.landmines.positions.indexOf(mine_position)
+            if (index > -1) {
+              game_state.landmines.positions.splice(index,1)
+            }
+            game_state.landmines.knowers[mine_position] = []
           }
-          game_state.landmines.knowers[mine_position] = []
-        }
 
-        if (data.mines_damage > 0) {
-          explosion_audio.play();
-          do_damage(data.character_number, data.mines_damage)
-          var message = character.name + " подрывается на минах получая " + data.mines_damage + " урона"
-          pushToList(message)
+          if (data.mines_damage > 0) {
+            explosion_audio.play();
+            do_damage(data.character_number, data.mines_damage)
+            var message = character.name + " подрывается на минах получая " + data.mines_damage + " урона"
+            pushToList(message)
+          }
         }
-
-      }
 
       // remove shielded property from character and remove character from shielded list
-      if (data.left_shield == 1) {
-        delete character_state.special_effects[data.character_number].force_field_target
-        var index = game_state.terrain_effects[data.shield_index].character_list.indexOf(data.character_number)
-        if (index !== -1) {
-          game_state.terrain_effects[data.shield_index].character_list.splice(index, 1);
-        }
-      }
-
-      character_state.has_moved[data.character_number] = 1;
-
-      if (game_state.battle_mod == 1) {
-        character_state.stamina[data.character_number] = character_state.stamina[data.character_number] - stamina_move_cost
-        character_state.move_action[data.character_number] = character_state.move_action[data.character_number] - parseFloat(data.distance)
-        var character = character_detailed_info[data.character_number]
-        if (character.special_type == "sniper") {
-          var effects_object = character_state.special_effects[data.character_number]
-          if (effects_object.hasOwnProperty("sniper_passive")) {
-            var current_attack_bonus = effects_object.sniper_passive.attack_bonus
-            var current_damage_bonus = effects_object.sniper_passive.damage_bonus
-            character_state.attack_bonus[data.character_number] = character_state.attack_bonus[data.character_number] - current_attack_bonus - 5
-            character_state.damage_bonus[data.character_number] = character_state.damage_bonus[data.character_number] - current_damage_bonus
-            character_state.special_effects[data.character_number].sniper_passive.attack_bonus = -5
-            character_state.special_effects[data.character_number].sniper_passive.damage_bonus = 0
-          } else {
-            var sniper_passive_object = {}
-            sniper_passive_object.attack_bonus = -5
-            sniper_passive_object.damage_bonus = 0
-            character_state.special_effects[data.character_number].sniper_passive = sniper_passive_object
-            character_state.attack_bonus[data.character_number] = character_state.attack_bonus[data.character_number] - 5
+        if (data.left_shield == 1) {
+          delete character_state.special_effects[data.character_number].force_field_target
+          var index = game_state.terrain_effects[data.shield_index].character_list.indexOf(data.character_number)
+          if (index !== -1) {
+            game_state.terrain_effects[data.shield_index].character_list.splice(index, 1);
           }
         }
-      }
 
-      if (!(((my_role == 'player')&&(game_state.fog_state[to_index] == 1)) || (character_state.invisibility[data.character_number] != "all" && character_state.invisibility[data.character_number] != my_name))) {
-        var to_cell = document.getElementById('cell_' + to_index);
-        to_cell.src = get_object_picture(data.character_number);
-      }
+        character_state.has_moved[data.character_number] = 1;
 
-      game_state.board_state[from_index] = 0;
-      if (!((my_role == 'player')&&(game_state.fog_state[from_index] == 1))) {
-        var old_cell = document.getElementById("cell_" + from_index);
-        old_cell.src = EMPTY_CELL_PIC;
+        if (game_state.battle_mod == 1) {
+          character_state.stamina[data.character_number] = character_state.stamina[data.character_number] - stamina_move_cost
+          character_state.move_action[data.character_number] = character_state.move_action[data.character_number] - parseFloat(data.distance)
+          var character = character_detailed_info[data.character_number]
+          if (character.special_type == "sniper") {
+            var effects_object = character_state.special_effects[data.character_number]
+            if (effects_object.hasOwnProperty("sniper_passive")) {
+              var current_attack_bonus = effects_object.sniper_passive.attack_bonus
+              var current_damage_bonus = effects_object.sniper_passive.damage_bonus
+              character_state.attack_bonus[data.character_number] = character_state.attack_bonus[data.character_number] - current_attack_bonus - 5
+              character_state.damage_bonus[data.character_number] = character_state.damage_bonus[data.character_number] - current_damage_bonus
+              character_state.special_effects[data.character_number].sniper_passive.attack_bonus = -5
+              character_state.special_effects[data.character_number].sniper_passive.damage_bonus = 0
+            } else {
+              var sniper_passive_object = {}
+              sniper_passive_object.attack_bonus = -5
+              sniper_passive_object.damage_bonus = 0
+              character_state.special_effects[data.character_number].sniper_passive = sniper_passive_object
+              character_state.attack_bonus[data.character_number] = character_state.attack_bonus[data.character_number] - 5
+            }
+          }
+        }
+
+        if (!(((my_role == 'player')&&(game_state.fog_state[to_index] == 1)) || (character_state.invisibility[data.character_number] != "all" && character_state.invisibility[data.character_number] != my_name))) {
+          var to_cell = document.getElementById('cell_' + to_index);
+          to_cell.src = get_object_picture(data.character_number);
+        }
+
+        game_state.board_state[from_index] = 0;
+        if (!((my_role == 'player')&&(game_state.fog_state[from_index] == 1))) {
+          var old_cell = document.getElementById("cell_" + from_index);
+          old_cell.src = EMPTY_CELL_PIC;
+        }
       }
     } else if (data.command == 'delete_character_response') {
       if (data.hasOwnProperty("character_number")) {
