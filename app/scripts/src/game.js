@@ -1465,9 +1465,6 @@ function select_character(index, cell) {
     }
   }
 
-
-  }
-
   var search_button = document.createElement("button");
   search_button.innerHTML = "Обыскать";
   search_button.index = index;
@@ -1619,6 +1616,8 @@ function select_character(index, cell) {
 }
 
   tiny_animate_containers()
+
+}
 
 }
 
@@ -4403,8 +4402,8 @@ socket.registerMessageHandler((data) => {
     } else if (data.command == 'move_character_response') {
       var to_index = data.to_index;
       var from_index = data.from_index;
-      
-      if (game_state.board_state[to_index] == 0) {
+
+      if (game_state.board_state[to_index] == 0 && game_state.board_state[from_index] == data.character_number) {
         game_state.board_state[to_index] = data.character_number;
         character_state.position[data.character_number] = to_index;
 
