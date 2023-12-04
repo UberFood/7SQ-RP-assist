@@ -11,6 +11,18 @@
   font-style: normal;
 }
 
+.gm_select {
+  display: none;
+}
+
+.gm_input {
+  display: none;
+}
+
+.gm_button {
+  display: none;
+}
+
 /* The Modal (background) */
 .modal {
   display: none; /* Hidden by default */
@@ -297,6 +309,7 @@ html, body {
 }
 
 #notifications-container{
+  display: none;
   height: 700px;
   height: 15%;
 }

@@ -21,6 +21,7 @@ var SYNC_BUTTON_SELECTOR = '[data-name="sync_button"]';
 var LANDMINE_BUTTON_SELECTOR = '[data-name="landmine_button"]';
 var FOG_ZONE_BUTTON_SELECTOR = '[data-name="fog_zone_button"]';
 var UNFOG_ZONE_BUTTON_SELECTOR = '[data-name="unfog_zone_button"]';
+var DOWNLOAD_BOARD_BUTTON_SELECTOR = '[data-name="download_board_button"]';
 
 var SAVES_SELECT_SELECTOR = '[data-name="saves_select"]';
 
@@ -197,7 +198,8 @@ const move_action_map = [1, 3, 4, 6, 8, 9, 10, 11, 12, 13, 14, 15]
 const bonus_action_map= [0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3]
 const main_action_map = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
 
-var effect_list = ["Увеличить силу", "Увеличить телосложение", "Увеличить ловкость", "Увеличить интеллект", "Увеличить КД", "Уменьшить силу", "Уменьшить телосложение", "Уменьшить ловкость", "Уменьшить интеллект", "Уменьшить КД"];
+var effect_list = ["Увеличить силу", "Увеличить телосложение", "Увеличить ловкость", "Увеличить интеллект", "Увеличить КД", "Уменьшить силу",
+"Уменьшить телосложение", "Уменьшить ловкость", "Уменьшить интеллект", "Уменьшить КД"];
 var INCREASE_STRENGTH = 0;
 var INCREASE_STAMINA = 1;
 var INCREASE_AGILITY = 2;
@@ -210,8 +212,11 @@ var DECREASE_INT = 8;
 var DECREASE_KD = 9;
 
 
-var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [], KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [], special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: [], evade_bonus: [], melee_resist: [], bullet_resist: []};
-let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: [], battle_mod: 0, landmines: {positions: [], knowers: []}};
+var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [],
+  KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [],
+  special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: [], evade_bonus: [], melee_resist: [], bullet_resist: []};
+let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: [], battle_mod: 0,
+  landmines: {positions: [], knowers: []}};
 let character_state = CHARACTER_STATE_CONSTANT;
 
 let gm_control_mod = 0; // normal mode
@@ -290,6 +295,10 @@ function saveBoard() {
   toSend.from_name = my_name;
   toSend.room_number = my_room;
   socket.sendMessage(toSend);
+}
+
+function downloadBoard() {
+
 }
 
 function send_construct_command(new_game_state) {
@@ -4292,6 +4301,7 @@ socket.registerMessageHandler((data) => {
         create_board_button.show();
         save_board_button.show();
         load_board_button.show();
+        download_board_button.show();
         roll_initiative_button.show();
         fog_button.show();
         zone_button.show();
@@ -6000,60 +6010,50 @@ socket.registerMessageHandler((data) => {
 
 var create_board_button = $(CREATE_BOARD_BUTTON_SELECTOR);
 create_board_button.on('click', createBoard);
-create_board_button.hide();
 
 var save_board_button = $(SAVE_BOARD_BUTTON_SELECTOR);
 save_board_button.on('click', saveBoard);
-save_board_button.hide();
 
 var load_board_button = $(LOAD_BOARD_BUTTON_SELECTOR);
 load_board_button.on('click', loadBoard);
-load_board_button.hide();
+
+var download_board_button = $(DOWNLOAD_BOARD_BUTTON_SELECTOR);
+download_board_button.on('click', downloadBoard);
 
 var roll_initiative_button = $(ROLL_INITIATIVE_BUTTON_SELECTOR);
 roll_initiative_button.on('click', rollInitiative);
-roll_initiative_button.hide();
 
 var fog_button = $(FOG_BUTTON_SELECTOR);
 fog_button.on('click', fogModeChange);
-fog_button.hide();
 
 var zone_button = $(ZONE_BUTTON_SELECTOR);
 zone_button.on('click', zoneModeChange);
-zone_button.hide();
 
 var chat_button = $(CHAT_BUTTON_SELECTOR);
 chat_button.on('click', changeChatVisibility);
 
 var mirror_button = $(MIRROR_BUTTON_SELECTOR);
 mirror_button.on('click', mirror_board);
-mirror_button.hide();
 
 var next_round_button = $(NEXT_ROUND_BUTTON_SELECTOR);
 next_round_button.on('click', start_new_round);
-next_round_button.hide();
 
 var battle_mod_button = $(BATTLE_MOD_BUTTON_SELECTOR);
 battle_mod_button.on('click', change_battle_mod);
-battle_mod_button.hide();
 
 var sync_button = $(SYNC_BUTTON_SELECTOR);
 sync_button.on('click', sync_board);
-sync_button.hide();
 
 var landmine_button = $(LANDMINE_BUTTON_SELECTOR);
 landmine_button.on('click', show_landmines);
 
 var fog_zone_button = $(FOG_ZONE_BUTTON_SELECTOR);
 fog_zone_button.on('click', fogCurrentZone);
-fog_zone_button.hide();
 
 var unfog_zone_button = $(UNFOG_ZONE_BUTTON_SELECTOR);
 unfog_zone_button.on('click', unfogCurrentZone);
-unfog_zone_button.hide();
 
 var zone_number_select = $(ZONE_NUMBER_SELECTOR);
-zone_number_select.hide();
 for (let i = 1; i < MAX_ZONES; i++) {
   var current_option = $("<option>");
   current_option.text('Зона ' + i);
@@ -6062,10 +6062,8 @@ for (let i = 1; i < MAX_ZONES; i++) {
 }
 
 var saves_select = $(SAVES_SELECT_SELECTOR);
-saves_select.hide();
 
 var search_modificator = $(SEARCH_MODIFICATOR_SELECTOR);
-search_modificator.hide();
 
 var notifications_list = $(NOTIFICATIONS_LIST_SELECTOR);
 for (let i = 0; i < CHAT_CASH; i++) {
@@ -6076,13 +6074,10 @@ for (let i = 0; i < CHAT_CASH; i++) {
 }
 
 var board_size_input = $(BOARD_SIZE_INPUT_SELECTOR);
-board_size_input.hide();
 
 var save_name_input = $(SAVE_NAME_INPUT_SELECTOR);
-save_name_input.hide();
 
 var notifications_container = $(NOTIFICATIONS_CONTANER_SELECTOR);
-notifications_container.hide();
 
 var character_info_container = $(CHARACTER_INFO_CONTANER_SELECTOR);
 
