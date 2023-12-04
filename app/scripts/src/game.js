@@ -298,7 +298,9 @@ function saveBoard() {
 }
 
 function downloadBoard() {
-
+  var name = saves_select.val();
+  var link_name = "saves/" + name + ".json";
+  document.getElementById('my_iframe').src = link_name;
 }
 
 function send_construct_command(new_game_state) {

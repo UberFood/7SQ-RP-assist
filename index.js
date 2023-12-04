@@ -33,6 +33,9 @@ const server = express()
         var type = mime.getType(filePath);
         console.log('Requested mime type: ' + type);
         res.setHeader('Content-Type', type);
+        if (type === "application/json") {
+          res.setHeader('Content-Disposition', 'attachment')
+        }
         res.end(data);
       }
     });
