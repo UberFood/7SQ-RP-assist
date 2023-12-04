@@ -342,6 +342,8 @@ function construct_board(new_game_state) {
           shift_onclick(index, cell)
         } else if (event.ctrlKey) {
           ctrl_onclick(index)
+        } else if (event.altKey) {
+          alt_onclick(index)
         } else {
           no_shift_onclick(my_role, gm_control_mod, game_state, character_chosen.in_process, cell, index)
         }
@@ -443,6 +445,12 @@ function ctrl_onclick(index) {
     var mod = 1 - fog_value
     var zone = game_state.zone_state[index]
     fogParseZone(mod, zone)
+  }
+}
+
+function alt_onclick(index) {
+  if (my_role == 'gm') {
+    delete_object_command(index);
   }
 }
 
@@ -998,6 +1006,10 @@ function add_character(board_index) {
   character_info_container.append(button);
   tiny_animate_containers()
 
+}
+
+function obstacle_number_to_board_number(obstacle_number) {
+  return -1*(obstacle_number + 1);
 }
 
 // Picture/avatar management
@@ -5542,22 +5554,30 @@ socket.registerMessageHandler((data) => {
         if (game_state.terrain_effects[i] !== null && game_state.terrain_effects[i] !== undefined) {
           switch (game_state.terrain_effects[i].type) {
             case "gas_bomb":
-                apply_bomb(game_state.terrain_effects[i].position, game_state.terrain_effects[i].radius)
-                if (game_state.terrain_effects[i].radius >= 4) {
+                var position = game_state.terrain_effects[i].position;
+                var radius = game_state.terrain_effects[i].radius;
+                apply_bomb(position, radius)
+                if (radius >= 4) {
                   if (my_role == "gm") {
-                    delete_object_command(game_state.terrain_effects[i].position)
+                    if (game_state.board_state[position] == obstacle_number_to_board_number(gas_bomb_obstacle)) {
+                      delete_object_command(position)
+                    }
                   }
                   game_state.terrain_effects[i] = null
                 } else {
-                  game_state.terrain_effects[i].radius = game_state.terrain_effects[i].radius + 1
+                  game_state.terrain_effects[i].radius += 1;
                 }
                 break;
             case "calingalator":
-                apply_calingalator(game_state.terrain_effects[i].position, game_state.terrain_effects[i].radius, game_state.terrain_effects[i].flat_heal, game_state.terrain_effects[i].roll_heal, data.calingalator_heal_roll_list, data.calingalator_coin_flip);
+                var position = game_state.terrain_effects[i].position;
+                var radius = game_state.terrain_effects[i].radius;
+                apply_calingalator(position, radius, game_state.terrain_effects[i].flat_heal, game_state.terrain_effects[i].roll_heal, data.calingalator_heal_roll_list, data.calingalator_coin_flip);
                 game_state.terrain_effects[i].duration = game_state.terrain_effects[i].duration - 1
                 if (game_state.terrain_effects[i].duration == 0) {
                   if (my_role == "gm") {
-                    delete_object_command(game_state.terrain_effects[i].position)
+                    if (game_state.board_state[position] == obstacle_number_to_board_number(calingalator_obstacle)) {
+                      delete_object_command(position)
+                    }
                   }
                   game_state.terrain_effects[i] = null
                 }
