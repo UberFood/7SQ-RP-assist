@@ -311,7 +311,6 @@ html, body {
 #notifications-container{
   display: none;
   height: 700px;
-  height: 15%;
 }
 
 #character-info-container > * {
@@ -361,6 +360,9 @@ html, body {
   border-radius: 5px;
   padding: 10px;
   margin: 10px 0;
+  height: 100%;
+  overflow-x: none;
+  overflow-y: scroll;
 }
 
 .notifications_list_element {
