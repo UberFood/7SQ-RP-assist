@@ -365,6 +365,10 @@ html, body {
   overflow-y: scroll;
 }
 
+.initiative_image:hover {
+  transform: scale(1.2);
+}
+
 .notifications_list_element {
   margin-top: 5px;
 }

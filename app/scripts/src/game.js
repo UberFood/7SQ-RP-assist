@@ -4534,6 +4534,17 @@ socket.registerMessageHandler((data) => {
         img.attr('src', character.avatar);
         img.attr('height', '50px');
         img.attr('width', '50px');
+        img.addClass("initiative_image");
+        img.on("mouseenter", function() {
+          var position = character_state.position[ordered_array[i]]
+          var cell = document.getElementById('cell_' + position);
+          cell.style.transform = "scale(1.2)";
+        });
+        img.on("mouseleave", function() {
+          var position = character_state.position[ordered_array[i]]
+          var cell = document.getElementById('cell_' + position);
+          cell.style.transform = "scale(1)";
+        });
         img.click(function() {
           var position = character_state.position[ordered_array[i]]
           var cell = document.getElementById('cell_' + position);
