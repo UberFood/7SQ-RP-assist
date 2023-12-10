@@ -573,23 +573,18 @@ function assignZone(index) {
 }
 
 function applyFog(index, cell) {
+  var toSend = {};
+  toSend.command = 'update_fog';
+  var index_list = [];
+  index_list.push(index);
+  toSend.index_list = index_list;
+  toSend.room_number = my_room;
 	if (game_state.fog_state[index] == 1) {
-		// send update message
-		var toSend = {};
-		toSend.command = 'update_fog';
 		toSend.update_type = 'remove';
-		toSend.index = index;
-    toSend.room_number = my_room;
-		socket.sendMessage(toSend);
 	} else {
-		// send update message
-		var toSend = {};
-		toSend.command = 'update_fog';
 		toSend.update_type = 'add';
-		toSend.index = index;
-    toSend.room_number = my_room;
-		socket.sendMessage(toSend);
 	}
+  socket.sendMessage(toSend);
 }
 
 function fogModeChange() {
@@ -666,12 +661,14 @@ function fogParseZone(mod, current_zone) {
   } else if (mod == 1) {
     toSend.update_type = 'add';
   }
+  var index_list = [];
   for (let i = 0; i < game_state.size * game_state.size; i++) {
     if (game_state.zone_state[i] == current_zone) {
-      toSend.index = i;
-      socket.sendMessage(toSend);
+      index_list.push(i);
     }
   }
+  toSend.index_list = index_list;
+  socket.sendMessage(toSend);
 }
 
 // Helper coordinate related functions
@@ -4590,15 +4587,20 @@ socket.registerMessageHandler((data) => {
       obstacle_detailed_info = full_game_state.obstacle_detailed_info;
       construct_board(full_game_state.game_state);
     } else if (data.command == 'update_fog_response') {
-				var index = data.index;
-				var cell = document.getElementById('cell_' + index);
-				if (data.update_type == 'remove') {
-					game_state.fog_state[index] = 0;
-					cell.src = get_object_picture(game_state.board_state[index]);
-				} else {
-					game_state.fog_state[index] = 1;
-					cell.src = FOG_IMAGE;
-				}
+				var index_list = data.index_list;
+        var fog_state;
+        if (data.update_type == 'remove') {
+          fog_state = 0;
+        } else {
+          fog_state = 1;
+        }
+
+        for (let i = 0; i < index_list.length; i++) {
+          let index = index_list[i];
+          var cell = document.getElementById('cell_' + index);
+          game_state.fog_state[index] = fog_state;
+          cell.src = fogOrPic(index);
+        }
 		} else if (data.command == 'assign_zone_response') {
       var index_list = data.index_list
       for (let i = 0; i < index_list.length; i++) {

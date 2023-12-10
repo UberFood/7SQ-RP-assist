@@ -285,14 +285,10 @@ wss.on('connection', (ws) => {
       });
 
     } else if (data.command == 'update_fog') {
-      var response = {};
-      response.room_number = data.room_number;
-      response.command = 'update_fog_response';
-      response.index = data.index;
-      response.to_name = 'all';
-      response.update_type = data.update_type;
+      data.command = 'update_fog_response';
+      data.to_name = 'all';
       wss.clients.forEach(function(clientSocket) {
-        clientSocket.send(JSON.stringify(response));
+        clientSocket.send(JSON.stringify(data));
       });
     } else if (data.command == 'assign_zone') {
       data.command = 'assign_zone_response';
