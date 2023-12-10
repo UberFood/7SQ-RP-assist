@@ -1355,7 +1355,7 @@ function select_character(index, cell) {
         aim_display.style.width = '50px';
       }
 
-
+      weapon_info_container.html("")
       weapon_info_container.append(main_action_display)
       weapon_info_container.append(bonus_action_display)
       weapon_info_container.append(move_action_display)
@@ -1518,6 +1518,7 @@ function select_character(index, cell) {
   weapon_mini_display.src = default_weapon.avatar;
   weapon_mini_display.classList.add("mini_display");
   weapon_mini_display.onmouseenter = function(event) {
+    weapon_info_container.html("")
     var weapon_index = character_state.current_weapon[character_number]
     display_weapon_detailed(weapon_index, weapon_info_container, true)
   }
@@ -1540,6 +1541,7 @@ function select_character(index, cell) {
   armor_mini_display.src = armor_image(character_number);
   armor_mini_display.classList.add("mini_display");
   armor_mini_display.onmouseenter = function(event) {
+    weapon_info_container.html("")
     display_armor_detailed(character_number, weapon_info_container)
   }
 
@@ -1555,6 +1557,7 @@ function select_character(index, cell) {
   spirit_mini_display.src = spirit_image(character_number);
   spirit_mini_display.classList.add("mini_display");
   spirit_mini_display.onmouseenter = function(event) {
+    weapon_info_container.html("")
     display_spirit_detailed(character_number, weapon_info_container)
   }
 
@@ -1816,6 +1819,7 @@ function show_modal(character_number, starting_index) {
           hide_modal()
         });
         skill_icon.on('mouseenter', function(event) {
+          skill_description_container.html('');
           var skill_number = event.target.getAttribute('skill_number');
           var skill_object = skill_detailed_info[skill_number];
           var skill_name_object = $("<h2>");
@@ -1855,6 +1859,7 @@ function show_modal(character_number, starting_index) {
         })
 
         skill_icon.on('mouseout', function(event) {
+          console.log("Skill description mouse out");
           skill_description_container.html('');
         })
         column.append(skill_icon);
