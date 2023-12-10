@@ -1854,7 +1854,7 @@ function show_modal(character_number, starting_index) {
           skill_description_container.append(skill_description_object);
         })
 
-        skill_icon.on('mouseleave', function(event) {
+        skill_icon.on('mouseout', function(event) {
           skill_description_container.html('');
         })
         column.append(skill_icon);
