@@ -6,11 +6,13 @@ var CHARACTER_INFO_CONTANER_SELECTOR = '[data-name="character-info-container"]';
 var WEAPON_INFO_CONTANER_SELECTOR = '[data-name="weapon-info-container"]';
 var NOTIFICATIONS_CONTANER_SELECTOR = '[data-name="notifications-container"]';
 var INITIATIVE_ORDER_CONTANER_SELECTOR = '[data-name="initiative-order-display-container"]';
+var INITIATIVE_DROPBOX_CONTAINER_SELECTOR = '[data-name="initiative-order-dropbox-container"]';
 
 var CREATE_BOARD_BUTTON_SELECTOR = '[data-name="create_board_button"]';
 var SAVE_BOARD_BUTTON_SELECTOR = '[data-name="save_board_button"]';
 var LOAD_BOARD_BUTTON_SELECTOR = '[data-name="load_board_button"]';
 var ROLL_INITIATIVE_BUTTON_SELECTOR = '[data-name="roll_initiative_button"]';
+var RESET_INITIATIVE_BUTTON_SELECTOR = '[data-name="reset_initiative_button"]';
 var FOG_BUTTON_SELECTOR = '[data-name="fog_button"]';
 var ZONE_BUTTON_SELECTOR = '[data-name="zone_button"]';
 var CHAT_BUTTON_SELECTOR = '[data-name="chat_button"]';
@@ -55,6 +57,8 @@ var skill_list = [];
 var skill_detailed_info;
 var saves_list = [];
 
+var initiative_order_array = [];
+
 var TINY_EFFECT_CLASS = 'is-tiny';
 
 var EMPTY_CELL_PIC = "./images/square.jpg";
@@ -66,6 +70,7 @@ var AIM_IMAGE = "./images/aim.jpg";
 var RIGHT_ARROW_IMAGE = "./images/right_arrow.png";
 var ARMOR_IMAGE = "./images/armor.jpg";
 var SPIRIT_IMAGE = "./images/chakra.jpg";
+var DROPBOX_IMAGE = "./images/basket.jpg";
 
 var MAX_ZONES = 25;
 var CHAT_CASH = 100;
@@ -223,6 +228,7 @@ let gm_control_mod = 0; // normal mode
 
 // in_process: 0 = nothing, 1 = move, 2 = attack, 3 = skill
 let character_chosen = {in_process: 0, char_id: 0, char_position: 0, weapon_id: 0, skill_id: 0, cell: 0};
+let dragged = null;
 
 let last_obstacle = 1;
 let zone_endpoint = {index: -1, cell: 0}
@@ -354,7 +360,8 @@ function construct_board(new_game_state) {
         event.preventDefault();
       }
       button.ondragstart = function(event) {
-        var cell = event.target;
+        dragged = event.target;
+        var cell = dragged;
         var index = cell.row * game_state.size + cell.column;
         var character_number = game_state.board_state[index];
         if (character_number > 0 && (my_role == "gm" || character_state.visibility[character_number] == 1) && (character_state.invisibility[character_number] == 'all' || character_state.invisibility[character_number] == my_name) && (my_role == "gm" || game_state.fog_state[index] == 0)) {
@@ -1905,6 +1912,14 @@ function stop_skill() {
   character_chosen.in_process = 0
   var old_cell = document.getElementById("cell_" + character_chosen.char_position);
   old_cell.src = get_object_picture(character_chosen.char_id);
+}
+
+// initiative related functions
+
+function resetInitiative() {
+  initiative_order_array = [];
+  initiative_order_container.html('');
+
 }
 
 
@@ -4319,6 +4334,7 @@ socket.registerMessageHandler((data) => {
         load_board_button.show();
         download_board_button.show();
         roll_initiative_button.show();
+        reset_initiative_button.show();
         fog_button.show();
         zone_button.show();
         save_name_input.show();
@@ -4328,6 +4344,50 @@ socket.registerMessageHandler((data) => {
         battle_mod_button.show();
         sync_button.show();
         saves_select.show();
+
+        var dropbox_image = $("<img>");
+        dropbox_image.attr('src', DROPBOX_IMAGE);
+        dropbox_image.attr('height', '100px');
+        dropbox_image.attr('width', '100px');
+
+        dropbox_image.on("dragover", function(event) {
+          event.preventDefault();
+        });
+
+        dropbox_image.on("drop", function(event) {
+          var cell = dragged;
+          var index = cell.row * game_state.size + cell.column;
+          var character_number = game_state.board_state[index];
+          initiative_order_array.push(character_number);
+
+          var character = character_detailed_info[character_number]
+          var i = initiative_order_array.length - 1;
+          var query_string = '<img> id="initiative_image_' + i + '"'
+          var img = $(query_string)
+          img.attr('src', character.avatar);
+          img.attr('height', '50px');
+          img.attr('width', '50px');
+          img.addClass("initiative_image");
+          img.on("mouseenter", function() {
+            var position = character_state.position[character_number]
+            var cell = document.getElementById('cell_' + position);
+            cell.style.transform = "scale(1.2)";
+          });
+          img.on("mouseleave", function() {
+            var position = character_state.position[character_number]
+            var cell = document.getElementById('cell_' + position);
+            cell.style.transform = "scale(1)";
+          });
+          img.click(function() {
+            var position = character_state.position[character_number]
+            var cell = document.getElementById('cell_' + position);
+            //select_character(position, cell)
+            no_shift_onclick(my_role, gm_control_mod, game_state, character_chosen.in_process, cell, position)
+          })
+          img.appendTo(initiative_order_container);
+        });
+
+        dropbox_image.appendTo(initiative_dropbox_container);
 
         document.onkeydown = function (e) {
             var keyCode = e.keyCode;
@@ -6063,6 +6123,9 @@ download_board_button.on('click', downloadBoard);
 var roll_initiative_button = $(ROLL_INITIATIVE_BUTTON_SELECTOR);
 roll_initiative_button.on('click', rollInitiative);
 
+var reset_initiative_button = $(RESET_INITIATIVE_BUTTON_SELECTOR);
+reset_initiative_button.on('click', resetInitiative);
+
 var fog_button = $(FOG_BUTTON_SELECTOR);
 fog_button.on('click', fogModeChange);
 
@@ -6125,6 +6188,8 @@ var weapon_info_container = $(WEAPON_INFO_CONTANER_SELECTOR);
 weapon_info_container.hide();
 
 var initiative_order_container = $(INITIATIVE_ORDER_CONTANER_SELECTOR);
+
+var initiative_dropbox_container = $(INITIATIVE_DROPBOX_CONTAINER_SELECTOR);
 
 var skill_modal = $(SKILL_MODAL_SELECTOR);
 
