@@ -207,13 +207,10 @@ wss.on('connection', (ws) => {
         clientSocket.send(JSON.stringify(data));
       });
     } else if (data.command == 'roll_initiative') {
-      var response = {};
-      response.room_number = data.room_number;
-      response.command = 'roll_initiative_response';
-      response.to_name = 'all';
-      response.initiative_state = data.initiative_state;
+      data.command = 'roll_initiative_response';
+      data.to_name = 'all';
       wss.clients.forEach(function(clientSocket) {
-        clientSocket.send(JSON.stringify(response));
+        clientSocket.send(JSON.stringify(data));
       });
     } else if (data.command == 'deal_damage') {
       var response = {};

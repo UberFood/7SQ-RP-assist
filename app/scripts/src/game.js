@@ -1960,22 +1960,22 @@ function rollSearch(intelligence, mod) {
 }
 
 function rollInitiative() {
-  for (let i = 1; i < character_state.initiative.length; i++) {
-    if (character_state.HP[i] > 0) { // so character i is present
-      // retrieve that character's agility
-      var character = character_detailed_info[i];
-      var agility = character.agility;
+  for (let i = 0; i < initiative_order_array.length; i++) {
+    // retrieve that character's agility
+    var character_number = initiative_order_array[i];
+    var character = character_detailed_info[character_number];
+    var agility = character.agility;
 
-      // roll initiative and add agility modificator
-      var initiative = computeInitiative(parseInt(agility));
-
-      character_state.initiative[i] = initiative;
-    }
+    // roll initiative and add agility modificator
+    var initiative = computeInitiative(parseInt(agility));
+    character_state.initiative[character_number] = initiative;
   }
+  initiative_order_array.sort(compare_initiative);
   var toSend = {};
   toSend.command = 'roll_initiative';
   toSend.room_number = my_room;
   toSend.initiative_state = character_state.initiative;
+  toSend.initiative_order_array = initiative_order_array;
   socket.sendMessage(toSend);
 }
 
@@ -4586,16 +4586,10 @@ socket.registerMessageHandler((data) => {
       }
     } else if (data.command == 'roll_initiative_response') {
       character_state.initiative = data.initiative_state;
-      var ordered_array = []
-      for (let i = 0; i < character_state.initiative.length; i++) {
-        if (character_state.HP[i] > 0) {// character is present
-          ordered_array.push(i)
-        }
-      }
-      ordered_array.sort(compare_initiative);
+      initiative_order_array = data.initiative_order_array;
       initiative_order_container.html("")
-      for (let i = 0; i < ordered_array.length; i++) {
-        var img = construct_initiative_image(ordered_array[i], i);
+      for (let i = 0; i < initiative_order_array.length; i++) {
+        var img = construct_initiative_image(initiative_order_array[i], i);
         img.appendTo(initiative_order_container);
       }
 
