@@ -1922,6 +1922,32 @@ function resetInitiative() {
 
 }
 
+function construct_initiative_image(character_number, i) {
+  var character = character_detailed_info[character_number]
+  var query_string = '<img> id="initiative_image_' + i + '"'
+  var img = $(query_string)
+  img.attr('src', character.avatar);
+  img.attr('height', '50px');
+  img.attr('width', '50px');
+  img.addClass("initiative_image");
+  img.on("mouseenter", function() {
+    var position = character_state.position[character_number]
+    var cell = document.getElementById('cell_' + position);
+    cell.style.transform = "scale(1.2)";
+  });
+  img.on("mouseleave", function() {
+    var position = character_state.position[character_number]
+    var cell = document.getElementById('cell_' + position);
+    cell.style.transform = "";
+  });
+  img.click(function() {
+    var position = character_state.position[character_number]
+    var cell = document.getElementById('cell_' + position);
+    //select_character(position, cell)
+    no_shift_onclick(my_role, gm_control_mod, game_state, character_chosen.in_process, cell, position)
+  })
+  return img;
+}
 
 // roll something
 
@@ -4355,35 +4381,14 @@ socket.registerMessageHandler((data) => {
         });
 
         dropbox_image.on("drop", function(event) {
+          undo_selection();
           var cell = dragged;
           var index = cell.row * game_state.size + cell.column;
           var character_number = game_state.board_state[index];
           initiative_order_array.push(character_number);
 
-          var character = character_detailed_info[character_number]
           var i = initiative_order_array.length - 1;
-          var query_string = '<img> id="initiative_image_' + i + '"'
-          var img = $(query_string)
-          img.attr('src', character.avatar);
-          img.attr('height', '50px');
-          img.attr('width', '50px');
-          img.addClass("initiative_image");
-          img.on("mouseenter", function() {
-            var position = character_state.position[character_number]
-            var cell = document.getElementById('cell_' + position);
-            cell.style.transform = "scale(1.2)";
-          });
-          img.on("mouseleave", function() {
-            var position = character_state.position[character_number]
-            var cell = document.getElementById('cell_' + position);
-            cell.style.transform = "scale(1)";
-          });
-          img.click(function() {
-            var position = character_state.position[character_number]
-            var cell = document.getElementById('cell_' + position);
-            //select_character(position, cell)
-            no_shift_onclick(my_role, gm_control_mod, game_state, character_chosen.in_process, cell, position)
-          })
+          var img = construct_initiative_image(character_number, i);
           img.appendTo(initiative_order_container);
         });
 
@@ -4590,31 +4595,8 @@ socket.registerMessageHandler((data) => {
       ordered_array.sort(compare_initiative);
       initiative_order_container.html("")
       for (let i = 0; i < ordered_array.length; i++) {
-        var character = character_detailed_info[ordered_array[i]]
-        var query_string = '<img> id="initiative_image_' + i + '"'
-        var img = $(query_string)
-        img.attr('src', character.avatar);
-        img.attr('height', '50px');
-        img.attr('width', '50px');
-        img.addClass("initiative_image");
-        img.on("mouseenter", function() {
-          var position = character_state.position[ordered_array[i]]
-          var cell = document.getElementById('cell_' + position);
-          cell.style.transform = "scale(1.2)";
-        });
-        img.on("mouseleave", function() {
-          var position = character_state.position[ordered_array[i]]
-          var cell = document.getElementById('cell_' + position);
-          cell.style.transform = "scale(1)";
-        });
-        img.click(function() {
-          var position = character_state.position[ordered_array[i]]
-          var cell = document.getElementById('cell_' + position);
-          //select_character(position, cell)
-          no_shift_onclick(my_role, gm_control_mod, game_state, character_chosen.in_process, cell, position)
-        })
+        var img = construct_initiative_image(ordered_array[i], i);
         img.appendTo(initiative_order_container);
-
       }
 
     } else if (data.command == 'deal_damage_response') {
