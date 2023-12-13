@@ -23,6 +23,17 @@
   display: none;
 }
 
+.horizontal_container {
+  display: flex;
+  flex-direction: row;
+  margin-top: 5px;
+}
+
+.dropbox {
+  margin-right: 5px;
+  margin-left: 5px;
+}
+
 /* The Modal (background) */
 .modal {
   display: none; /* Hidden by default */

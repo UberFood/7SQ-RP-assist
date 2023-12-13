@@ -4430,8 +4430,9 @@ socket.registerMessageHandler((data) => {
 
         var dropbox_image = $("<img>");
         dropbox_image.attr('src', DROPBOX_IMAGE);
-        dropbox_image.attr('height', '100px');
+        dropbox_image.attr('height', '70px');
         dropbox_image.attr('width', '100px');
+        dropbox_image.addClass("dropbox");
 
         dropbox_image.on("dragover", function(event) {
           event.preventDefault();
