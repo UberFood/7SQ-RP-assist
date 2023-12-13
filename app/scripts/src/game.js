@@ -1895,6 +1895,12 @@ function hide_modal() {
   next_page_button_container.html("");
 }
 
+function unhover_character(character_number) {
+  var position = character_state.position[character_number]
+  var board_cell = document.getElementById('cell_' + position);
+  board_cell.style.transform = "";
+}
+
 // attack related helpers
 
 function choose_character_to_attack(cell) {
@@ -1929,6 +1935,7 @@ function construct_initiative_image(character_number, i) {
   img.attr('src', character.avatar);
   img.attr('height', '50px');
   img.attr('width', '50px');
+  img.attr('array_position', i);
   img.addClass("initiative_image");
   img.on("mouseenter", function() {
     var position = character_state.position[character_number]
@@ -1936,9 +1943,7 @@ function construct_initiative_image(character_number, i) {
     cell.style.transform = "scale(1.2)";
   });
   img.on("mouseleave", function() {
-    var position = character_state.position[character_number]
-    var cell = document.getElementById('cell_' + position);
-    cell.style.transform = "";
+    unhover_character(character_number);
   });
   img.click(function() {
     var position = character_state.position[character_number]
@@ -1946,6 +1951,10 @@ function construct_initiative_image(character_number, i) {
     //select_character(position, cell)
     no_shift_onclick(my_role, gm_control_mod, game_state, character_chosen.in_process, cell, position)
   })
+  img.attr('draggable', true);
+  img.on("dragstart", function(event) {
+    dragged = event.target;
+  });
   return img;
 }
 
@@ -4381,15 +4390,23 @@ socket.registerMessageHandler((data) => {
         });
 
         dropbox_image.on("drop", function(event) {
-          undo_selection();
           var cell = dragged;
-          var index = cell.row * game_state.size + cell.column;
-          var character_number = game_state.board_state[index];
-          initiative_order_array.push(character_number);
+          if (cell.classList.contains("board_cell")) {
+            undo_selection();
+            var index = cell.row * game_state.size + cell.column;
+            var character_number = game_state.board_state[index];
+            initiative_order_array.push(character_number);
 
-          var i = initiative_order_array.length - 1;
-          var img = construct_initiative_image(character_number, i);
-          img.appendTo(initiative_order_container);
+            var i = initiative_order_array.length - 1;
+            var img = construct_initiative_image(character_number, i);
+            img.appendTo(initiative_order_container);
+          } else if (cell.classList.contains("initiative_image")) {
+            var i = cell.getAttribute("array_position");
+            var character_number = initiative_order_array[i];
+            unhover_character(character_number);
+            initiative_order_array.splice(i, 1);
+            cell.remove();
+          }
         });
 
         dropbox_image.appendTo(initiative_dropbox_container);
