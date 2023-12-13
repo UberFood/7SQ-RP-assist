@@ -8,6 +8,7 @@ var NOTIFICATIONS_CONTANER_SELECTOR = '[data-name="notifications-container"]';
 var INITIATIVE_ORDER_CONTANER_SELECTOR = '[data-name="initiative-order-display-container"]';
 var INITIATIVE_DROPBOX_CONTAINER_SELECTOR = '[data-name="initiative-order-dropbox-container"]';
 
+var SHOW_BOARD_CREATION_GROUP_BUTTON_SELECTOR = '[data-name="show_board_creation_group_button"]';
 var CREATE_BOARD_BUTTON_SELECTOR = '[data-name="create_board_button"]';
 var SAVE_BOARD_BUTTON_SELECTOR = '[data-name="save_board_button"]';
 var LOAD_BOARD_BUTTON_SELECTOR = '[data-name="load_board_button"]';
@@ -39,6 +40,8 @@ var SKILL_MODAL_SELECTOR = '[data-name="skill-modal"]';
 var SKILL_MODAL_CONTENT_SELECTOR = '[data-name="skill-modal-content"]';
 var SKILL_DESCRIPTION_CONTAINER_SELECTOR = '[data-name="skill-description-container"]';
 var NEXT_PAGE_BUTTON_CONTAINER_SELECTOR = '[data-name="next-page-button-container"]';
+
+var BOARD_CREATION_GROUP_SELECTOR = '[data-group-name="board_creation_group"]';
 
 var SERVER_ADDRESS = location.origin.replace(/^http/, 'ws');
 
@@ -1956,6 +1959,14 @@ function construct_initiative_image(character_number, i) {
     dragged = event.target;
   });
   return img;
+}
+
+function display_initiative_line() {
+  initiative_order_container.html("");
+  for (let i = 0; i < initiative_order_array.length; i++) {
+    var img = construct_initiative_image(initiative_order_array[i], i);
+    img.appendTo(initiative_order_container);
+  }
 }
 
 // roll something
@@ -4251,7 +4262,8 @@ function sync_board() {
     game_state: game_state,
     character_detailed_info: character_detailed_info,
     obstacle_detailed_info: obstacle_detailed_info,
-    character_state: character_state
+    character_state: character_state,
+    initiative_order_array: initiative_order_array
   };
 
   var toSend = {};
@@ -4340,6 +4352,20 @@ function compare_initiative(a,b) {
   }
 }
 
+function showBoardCreationGroup() {
+  var board_creation_group = $(BOARD_CREATION_GROUP_SELECTOR);
+  if (show_board_creation_group_button.attr("mod") == "show") {
+    show_board_creation_group_button.attr("mod", "hide");
+    show_board_creation_group_button.html("Спрятать создание карты");
+    board_creation_group.show();
+
+  } else {
+    show_board_creation_group_button.attr("mod", "show");
+    show_board_creation_group_button.html("Показать создание карты");
+    board_creation_group.hide();
+  }
+}
+
 //socket.init('ws://localhost:3001');
 socket.init(SERVER_ADDRESS);
 
@@ -4364,21 +4390,16 @@ socket.registerMessageHandler((data) => {
         window.location.href = "/";
       }
       if (data.role == 'gm') {
-        create_board_button.show();
-        save_board_button.show();
-        load_board_button.show();
-        download_board_button.show();
         roll_initiative_button.show();
         reset_initiative_button.show();
         fog_button.show();
         zone_button.show();
-        save_name_input.show();
-        board_size_input.show();
         mirror_button.show();
         next_round_button.show();
         battle_mod_button.show();
         sync_button.show();
-        saves_select.show();
+        show_board_creation_group_button.show();
+        show_board_creation_group_button.attr("mod", "show");
 
         var dropbox_image = $("<img>");
         dropbox_image.attr('src', DROPBOX_IMAGE);
@@ -4604,12 +4625,7 @@ socket.registerMessageHandler((data) => {
     } else if (data.command == 'roll_initiative_response') {
       character_state.initiative = data.initiative_state;
       initiative_order_array = data.initiative_order_array;
-      initiative_order_container.html("")
-      for (let i = 0; i < initiative_order_array.length; i++) {
-        var img = construct_initiative_image(initiative_order_array[i], i);
-        img.appendTo(initiative_order_container);
-      }
-
+      display_initiative_line();
     } else if (data.command == 'deal_damage_response') {
       character_state.HP[data.character_number] = character_state.HP[data.character_number] - data.damage;
     } else if (data.command == 'save_game_response') {
@@ -4639,6 +4655,8 @@ socket.registerMessageHandler((data) => {
       character_detailed_info = full_game_state.character_detailed_info;
       obstacle_detailed_info = full_game_state.obstacle_detailed_info;
       construct_board(full_game_state.game_state);
+      initiative_order_array = full_game_state.initiative_order_array;
+      display_initiative_line()
     } else if (data.command == 'update_fog_response') {
 				var index_list = data.index_list;
         var fog_state;
@@ -6100,6 +6118,9 @@ socket.registerMessageHandler((data) => {
     }
   }
 });
+
+var show_board_creation_group_button = $(SHOW_BOARD_CREATION_GROUP_BUTTON_SELECTOR);
+show_board_creation_group_button.on('click', showBoardCreationGroup);
 
 var create_board_button = $(CREATE_BOARD_BUTTON_SELECTOR);
 create_board_button.on('click', createBoard);
