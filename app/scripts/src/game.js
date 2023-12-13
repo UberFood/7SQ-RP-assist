@@ -9,6 +9,8 @@ var INITIATIVE_ORDER_CONTANER_SELECTOR = '[data-name="initiative-order-display-c
 var INITIATIVE_DROPBOX_CONTAINER_SELECTOR = '[data-name="initiative-order-dropbox-container"]';
 
 var SHOW_BOARD_CREATION_GROUP_BUTTON_SELECTOR = '[data-name="show_board_creation_group_button"]';
+var SHOW_BOARD_EDIT_GROUP_BUTTON_SELECTOR = '[data-name="show_board_edit_group_button"]';
+var SHOW_BATTLE_CONTROL_GROUP_BUTTON_SELECTOR = '[data-name="show_battle_control_group_button"]';
 var CREATE_BOARD_BUTTON_SELECTOR = '[data-name="create_board_button"]';
 var SAVE_BOARD_BUTTON_SELECTOR = '[data-name="save_board_button"]';
 var LOAD_BOARD_BUTTON_SELECTOR = '[data-name="load_board_button"]';
@@ -42,6 +44,8 @@ var SKILL_DESCRIPTION_CONTAINER_SELECTOR = '[data-name="skill-description-contai
 var NEXT_PAGE_BUTTON_CONTAINER_SELECTOR = '[data-name="next-page-button-container"]';
 
 var BOARD_CREATION_GROUP_SELECTOR = '[data-group-name="board_creation_group"]';
+var BOARD_EDIT_GROUP_SELECTOR = '[data-group-name="board_edit_group"]';
+var BATTLE_CONTROL_GROUP_SELECTOR = '[data-group-name="battle_control_group"]';
 
 var SERVER_ADDRESS = location.origin.replace(/^http/, 'ws');
 
@@ -4366,6 +4370,32 @@ function showBoardCreationGroup() {
   }
 }
 
+function showBoardEditGroup() {
+  var board_edit_group = $(BOARD_EDIT_GROUP_SELECTOR);
+  if (show_board_edit_group_button.attr("mod") == "show") {
+    show_board_edit_group_button.attr("mod", "hide");
+    show_board_edit_group_button.html("Спрятать контроль карты");
+    board_edit_group.show();
+  } else {
+    show_board_edit_group_button.attr("mod", "show");
+    show_board_edit_group_button.html("Показать контроль карты");
+    board_edit_group.hide();
+  }
+}
+
+function showBattleControlGroup() {
+  var battle_control_group = $(BATTLE_CONTROL_GROUP_SELECTOR);
+  if (show_battle_control_group_button.attr("mod") == "show") {
+    show_battle_control_group_button.attr("mod", "hide");
+    show_battle_control_group_button.html("Спрятать боевые настройки");
+    battle_control_group.show();
+  } else {
+    show_battle_control_group_button.attr("mod", "show");
+    show_battle_control_group_button.html("Показать боевые настройки");
+    battle_control_group.hide();
+  }
+}
+
 //socket.init('ws://localhost:3001');
 socket.init(SERVER_ADDRESS);
 
@@ -4390,16 +4420,13 @@ socket.registerMessageHandler((data) => {
         window.location.href = "/";
       }
       if (data.role == 'gm') {
-        roll_initiative_button.show();
-        reset_initiative_button.show();
-        fog_button.show();
-        zone_button.show();
-        mirror_button.show();
-        next_round_button.show();
-        battle_mod_button.show();
         sync_button.show();
         show_board_creation_group_button.show();
         show_board_creation_group_button.attr("mod", "show");
+        show_board_edit_group_button.show();
+        show_board_edit_group_button.attr("mod", "show");
+        show_battle_control_group_button.show();
+        show_battle_control_group_button.attr("mod", "show");
 
         var dropbox_image = $("<img>");
         dropbox_image.attr('src', DROPBOX_IMAGE);
@@ -6121,6 +6148,12 @@ socket.registerMessageHandler((data) => {
 
 var show_board_creation_group_button = $(SHOW_BOARD_CREATION_GROUP_BUTTON_SELECTOR);
 show_board_creation_group_button.on('click', showBoardCreationGroup);
+
+var show_board_edit_group_button = $(SHOW_BOARD_EDIT_GROUP_BUTTON_SELECTOR);
+show_board_edit_group_button.on('click', showBoardEditGroup);
+
+var show_battle_control_group_button = $(SHOW_BATTLE_CONTROL_GROUP_BUTTON_SELECTOR);
+show_battle_control_group_button.on('click', showBattleControlGroup);
 
 var create_board_button = $(CREATE_BOARD_BUTTON_SELECTOR);
 create_board_button.on('click', createBoard);
