@@ -518,7 +518,7 @@ function standard_cell_onClick(index, cell, role) {
         undo_selection();
         break;
       case 2: //attack
-        stop_attack()
+        attack_obstacle(index, cell);
         break;
       case 3: //skill
         perform_skill(index, cell)
@@ -799,6 +799,9 @@ function cells_on_line(endpoint1, endpoint2, size) {
   var safety_iter = 0
   var candidate_cells = []
   while (Math.abs(current_point.x - endpoint1_coord.x) > 0.5 || Math.abs(current_point.y - endpoint1_coord.y) > 0.5) {
+    current_point.x += x_step
+    current_point.y += y_step
+
     var ceil = {}
     ceil.x = Math.ceil(current_point.x)
     ceil.y = Math.ceil(current_point.y)
@@ -815,15 +818,11 @@ function cells_on_line(endpoint1, endpoint2, size) {
       candidate_cells.push(floor_index)
     }
 
-    current_point.x = current_point.x  + x_step
-    current_point.y = current_point.y  + y_step
     safety_iter = safety_iter + 1
     if (safety_iter > 50) {
       break;
     }
   }
-
-  console.log(candidate_cells)
   return candidate_cells
 }
 
@@ -2308,13 +2307,11 @@ function weapon_damage_bonus(raw_damage, weapon, character_number) {
 function perform_attack(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
-
   var weapon = weapon_detailed_info[character_chosen.weapon_id]
 
   if (isInRange(index, user_position, weapon.range)) {
 
     var accumulated_cover = get_accumulated_cover(user_position, index)
-
     var cover_modifier = cover_mod(accumulated_cover)
 
 
@@ -2412,6 +2409,80 @@ function perform_attack(index, cell) {
       alert("Далековато...")
   }
   stop_attack()
+}
+
+function attack_obstacle(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  var weapon = weapon_detailed_info[character_chosen.weapon_id]
+
+  if (isInRange(index, user_position, weapon.range)) {
+    var target_obstacle_number = Math.abs(game_state.board_state[index]);
+    var target_obstacle = obstacle_detailed_info[target_obstacle_number]
+
+    var accumulated_cover = get_accumulated_cover(user_position, index)
+    var cover_modifier = cover_mod(accumulated_cover)
+
+    var toSend = {};
+    toSend.command = 'attack_obstacle';
+    toSend.room_number = my_room;
+    toSend.attacker_id = user_character_number
+    toSend.attacker_position = user_position
+    toSend.target_id = target_obstacle_number
+    toSend.user_invisibility_ended = 0
+    toSend.attack_type = weapon.type
+    toSend.cover_level = cover_modifier.cover_level
+    toSend.target_position = index;
+
+    if (weapon.hasOwnProperty("subtype") && weapon.subtype == "PP") {
+      toSend.quick_attack_ready = true;
+    }
+
+    if (character_state.invisibility[user_character_number] != "all" && weapon.type != "throwing") {
+      toSend.user_invisibility_ended = 1
+    }
+
+    if (cover_modifier.isPossible) {
+      if (target_obstacle.hasOwnProperty("toughness")) {
+        var attack_roll = roll_x(20);
+        var damage = 0;
+        switch(attack_roll) {
+          case 19:
+            damage = damage = weapon.damage[1] * weapon.damage[0]
+            damage = weapon_damage_bonus(damage, weapon, user_character_number)
+            break;
+          case 20:
+            damage = damage = weapon.damage[1] * weapon.damage[0]
+            damage = weapon_damage_bonus(damage, weapon, user_character_number)
+            damage *= 2;
+            break;
+          default:
+            for (let i = 0; i < weapon.damage[0]; i++) {
+              damage += roll_x(weapon.damage[1]);
+            }
+            damage = weapon_damage_bonus(damage, weapon, user_character_number);
+        }
+        toSend.damage = damage;
+        if (damage >= target_obstacle.toughness) {
+          toSend.outcome = "destroyed";
+        } else {
+          toSend.outcome = "untouched";
+        }
+      } else {
+        toSend.damage = 0;
+        toSend.outcome = "untouched";
+      }
+
+
+    } else {
+      toSend.outcome = "full_cover";
+    }
+    socket.sendMessage(toSend);
+
+  } else {
+    alert("Далековато...");
+  }
+  stop_attack();
 }
 
 function compute_damage(weapon, character_number, attack_roll, target_number) {
@@ -6124,6 +6195,67 @@ socket.registerMessageHandler((data) => {
           console.log("fucked up resolving damage")
           break;
       }
+    } else if (data.command == 'attack_obstacle_response') {
+      if (data.attack_type == "ranged") {
+        var audio = gunshot_audio
+      } else if (data.attack_type == "melee") {
+        var audio = sword_audio
+      } else {// default including energy and throwing
+        var audio = suriken_audio
+      }
+      audio.play();
+
+      var attacker = character_detailed_info[data.attacker_id]
+      var target = obstacle_detailed_info[data.target_id]
+
+      if (data.user_invisibility_ended == 1) {
+        character_state.invisibility[data.attacker_id] = "all"
+        var attacker_cell = document.getElementById('cell_' + data.attacker_position);
+        attacker_cell.src = character_detailed_info[data.attacker_id].avatar;
+      }
+
+      character_state.has_moved[data.attacker_id] = 1
+
+      if (game_state.battle_mod == 1) {
+        character_state.stamina[data.attacker_id] = character_state.stamina[data.attacker_id] - stamina_attack_cost
+        character_state.main_action[data.attacker_id] = character_state.main_action[data.attacker_id] - 1
+      }
+
+      if (data.hasOwnProperty("aim_over")) {
+        delete character_state.special_effects[data.attacker_id].aim
+      }
+
+      if (data.hasOwnProperty("quick_attack_ready")) {
+        character_state.special_effects[data.attacker_id].quick_attack_ready = true;
+      }
+
+      if (data.cover_level > 0) {
+        var cover_string = "Уровень укрытия: " + data.cover_level
+      } else {
+        var cover_string = ""
+      }
+
+      switch (data.outcome) {
+        case "full_cover":
+          var message = attacker.name + " пытался разрушить " + target.name + " но атака не прошла через полное укрытие." + cover_string;
+          pushToList(message)
+          break;
+        case "untouched":
+          var message = attacker.name + " пытался разрушить " + target.name + " но атаке не хватило урона (" + data.damage + " нанесено). " + cover_string;
+          pushToList(message)
+          break;
+        case "destroyed":
+          var message = attacker.name + " разрушает " + target.name + " нанося " + data.damage + " урона. " + cover_string;
+          pushToList(message)
+          game_state.board_state[data.target_position] = 0;
+          if (!((my_role == 'player')&&(game_state.fog_state[data.target_position] == 1))) {
+            var cell = document.getElementById('cell_' + data.target_position);
+            cell.src = EMPTY_CELL_PIC;
+          }
+          break;
+      }
+
+
     } else if (data.command == 'apply_effect_response') {
       apply_effect(data.character_number, data.effect_number);
     } else if (data.command == 'search_action_response') {

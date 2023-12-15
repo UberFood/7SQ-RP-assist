@@ -305,6 +305,12 @@ wss.on('connection', (ws) => {
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(data));
       });
+    } else if (data.command == 'attack_obstacle') {
+      data.command = 'attack_obstacle_response';
+      data.to_name = 'all';
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(data));
+      });
     } else if (data.command == 'new_round') {
       data.command = 'new_round_response';
       data.to_name = 'all';

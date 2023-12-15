@@ -1,1 +1,1 @@
-{"name":"Стена","avatar":"./images/wall.jfif", "cover": 10}
+{"name":"Стена","avatar":"./images/wall.jfif", "cover": 10, "toughness": 50}
