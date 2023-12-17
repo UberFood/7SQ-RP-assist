@@ -1,1 +1,1 @@
-{"name":"Стол","avatar":"./images/stol.png", "cover": 3}
+{"name":"Стол","avatar":"./images/stol.png", "cover": 3, "toughness": 7, "hackable_computer": true}

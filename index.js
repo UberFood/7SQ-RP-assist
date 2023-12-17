@@ -200,8 +200,8 @@ wss.on('connection', (ws) => {
         wss.clients.forEach(function(clientSocket) {
           clientSocket.send(JSON.stringify(data));
         });
-    } else if (data.command == 'delete_character') {
-      data.command = 'delete_character_response';
+    } else if (data.command == 'delete_object') {
+      data.command = 'delete_object_response';
       data.to_name = 'all';
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(data));

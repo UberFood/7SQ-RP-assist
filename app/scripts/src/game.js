@@ -202,6 +202,8 @@ var hook_range = 3;
 var punishing_strike_cooldown = 3;
 var punishing_strike_multiplyer = 0.5;
 
+var computer_interaction_radius = 1;
+
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
 const stamina_values = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195];
@@ -227,7 +229,7 @@ var DECREASE_KD = 9;
 var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [],
   KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [],
   special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: [], evade_bonus: [], melee_resist: [], bullet_resist: []};
-let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: [], battle_mod: 0,
+let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: [], battle_mod: 0, obstacle_extra_info: [],
   landmines: {positions: [], knowers: []}};
 let character_state = CHARACTER_STATE_CONSTANT;
 
@@ -1198,7 +1200,7 @@ function move_character(to_index, to_cell) {
 function delete_character(index, character_number) {
   clear_containers()
   var toSend = {};
-  toSend.command = 'delete_character';
+  toSend.command = 'delete_object';
   toSend.room_number = my_room;
   toSend.index = index;
   toSend.character_number = character_number
@@ -1670,7 +1672,7 @@ function send_effect_command(character_number, effect_index) {
 
 function delete_object_command(index) {
   var toSend = {};
-  toSend.command = 'delete_character';
+  toSend.command = 'delete_object';
   toSend.room_number = my_room;
   toSend.index = index;
   socket.sendMessage(toSend);
@@ -1869,7 +1871,6 @@ function show_modal(character_number, starting_index) {
         })
 
         skill_icon.on('mouseout', function(event) {
-          console.log("Skill description mouse out");
           skill_description_container.html('');
         })
         column.append(skill_icon);
@@ -2973,7 +2974,7 @@ function use_skill(skill_index, character_number, position, cell) {
           }
           break;
 
-    case 26: // Обезвредить мину
+    case 26: // Взаимодействовать
           if (character_state.bonus_action[character_number] > 0) {
             choose_character_skill(skill_index, character_number, position, cell)
           } else {
@@ -3162,7 +3163,7 @@ function perform_skill(index, cell) {
       break;
 
     case 26:
-      diffuse_landmine(index, cell)
+      interact(index, cell)
       break;
     case 28:
       curved_bullets(index, cell)
@@ -3805,6 +3806,25 @@ function diffuse_landmine(index, cell) {
   } else {
     alert("Слишком далеко для взаимодействия")
   }
+}
+
+function interact(index, cell) {
+  var object_number = game_state.board_state[index];
+  if (object_number == 0) {// empty, so diffuse landmine mod
+    diffuse_landmine(index, cell);
+  } else if (object_number < 0) {// obstacle interaction
+    var obstacle_number = Math.abs(object_number);
+    var obstacle = obstacle_detailed_info[obstacle_number];
+    if (obstacle.hasOwnProperty("hackable_computer")) {
+      var user_position = character_chosen.char_position;
+      if (isInRange(index, user_position, computer_interaction_radius)) {
+        console.log("computer in range");
+      } else {
+        alert("Взлом компьютера должен осуществляться с расстояния 1 клетки");
+      }
+    }
+  }
+
 }
 
 function acid_bomb(index, cell) {
@@ -4622,6 +4642,7 @@ socket.registerMessageHandler((data) => {
     } else if (data.command == 'add_obstacle_response') {
       var obstacle = data.obstacle_info;
       obstacle_detailed_info[data.obstacle_number] = obstacle;
+      game_state.obstacle_extra_info[data.cell_id] = {};
       if (!((my_role == 'player')&&(game_state.fog_state[data.cell_id] == 1))) {
         var cell = document.getElementById("cell_" + data.cell_id);
         cell.src = obstacle.avatar;
@@ -4712,9 +4733,12 @@ socket.registerMessageHandler((data) => {
           old_cell.src = EMPTY_CELL_PIC;
         }
       }
-    } else if (data.command == 'delete_character_response') {
+    } else if (data.command == 'delete_object_response') {
       if (data.hasOwnProperty("character_number")) {
         clear_character(data.character_number)
+      }
+      if (game_state.board_state[data.index] < 0) {// is obstacle
+        game_state.obstacle_extra_info[data.index] = null;
       }
       game_state.board_state[data.index] = 0;
       if (!((my_role == 'player')&&(game_state.fog_state[data.index] == 1))) {
@@ -6248,6 +6272,7 @@ socket.registerMessageHandler((data) => {
           var message = attacker.name + " разрушает " + target.name + " нанося " + data.damage + " урона. " + cover_string;
           pushToList(message)
           game_state.board_state[data.target_position] = 0;
+          game_state.obstacle_extra_info[data.target_position] = null;
           if (!((my_role == 'player')&&(game_state.fog_state[data.target_position] == 1))) {
             var cell = document.getElementById('cell_' + data.target_position);
             cell.src = EMPTY_CELL_PIC;
