@@ -203,6 +203,9 @@ var punishing_strike_cooldown = 3;
 var punishing_strike_multiplyer = 0.5;
 
 var computer_interaction_radius = 1;
+var hacking_critical_fail_threshold = 10;
+var hacking_success_threshold = 16;
+var hacking_critical_success_threshold = 25;
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
@@ -3792,7 +3795,7 @@ function diffuse_landmine(index, cell) {
     toSend.room_number = my_room;
     toSend.user_index = user_character_number
     toSend.position = index
-    toSend.outcome = "empty"
+    toSend.interaction_type = 'diffuse_landmine';
 
     if (game_state.landmines.positions.includes(index)) {
       var roll = roll_x(20) + parseInt(character.intelligence)
@@ -3801,10 +3804,81 @@ function diffuse_landmine(index, cell) {
       } else {
         toSend.outcome = "fail"
       }
+    } else {
+      toSend.outcome = "empty";
     }
     socket.sendMessage(toSend);
   } else {
     alert("Слишком далеко для взаимодействия")
+  }
+}
+
+function hacking_bonus(character_number) {
+  var character = character_detailed_info[character_number];
+  var bonus = parseInt(character.intelligence);
+  if (character.special_type == "engineer") {
+    bonus *= 2;
+  }
+  return bonus;
+}
+
+function computer_hacking(index, obstacle_number) {
+  var user_position = character_chosen.char_position;
+  var user_character_number = character_chosen.char_id;
+  if (isInRange(index, user_position, computer_interaction_radius)) {
+    var hack_stage = 0;
+    var hack_fails = 0;
+    var info_object = game_state.obstacle_extra_info[index];
+    if (info_object.hasOwnProperty("hack_stage")) {
+      hack_stage = info_object.hack_stage;
+    }
+    if (info_object.hasOwnProperty("hack_fails")) {
+      hack_fails = info_object.hack_fails;
+    }
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.skill_index = character_chosen.skill_id
+    toSend.room_number = my_room;
+    toSend.user_index = user_character_number
+    toSend.position = index
+    toSend.interaction_type = 'hackable_computer';
+
+    if (hack_stage < 3 && hack_fails < 3) {// there is point to roll
+      var hack_roll = roll_x(20);
+      if (hack_roll == 20) {// crit
+        toSend.outcome = 'hacked';
+      } else if (hack_roll == 1) {// anticrit
+        toSend.outcome = 'failed';
+      } else {// normal
+        hack_roll += hacking_bonus(user_character_number);
+        if (hack_roll < hacking_critical_fail_threshold) {
+          toSend.outcome = 'failed';
+        } else if (hack_roll < hacking_success_threshold) {
+          hack_fails += 1;
+          if (hack_fails == 3) {
+            toSend.outcome = 'failed';
+          } else {
+            toSend.outcome = 'one_fail';
+          }
+        } else if (hack_roll < hacking_critical_success_threshold) {
+          hack_stage += 1;
+          if (hack_stage == 3) {
+            toSend.outcome = 'hacked';
+          } else {
+            toSend.outcome = 'one_success';
+          }
+        } else {
+          toSend.outcome = 'hacked';
+        }
+      }
+    } else if (hack_stage >= 3) {// already hacked
+      toSend.outcome = 'already_hacked';
+    } else {
+      toSend.outcome = 'already_failed';
+    }
+    socket.sendMessage(toSend);
+  } else {
+    alert("Взлом компьютера должен осуществляться с расстояния 1 клетки");
   }
 }
 
@@ -3816,12 +3890,7 @@ function interact(index, cell) {
     var obstacle_number = Math.abs(object_number);
     var obstacle = obstacle_detailed_info[obstacle_number];
     if (obstacle.hasOwnProperty("hackable_computer")) {
-      var user_position = character_chosen.char_position;
-      if (isInRange(index, user_position, computer_interaction_radius)) {
-        console.log("computer in range");
-      } else {
-        alert("Взлом компьютера должен осуществляться с расстояния 1 клетки");
-      }
+      computer_hacking(index, obstacle_number);
     }
   }
 
@@ -5365,34 +5434,39 @@ socket.registerMessageHandler((data) => {
       case 26: // обезвредить мину
 
           if (game_state.battle_mod == 1) {
-            character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
+            character_state.bonus_action[user_index] -= 1
           }
           character = character_detailed_info[user_index]
-          switch(data.outcome) {
-            case "empty":
-                var message = "С чем " + character.name + " пытался взаимодействовать?"
-                pushToList(message)
-                break;
-            case "fail":
-                var message = character.name + " попытался обезвредить мину, но не сумел."
-                pushToList(message)
-                break;
 
-            case "success":
-                var mine_position = data.position
-                var cell = document.getElementById('cell_' + mine_position);
-                cell.src = fogOrPic(mine_position)
-                var index = game_state.landmines.positions.indexOf(mine_position)
-                if (index > -1) {
-                  game_state.landmines.positions.splice(index,1)
-                }
-                game_state.landmines.knowers[mine_position] = []
-                var message = character.name + " запрещает мине взрываться!"
-                pushToList(message)
-                break;
-
-            default:
-                console.log("Switch обевзрежения пошел не так")
+          if (data.interaction_type == "diffuse_landmine") {
+            switch(data.outcome) {
+              case "empty":
+                  var message = "С чем " + character.name + " пытался взаимодействовать?"
+                  pushToList(message)
+                  break;
+              case "fail":
+                  var message = character.name + " попытался обезвредить мину, но не сумел."
+                  pushToList(message)
+                  break;
+              case "success":
+                  var mine_position = data.position
+                  var cell = document.getElementById('cell_' + mine_position);
+                  cell.src = fogOrPic(mine_position)
+                  var index = game_state.landmines.positions.indexOf(mine_position)
+                  if (index > -1) {
+                    game_state.landmines.positions.splice(index,1)
+                  }
+                  game_state.landmines.knowers[mine_position] = []
+                  var message = character.name + " запрещает мине взрываться!"
+                  pushToList(message)
+                  break;
+              default:
+                  console.log("Switch обевзрежения пошел не так")
+              }
+          } else if (data.interaction_type == "hackable_computer") {
+            console.log(data.outcome);
+          } else {
+            console.log("Unknown interaction");
           }
           break;
 
