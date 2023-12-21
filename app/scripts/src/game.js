@@ -5464,7 +5464,47 @@ socket.registerMessageHandler((data) => {
                   console.log("Switch обевзрежения пошел не так")
               }
           } else if (data.interaction_type == "hackable_computer") {
-            console.log(data.outcome);
+            let index = data.position;
+            switch(data.outcome) {
+              case "already_hacked":
+                  var message = "Компьютер, который " + character.name + " пытался взломать, уже был успешно взломан, а информация удалена.";
+                  pushToList(message);
+                  break;
+
+              case "already_failed":
+                  var message = "Протокол безопасности на компьютере, который " + character.name + " пытался взломать, уже был запущен ранее, а информация удалена. О вашей попытке могли узнать.";
+                  pushToList(message);
+                  break;
+              case "failed":
+                  game_state.obstacle_extra_info[index].hack_fails = 3; // fully failed
+                  var message = "Запущен протокол безопасности на компьютере, который " + character.name + " пытался взломать. Вся информация удалена, отправлено уведомление о попытке взлома.";
+                  pushToList(message);
+                  break;
+              case "one_fail":
+                  if (game_state.obstacle_extra_info[index].hasOwnProperty("hack_fails")) {
+                    game_state.obstacle_extra_info[index].hack_fails += 1
+                  } else {
+                    game_state.obstacle_extra_info[index].hack_fails = 1;
+                  }
+                  var message = character.name + " совершает неудачную попытку взлома. Осторожно, ваши действия могут быть замечены.";
+                  pushToList(message);
+                  break;
+
+              case "one_success":
+                  if (game_state.obstacle_extra_info[index].hasOwnProperty("hack_stage")) {
+                    game_state.obstacle_extra_info[index].hack_stage += 1
+                  } else {
+                    game_state.obstacle_extra_info[index].hack_stage = 1;
+                  }
+                  var message = character.name + " продвигается в взломе базы данных. Прогресс: " + (33*game_state.obstacle_extra_info[index].hack_stage) + "%";
+                  pushToList(message);
+                  break;
+              case "hacked":
+                  game_state.obstacle_extra_info[index].hack_stage = 3; // fully hacked
+                  var message = character.name + " удается прорваться через фаерволл компьютера, и он получает полный доступ к имеющимся данным.";
+                  pushToList(message);
+                  break;
+            }
           } else {
             console.log("Unknown interaction");
           }
