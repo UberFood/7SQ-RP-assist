@@ -79,7 +79,7 @@ var ARMOR_IMAGE = "./images/armor.jpg";
 var SPIRIT_IMAGE = "./images/chakra.jpg";
 var DROPBOX_IMAGE = "./images/basket.jpg";
 
-var MAX_ZONES = 25;
+var MAX_ZONES = 50;
 var CHAT_CASH = 100;
 
 var stamina_weakspot_cost = 1
