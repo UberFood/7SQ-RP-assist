@@ -331,6 +331,12 @@ function send_construct_command(new_game_state) {
 
 function construct_board(new_game_state) {
   game_state = new_game_state
+  if (!game_state.hasOwnProperty("obstacle_extra_info")) {
+    game_state.obstacle_extra_info = [];
+    for (let i = 0; i < game_state.size*game_state.size; i++) {
+      game_state.obstacle_extra_info[i] = {};
+    }
+  }
   clear_containers()
 
   var board_container = document.getElementById("board-container");
@@ -4807,7 +4813,7 @@ socket.registerMessageHandler((data) => {
         clear_character(data.character_number)
       }
       if (game_state.board_state[data.index] < 0) {// is obstacle
-        game_state.obstacle_extra_info[data.index] = null;
+        game_state.obstacle_extra_info[data.index] = {};
       }
       game_state.board_state[data.index] = 0;
       if (!((my_role == 'player')&&(game_state.fog_state[data.index] == 1))) {
