@@ -263,6 +263,11 @@ select {
     animation-direction:alternate-reverse;
 }
 
+.avatar {
+  height: 30vh;
+  width: 90%;
+}
+
 html, body {
   height: 100vh;
   overflow: auto;

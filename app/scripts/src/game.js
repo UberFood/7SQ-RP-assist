@@ -1311,7 +1311,6 @@ function display_spirit_detailed(character_number, container) {
 function select_character(index, cell) {
   var character_number = game_state.board_state[index]
 
-
   if (character_state.invisibility[character_number] == "all" || character_state.invisibility[character_number] == my_name) {
   var character = character_detailed_info[character_number];
 
@@ -1330,8 +1329,7 @@ function select_character(index, cell) {
   var avatar_container = document.createElement("div");
   var avatar_display = document.createElement("IMG");
   avatar_display.src = avatar;
-  avatar_display.style.width = '250px';
-  avatar_display.style.height = '250px';
+  avatar_display.classList.add("avatar");
 
   avatar_container.appendChild(avatar_display)
 
@@ -5437,7 +5435,7 @@ socket.registerMessageHandler((data) => {
 
           break;
 
-      case 26: // обезвредить мину
+      case 26: // взаимодействовать
 
           if (game_state.battle_mod == 1) {
             character_state.bonus_action[user_index] -= 1
@@ -5785,10 +5783,16 @@ socket.registerMessageHandler((data) => {
           character_detailed_info[user_index].avatar = character_detailed_info[user_index].secondary_avatar;
           character_detailed_info[user_index].secondary_avatar = temp;
           var char_position = character_state.position[user_index];
-          if (!(((my_role == 'player')&&(game_state.fog_state[char_position] == 1)) || (character_state.invisibility[user_index] != "all" && character_state.invisibility[user_index] != my_name))) {
-            var to_cell = document.getElementById('cell_' + char_position);
-            to_cell.src = get_object_picture(user_index);
-          }
+        }
+        if (user.hasOwnProperty("secondary_chibi_avatar")) {
+          var temp = user.chibi_avatar;
+          character_detailed_info[user_index].chibi_avatar = character_detailed_info[user_index].secondary_chibi_avatar;
+          character_detailed_info[user_index].secondary_chibi_avatar = temp;
+          var char_position = character_state.position[user_index];
+        }
+        if (!(((my_role == 'player')&&(game_state.fog_state[char_position] == 1)) || (character_state.invisibility[user_index] != "all" && character_state.invisibility[user_index] != my_name))) {
+          var to_cell = document.getElementById('cell_' + char_position);
+          to_cell.src = get_object_picture(user_index);
         }
         var message = user.name + " открывает свою истинную сущность, получая " + data.total_upgrade + " усилений. Удачной охоты!";
         pushToList(message);
