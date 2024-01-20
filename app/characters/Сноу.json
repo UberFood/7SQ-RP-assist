@@ -1,1 +1,1 @@
-{"name":"Сноу","avatar":"/images/snow.png","strength":"4", "stamina":"3","agility":"2","intelligence":"1", "KD_points": "12", "special_type": "guard", "inventory": [6], "skillset": [5,4,6,10,11,16,26], "group":"anima"}
+{"name":"Сноу","avatar":"/images/snow.png","strength":"4", "stamina":"3","agility":"2","intelligence":"1", "KD_points": "12", "special_type": "tank", "inventory": [25,6], "skillset": [17,5,6,16,4,10,11,26,29], "group":"anima", "bullet_resist": "5", "melee_resist": "5"}
