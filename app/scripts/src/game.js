@@ -4618,7 +4618,14 @@ socket.registerMessageHandler((data) => {
             var img = construct_initiative_image(character_number, i);
             img.appendTo(initiative_order_container);
           } else if (cell.classList.contains("initiative_image")) {
-            var i = cell.getAttribute("array_position");
+            var i = parseInt(cell.getAttribute("array_position"));
+            for (let j = (i+1); j < initiative_order_array.length; j++) {
+              //var selector = "#initiative_image_" + j;
+              var initiative_image = $("[array_position=" + j + "]");
+              var new_index = j-1;
+              initiative_image.attr('array_position', new_index);
+              initiative_image.attr('id', "initiative_image_" + new_index);
+            }
             var character_number = initiative_order_array[i];
             unhover_character(character_number);
             initiative_order_array.splice(i, 1);
