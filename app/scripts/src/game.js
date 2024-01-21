@@ -1952,9 +1952,13 @@ function construct_initiative_image(character_number, i) {
   img.attr('array_position', i);
   img.addClass("initiative_image");
   img.on("mouseenter", function() {
+    var isVisible = character_state.invisibility[character_number] == 'all' || character_state.invisibility[character_number] == my_name;
     var position = character_state.position[character_number]
-    var cell = document.getElementById('cell_' + position);
-    cell.style.transform = "scale(1.2)";
+    var isNotFogged = game_state.fog_state[position] == 0 || my_role == 'gm';
+    if (isVisible && isNotFogged) {
+      var cell = document.getElementById('cell_' + position);
+      cell.style.transform = "scale(1.2)";
+    }
   });
   img.on("mouseleave", function() {
     unhover_character(character_number);
