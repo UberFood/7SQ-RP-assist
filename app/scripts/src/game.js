@@ -383,7 +383,7 @@ function construct_board(new_game_state) {
         var index = cell.row * game_state.size + cell.column;
         var character_number = game_state.board_state[index];
         if (character_number > 0 && (my_role == "gm" || character_state.visibility[character_number] == 1) && (character_state.invisibility[character_number] == 'all' || character_state.invisibility[character_number] == my_name) && (my_role == "gm" || game_state.fog_state[index] == 0)) {
-          choose_character_to_move(index, cell)
+          choose_character_to_move(index, cell, false)
         }
       }
       button.ondrop = function(event) {
@@ -1435,7 +1435,7 @@ function select_character(index, cell) {
     var move_actions_left = character_state.move_action[character_number]
     if (move_actions_left > 0) {
       clear_containers()
-      choose_character_to_move(character_picked.index, character_picked.cell);
+      choose_character_to_move(character_picked.index, character_picked.cell, true);
     } else {
       alert("Вы потратили все перемещения на этом ходу!")
     }
@@ -1728,11 +1728,13 @@ function select_obstacle(index, cell) {
 
 }
 
-function choose_character_to_move(index, cell) {
+function choose_character_to_move(index, cell, showVisual) {
   character_chosen.in_process = 1
   character_chosen.char_position = index;
   character_chosen.char_id = game_state.board_state[index];
-  cell.src = "./images/loading.webp";
+  if (showVisual) {
+    cell.src = "./images/loading.webp";
+  }
 }
 
 function undo_selection() {
@@ -4491,7 +4493,7 @@ function w_onclick() {
     } else {
       var index = character_chosen.char_position
       var cell = character_chosen.cell
-      choose_character_to_move(index, cell);
+      choose_character_to_move(index, cell, true);
     }
   }
 }
