@@ -4390,6 +4390,113 @@ function shocked_effect(target) {
   }
 }
 
+// new round actions
+function apply_terrain_effects() {
+  for (let i = 0; i < game_state.terrain_effects.length; i++) {
+    if (game_state.terrain_effects[i] !== null && game_state.terrain_effects[i] !== undefined) {
+      switch (game_state.terrain_effects[i].type) {
+        case "gas_bomb":
+            var position = game_state.terrain_effects[i].position;
+            var radius = game_state.terrain_effects[i].radius;
+            apply_bomb(position, radius)
+            if (radius >= 4) {
+              if (my_role == "gm") {
+                if (game_state.board_state[position] == obstacle_number_to_board_number(gas_bomb_obstacle)) {
+                  delete_object_command(position)
+                }
+              }
+              game_state.terrain_effects[i] = null
+            } else {
+              game_state.terrain_effects[i].radius += 1;
+            }
+            break;
+        case "calingalator":
+            var position = game_state.terrain_effects[i].position;
+            var radius = game_state.terrain_effects[i].radius;
+            apply_calingalator(position, radius, game_state.terrain_effects[i].flat_heal, game_state.terrain_effects[i].roll_heal, data.calingalator_heal_roll_list, data.calingalator_coin_flip);
+            game_state.terrain_effects[i].duration = game_state.terrain_effects[i].duration - 1
+            if (game_state.terrain_effects[i].duration == 0) {
+              if (my_role == "gm") {
+                if (game_state.board_state[position] == obstacle_number_to_board_number(calingalator_obstacle)) {
+                  delete_object_command(position)
+                }
+              }
+              game_state.terrain_effects[i] = null
+            }
+            break;
+        default:
+            console.log("Messed up resolving terrain effects")
+            console.log(game_state.terrain_effects[i].type);
+        }
+    }
+  }
+}
+
+function move_and_actions_replenish(character, index) {
+  character_state.can_evade[index] = 1
+  character_state.has_moved[index] = 0
+  assign_moves(index)
+  character_state.bonus_action[index] = bonus_action_map[character.agility];
+  character_state.main_action[index] = main_action_map[character.agility];
+}
+
+function apply_tiredness(character, i) {
+  if (character_state.special_effects[i].hasOwnProperty("tired")) { // Убрать бонусы от усталости прошлого хода (чтобы когда будут накаладываться новые не штрафовать дважды)
+    character_state.universal_bonus[i] = character_state.universal_bonus[i] - character_state.special_effects[i].tired.bonus
+  }
+
+  if (character_state.stamina[i] < stamina_values[character.stamina] * 0.67) {
+    if (character_state.stamina[i] < stamina_values[character.stamina] * 0.34) {
+      if (character_state.stamina[i] <= 0) { // 3я стадия
+        var tired_object = {}
+        tired_object.bonus = -3
+        tired_object.stage = 3
+        character_state.special_effects[i].tired = tired_object
+        character_state.universal_bonus[i] = character_state.universal_bonus[i] - 3
+        character_state.move_action[i] = parseFloat(character_state.move_action[i]*0.25)
+        if ((character_state.main_action[i] == 1)&&(character_state.bonus_action[i] == 1)) {
+          character_state.bonus_action[i] = 0
+        } else {
+          character_state.bonus_action[i] = 1
+          character_state.main_action[i] = 1
+        }
+      } else { // 2я стадия
+        var tired_object = {}
+        tired_object.bonus = -2
+        tired_object.stage = 2
+        character_state.special_effects[i].tired = tired_object
+        character_state.universal_bonus[i] = character_state.universal_bonus[i] - 2
+        character_state.move_action[i] = parseFloat(character_state.move_action[i]*0.5)
+      }
+    } else { // 1я стадия
+      var tired_object = {}
+      tired_object.bonus = -1
+      tired_object.stage = 1
+      character_state.special_effects[i].tired = tired_object
+      character_state.universal_bonus[i] = character_state.universal_bonus[i] - 1
+      character_state.move_action[i] = parseFloat(character_state.move_action[i]*0.75)
+    }
+  } else if (character_state.special_effects[i].hasOwnProperty("tired")) { // не устал -> убрать устлалость если была
+    delete character_state.special_effects[i].tired
+  }
+}
+
+function check_default_cooldowns(i) {
+  check_cooldown(i, "light_sound_bomb_user", "");
+  check_cooldown(i, "action_splash", "");
+  check_cooldown(i, "safety_service_user", "");
+  check_cooldown(i, "calingalator_user", "");
+  check_cooldown(i, "gas_bomb_user", "");
+  check_cooldown(i, "acid_bomb_user", "");
+  check_cooldown(i, "force_field_user", "");
+  check_cooldown(i, "charge_user", "");
+  check_cooldown(i, "cut_limb_user", "");
+  check_cooldown(i, "adrenaline_user", "");
+  check_cooldown(i, "poisonous_adrenaline_user", "");
+  check_cooldown(i, "hook_user", "");
+  check_cooldown(i, "punishing_strike_user", "");
+}
+
 // More gm control actions
 
 function mirror_board() {
@@ -5899,106 +6006,12 @@ socket.registerMessageHandler((data) => {
       var message = "Начало нового раунда!"
       pushToList(message)
 
-      for (let i = 0; i < game_state.terrain_effects.length; i++) {
-        if (game_state.terrain_effects[i] !== null && game_state.terrain_effects[i] !== undefined) {
-          switch (game_state.terrain_effects[i].type) {
-            case "gas_bomb":
-                var position = game_state.terrain_effects[i].position;
-                var radius = game_state.terrain_effects[i].radius;
-                apply_bomb(position, radius)
-                if (radius >= 4) {
-                  if (my_role == "gm") {
-                    if (game_state.board_state[position] == obstacle_number_to_board_number(gas_bomb_obstacle)) {
-                      delete_object_command(position)
-                    }
-                  }
-                  game_state.terrain_effects[i] = null
-                } else {
-                  game_state.terrain_effects[i].radius += 1;
-                }
-                break;
-            case "calingalator":
-                var position = game_state.terrain_effects[i].position;
-                var radius = game_state.terrain_effects[i].radius;
-                apply_calingalator(position, radius, game_state.terrain_effects[i].flat_heal, game_state.terrain_effects[i].roll_heal, data.calingalator_heal_roll_list, data.calingalator_coin_flip);
-                game_state.terrain_effects[i].duration = game_state.terrain_effects[i].duration - 1
-                if (game_state.terrain_effects[i].duration == 0) {
-                  if (my_role == "gm") {
-                    if (game_state.board_state[position] == obstacle_number_to_board_number(calingalator_obstacle)) {
-                      delete_object_command(position)
-                    }
-                  }
-                  game_state.terrain_effects[i] = null
-                }
-                break;
-            default:
-                console.log("Messed up resolving terrain effects")
-                console.log(game_state.terrain_effects[i].type);
-            }
-        }
-      }
-
       for (let i = 1; i < character_state.can_evade.length; i++) {
         character = character_detailed_info[i]
         if (character !== undefined && character !== null && character_state.HP[i] !== null && character_state.HP[i] > 0) {
-          character_state.can_evade[i] = 1
-          character_state.has_moved[i] = 0
-          assign_moves(i)
-          character_state.bonus_action[i] = bonus_action_map[character.agility];
-          character_state.main_action[i] = main_action_map[character.agility];
-
-          if (character_state.special_effects[i].hasOwnProperty("tired")) { // Убрать бонусы от усталости прошлого хода (чтобы когда будут накаладываться новые не штрафовать дважды)
-            character_state.universal_bonus[i] = character_state.universal_bonus[i] - character_state.special_effects[i].tired.bonus
-          }
-
-          if (character_state.stamina[i] < stamina_values[character.stamina] * 0.67) {
-            if (character_state.stamina[i] < stamina_values[character.stamina] * 0.34) {
-              if (character_state.stamina[i] <= 0) { // 3я стадия
-                var tired_object = {}
-                tired_object.bonus = -3
-                tired_object.stage = 3
-                character_state.special_effects[i].tired = tired_object
-                character_state.universal_bonus[i] = character_state.universal_bonus[i] - 3
-                character_state.move_action[i] = parseFloat(character_state.move_action[i]*0.25)
-                if ((character_state.main_action[i] == 1)&&(character_state.bonus_action[i] == 1)) {
-                  character_state.bonus_action[i] = 0
-                } else {
-                  character_state.bonus_action[i] = 1
-                  character_state.main_action[i] = 1
-                }
-              } else { // 2я стадия
-                var tired_object = {}
-                tired_object.bonus = -2
-                tired_object.stage = 2
-                character_state.special_effects[i].tired = tired_object
-                character_state.universal_bonus[i] = character_state.universal_bonus[i] - 2
-                character_state.move_action[i] = parseFloat(character_state.move_action[i]*0.5)
-              }
-            } else { // 1я стадия
-              var tired_object = {}
-              tired_object.bonus = -1
-              tired_object.stage = 1
-              character_state.special_effects[i].tired = tired_object
-              character_state.universal_bonus[i] = character_state.universal_bonus[i] - 1
-              character_state.move_action[i] = parseFloat(character_state.move_action[i]*0.75)
-            }
-          } else if (character_state.special_effects[i].hasOwnProperty("tired")) { // не устал -> убрать устлалость если была
-            delete character_state.special_effects[i].tired
-          }
-
-          check_cooldown(i, "light_sound_bomb_user", "");
-          check_cooldown(i, "action_splash", "");
-          check_cooldown(i, "safety_service_user", "");
-          check_cooldown(i, "calingalator_user", "");
-          check_cooldown(i, "gas_bomb_user", "");
-          check_cooldown(i, "acid_bomb_user", "");
-          check_cooldown(i, "force_field_user", "");
-          check_cooldown(i, "charge_user", "");
-          check_cooldown(i, "cut_limb_user", "");
-          check_cooldown(i, "adrenaline_user", "");
-          check_cooldown(i, "poisonous_adrenaline_user", "");
-          check_cooldown(i, "hook_user", "");
-          check_cooldown(i, "punishing_strike_user", "");
+          move_and_actions_replenish(character, i);
+          apply_tiredness(character, i);
+          check_default_cooldowns(i);
 
           if (character_state.special_effects[i].hasOwnProperty("safety_service_target")) {
             if (character_state.special_effects[i].safety_service_target.duration == 0) {
@@ -6206,6 +6219,16 @@ socket.registerMessageHandler((data) => {
           }
 
           if (character_state.special_effects[i].hasOwnProperty("gas_bomb_poison")) {
+            var save_roll = data.save_roll_list[i]
+            if (save_roll >= character_state.special_effects[i].gas_bomb_poison.threshold) {
+              character_state.special_effects[i].gas_bomb_poison.poison_level = character_state.special_effects[i].gas_bomb_poison.poison_level - 1
+              var message = character.name + " успешно кидает спасбросок и уменьшает стадию отравления (теперь " + character_state.special_effects[i].gas_bomb_poison.poison_level + ")"
+              pushToList(message)
+            } else {
+              var message = character.name + " проваливает спасбросок. Стадия отравления остается прежней (" + character_state.special_effects[i].gas_bomb_poison.poison_level + ")"
+              pushToList(message)
+            }
+
             var count = character_state.special_effects[i].gas_bomb_poison.poison_level
             while (count > 0) {
               //character_state.move_action[i] = character_state.move_action[i] - gas_bomb_move_reduction
@@ -6216,15 +6239,7 @@ socket.registerMessageHandler((data) => {
               }
               count = count - 1
             }
-            var save_roll = data.save_roll_list[i]
-            if (save_roll >= character_state.special_effects[i].gas_bomb_poison.threshold) {
-              character_state.special_effects[i].gas_bomb_poison.poison_level = character_state.special_effects[i].gas_bomb_poison.poison_level - 1
-              var message = character.name + " успешно кидает спасбросок и уменьшает стадию отравления (теперь " + character_state.special_effects[i].gas_bomb_poison.poison_level + ")"
-              pushToList(message)
-            } else {
-              var message = character.name + " проваливает спасбросок. Стадия отравления остается прежней (" + character_state.special_effects[i].gas_bomb_poison.poison_level + ")"
-              pushToList(message)
-            }
+
             if (character_state.special_effects[i].gas_bomb_poison.poison_level <= 0) {
               delete character_state.special_effects[i].gas_bomb_poison
               var message = character.name + " больше не отравлен!"
@@ -6266,6 +6281,8 @@ socket.registerMessageHandler((data) => {
           }
         }
       }
+
+      apply_terrain_effects();
     } else if (data.command == 'battle_mod_response') {
       game_state.battle_mod = data.value
       if (game_state.battle_mod == 0) {
