@@ -2249,31 +2249,6 @@ function computeInitiative(agility) {
   return agility*2 + roll_x(20);
 }
 
-function start_new_round() {
-  var toSend = {};
-  toSend.command = 'new_round';
-  toSend.room_number = my_room;
-  var save_roll = []
-  var calingalator_heal_roll_list = []
-  var calingalator_coin_flip = []
-
-  for (let i = 1; i < character_state.can_evade.length; i++) {
-    var character = character_detailed_info[i]
-    if (character_state.special_effects[i] !== undefined && character_state.special_effects[i] !== null) {
-      if (character_state.special_effects[i].hasOwnProperty("gas_bomb_poison")) {
-        save_roll[i] = roll_x(20) + parseInt(character.stamina)
-      }
-      calingalator_heal_roll_list[i] = roll_x(calingalator_roll_heal);
-      calingalator_coin_flip[i] = roll_x(10);
-    }
-  }
-  toSend.save_roll_list = save_roll
-  toSend.calingalator_heal_roll_list = calingalator_heal_roll_list
-  toSend.calingalator_coin_flip = calingalator_coin_flip
-
-  socket.sendMessage(toSend);
-}
-
 function change_battle_mod() {
   if (game_state.battle_mod == 1) {
     var new_value = 0
@@ -4391,7 +4366,33 @@ function shocked_effect(target) {
 }
 
 // new round actions
-function apply_terrain_effects() {
+
+function start_new_round() {
+  var toSend = {};
+  toSend.command = 'new_round';
+  toSend.room_number = my_room;
+  var save_roll = []
+  var calingalator_heal_roll_list = []
+  var calingalator_coin_flip = []
+
+  for (let i = 1; i < character_state.can_evade.length; i++) {
+    var character = character_detailed_info[i]
+    if (character_state.special_effects[i] !== undefined && character_state.special_effects[i] !== null) {
+      if (character_state.special_effects[i].hasOwnProperty("gas_bomb_poison")) {
+        save_roll[i] = roll_x(20) + parseInt(character.stamina)
+      }
+      calingalator_heal_roll_list[i] = roll_x(calingalator_roll_heal);
+      calingalator_coin_flip[i] = roll_x(10);
+    }
+  }
+  toSend.save_roll_list = save_roll
+  toSend.calingalator_heal_roll_list = calingalator_heal_roll_list
+  toSend.calingalator_coin_flip = calingalator_coin_flip
+
+  socket.sendMessage(toSend);
+}
+
+function apply_terrain_effects(data) {
   for (let i = 0; i < game_state.terrain_effects.length; i++) {
     if (game_state.terrain_effects[i] !== null && game_state.terrain_effects[i] !== undefined) {
       switch (game_state.terrain_effects[i].type) {
@@ -4495,6 +4496,138 @@ function check_default_cooldowns(i) {
   check_cooldown(i, "poisonous_adrenaline_user", "");
   check_cooldown(i, "hook_user", "");
   check_cooldown(i, "punishing_strike_user", "");
+}
+
+function safety_service_target_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("safety_service_target")) {
+    if (character_state.special_effects[i].safety_service_target.duration == 0) {
+      character_state.defensive_advantage[i] = character_state.defensive_advantage[i] - safety_service_defensive_advantage
+      character_state.evade_bonus[i] = character_state.evade_bonus[i] - safety_service_evade_bonus
+      delete character_state.special_effects[i].safety_service_target
+    } else {
+      character_state.special_effects[i].safety_service_target.duration = character_state.special_effects[i].safety_service_target.duration - 1
+    }
+  }
+}
+
+function belvet_buff_target_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("belvet_buff_target")) {
+    if (character_state.special_effects[i].belvet_buff_target.duration == 0) {
+      change_character_property("attack_bonus", i, -1*character_state.special_effects[i].belvet_buff_target.attack_bonus);
+      change_character_property("melee_advantage", i, -1*character_state.special_effects[i].belvet_buff_target.melee_advantage);
+      change_character_property("ranged_advantage", i, -1*character_state.special_effects[i].belvet_buff_target.ranged_advantage);
+      delete character_state.special_effects[i].belvet_buff_target
+    } else {
+      character_state.special_effects[i].belvet_buff_target.duration = character_state.special_effects[i].belvet_buff_target.duration - 1
+    }
+  }
+}
+
+function hook_target_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("hook_target")) {
+    if (character_state.special_effects[i].hook_target.duration == 0) {
+      change_character_property("defensive_advantage", i, -1*character_state.special_effects[i].hook_target.defensive_advantage);
+      delete character_state.special_effects[i].hook_target
+    } else {
+      character_state.special_effects[i].hook_target.duration -= 1
+    }
+  }
+}
+
+function calingalator_target_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("calingalator_target")) {
+    if (character_state.special_effects[i].calingalator_target.duration == 0) {
+      var reverse_penalty = character_state.special_effects[i].calingalator_target.penalty * (-1)
+      change_character_property("attack_bonus", i, reverse_penalty);
+      if (character_state.special_effects[i].calingalator_target.stage == 3) {
+        change_character_property("melee_advantage", i, 1);
+        change_character_property("ranged_advantage", i, 1);
+      } else if (character_state.special_effects[i].calingalator_target.stage == 4) {
+        change_character_property("melee_advantage", i, -1);
+        change_character_property("ranged_advantage", i, -1);
+      }
+      delete character_state.special_effects[i].calingalator_target
+    } else {
+      character_state.special_effects[i].calingalator_target.duration = character_state.special_effects[i].calingalator_target.duration - 1
+    }
+  }
+}
+
+function pich_pich_user_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("pich_pich_user")) {
+    if (character_state.special_effects[i].pich_pich_user.cooldown == 0) {
+      delete character_state.special_effects[i].pich_pich_user
+    } else {
+      if (character_state.special_effects[i].pich_pich_user.cooldown == pich_pich_cooldown) {
+        character_state.bonus_action[i] = 0
+      }
+      character_state.special_effects[i].pich_pich_user.cooldown = character_state.special_effects[i].pich_pich_user.cooldown - 1
+    }
+  }
+}
+
+function pich_pich_target_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("pich_pich_target")) {
+      var extra_actions = character_state.special_effects[i].pich_pich_target.extra_actions
+      while (extra_actions > 0) {
+        if (extra_actions % 2 == 0) {
+          character_state.move_action[i] = character_state.move_action[i] + adrenaline_move_increase
+        } else {
+          character_state.main_action[i] = character_state.main_action[i] + 1
+        }
+        extra_actions = extra_actions - 1
+      }
+      delete character_state.special_effects[i].pich_pich_target
+  }
+}
+
+function aim_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("aim")) {
+    delete character_state.special_effects[i].aim
+  }
+}
+
+function adrenaline_target_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("adrenaline_target")) {
+      var minus_actions = character_state.special_effects[i].adrenaline_target.minus_actions
+      while (minus_actions > 0) {
+        if (minus_actions % 2 == 0) {
+          character_state.move_action[i] = character_state.move_action[i] - adrenaline_move_increase
+        } else {
+          character_state.main_action[i] = character_state.main_action[i] - 1
+        }
+        minus_actions = minus_actions - 1
+      }
+      delete character_state.special_effects[i].adrenaline_target
+  }
+}
+
+function poisonous_adrenaline_target_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("poisonous_adrenaline_target")) {
+      var turn = character_state.special_effects[i].poisonous_adrenaline_target.turn
+      character_state.special_effects[i].poisonous_adrenaline_target.turn = turn + 1
+      var extra_actions = character_state.special_effects[i].poisonous_adrenaline_target.extra_actions[turn]
+      while (extra_actions > 0) {
+        if (extra_actions % 2 == 0) {
+          character_state.move_action[i] = character_state.move_action[i] + adrenaline_move_increase
+        } else {
+          character_state.main_action[i] = character_state.main_action[i] + 1
+        }
+        extra_actions = extra_actions - 1
+      }
+      if (turn + 1 == poisonous_adrenaline_duration) {
+        var character = character_detailed_info[i]
+        var max_HP = HP_values[character.stamina]
+        var max_stamina = stamina_values[character.stamina]
+        var HP_cost = poisonous_adrenaline_flat_HP + parseInt(parseFloat(max_HP) * poisonous_adrenaline_percent_HP)
+        var stamina_cost = poisonous_adrenaline_flat_stamina + parseInt(parseFloat(max_stamina) * poisonous_adrenaline_percent_stamina)
+        character_state.HP[i] = character_state.HP[i] - HP_cost
+        character_state.stamina[i] = character_state.stamina[i] - stamina_cost
+        delete character_state.special_effects[i].poisonous_adrenaline_target
+        var message = "Адреналин в крови " + character.name + " заканчивается, наступает похмелье (" + HP_cost + " хп и " + stamina_cost + " выносливости)"
+        pushToList(message)
+      }
+  }
 }
 
 // More gm control actions
@@ -6013,121 +6146,15 @@ socket.registerMessageHandler((data) => {
           apply_tiredness(character, i);
           check_default_cooldowns(i);
 
-          if (character_state.special_effects[i].hasOwnProperty("safety_service_target")) {
-            if (character_state.special_effects[i].safety_service_target.duration == 0) {
-              character_state.defensive_advantage[i] = character_state.defensive_advantage[i] - safety_service_defensive_advantage
-              character_state.evade_bonus[i] = character_state.evade_bonus[i] - safety_service_evade_bonus
-              delete character_state.special_effects[i].safety_service_target
-            } else {
-              character_state.special_effects[i].safety_service_target.duration = character_state.special_effects[i].safety_service_target.duration - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("belvet_buff_target")) {
-            if (character_state.special_effects[i].belvet_buff_target.duration == 0) {
-              change_character_property("attack_bonus", i, -1*character_state.special_effects[i].belvet_buff_target.attack_bonus);
-              change_character_property("melee_advantage", i, -1*character_state.special_effects[i].belvet_buff_target.melee_advantage);
-              change_character_property("ranged_advantage", i, -1*character_state.special_effects[i].belvet_buff_target.ranged_advantage);
-              delete character_state.special_effects[i].belvet_buff_target
-            } else {
-              character_state.special_effects[i].belvet_buff_target.duration = character_state.special_effects[i].belvet_buff_target.duration - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("hook_target")) {
-            if (character_state.special_effects[i].hook_target.duration == 0) {
-              change_character_property("defensive_advantage", i, -1*character_state.special_effects[i].hook_target.defensive_advantage);
-              delete character_state.special_effects[i].hook_target
-            } else {
-              character_state.special_effects[i].hook_target.duration -= 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("calingalator_target")) {
-            if (character_state.special_effects[i].calingalator_target.duration == 0) {
-              var reverse_penalty = character_state.special_effects[i].calingalator_target.penalty * (-1)
-              change_character_property("attack_bonus", i, reverse_penalty);
-              if (character_state.special_effects[i].calingalator_target.stage == 3) {
-                change_character_property("melee_advantage", i, 1);
-                change_character_property("ranged_advantage", i, 1);
-              } else if (character_state.special_effects[i].calingalator_target.stage == 4) {
-                change_character_property("melee_advantage", i, -1);
-                change_character_property("ranged_advantage", i, -1);
-              }
-              delete character_state.special_effects[i].calingalator_target
-            } else {
-              character_state.special_effects[i].calingalator_target.duration = character_state.special_effects[i].calingalator_target.duration - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("pich_pich_user")) {
-            if (character_state.special_effects[i].pich_pich_user.cooldown == 0) {
-              delete character_state.special_effects[i].pich_pich_user
-              var message = "Умение Пыщ-Пыщ у " + character.name + " снова доступно."
-              pushToList(message)
-            } else {
-              if (character_state.special_effects[i].pich_pich_user.cooldown == pich_pich_cooldown) {
-                character_state.bonus_action[i] = 0
-              }
-              character_state.special_effects[i].pich_pich_user.cooldown = character_state.special_effects[i].pich_pich_user.cooldown - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("pich_pich_target")) {
-              var extra_actions = character_state.special_effects[i].pich_pich_target.extra_actions
-              while (extra_actions > 0) {
-                if (extra_actions % 2 == 0) {
-                  character_state.move_action[i] = character_state.move_action[i] + adrenaline_move_increase
-                } else {
-                  character_state.main_action[i] = character_state.main_action[i] + 1
-                }
-                extra_actions = extra_actions - 1
-              }
-              delete character_state.special_effects[i].pich_pich_target
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("aim")) {
-            delete character_state.special_effects[i].aim
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("adrenaline_target")) {
-              var minus_actions = character_state.special_effects[i].adrenaline_target.minus_actions
-              while (minus_actions > 0) {
-                if (minus_actions % 2 == 0) {
-                  character_state.move_action[i] = character_state.move_action[i] - adrenaline_move_increase
-                } else {
-                  character_state.main_action[i] = character_state.main_action[i] - 1
-                }
-                minus_actions = minus_actions - 1
-              }
-              delete character_state.special_effects[i].adrenaline_target
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("poisonous_adrenaline_target")) {
-              var turn = character_state.special_effects[i].poisonous_adrenaline_target.turn
-              character_state.special_effects[i].poisonous_adrenaline_target.turn = turn + 1
-              var extra_actions = character_state.special_effects[i].poisonous_adrenaline_target.extra_actions[turn]
-              while (extra_actions > 0) {
-                if (extra_actions % 2 == 0) {
-                  character_state.move_action[i] = character_state.move_action[i] + adrenaline_move_increase
-                } else {
-                  character_state.main_action[i] = character_state.main_action[i] + 1
-                }
-                extra_actions = extra_actions - 1
-              }
-              if (turn + 1 == poisonous_adrenaline_duration) {
-                var character = character_detailed_info[i]
-                var max_HP = HP_values[character.stamina]
-                var max_stamina = stamina_values[character.stamina]
-                var HP_cost = poisonous_adrenaline_flat_HP + parseInt(parseFloat(max_HP) * poisonous_adrenaline_percent_HP)
-                var stamina_cost = poisonous_adrenaline_flat_stamina + parseInt(parseFloat(max_stamina) * poisonous_adrenaline_percent_stamina)
-                character_state.HP[i] = character_state.HP[i] - HP_cost
-                character_state.stamina[i] = character_state.stamina[i] - stamina_cost
-                delete character_state.special_effects[i].poisonous_adrenaline_target
-                var message = "Адреналин в крови " + character.name + " заканчивается, наступает похмелье (" + HP_cost + " хп и " + stamina_cost + " выносливости)"
-                pushToList(message)
-              }
-          }
+          safety_service_target_round_effect(i);
+          belvet_buff_target_round_effect(i);
+          hook_target_round_effect(i);
+          calingalator_target_round_effect(i);
+          pich_pich_user_round_effect(i);
+          pich_pich_target_round_effect(i);
+          aim_round_effect(i);
+          adrenaline_target_round_effect(i);
+          poisonous_adrenaline_target_round_effect(i);
 
           if (character_state.special_effects[i].hasOwnProperty("shocked")) {
             if (character_state.special_effects[i].shocked.cooldown == 0) {
@@ -6282,7 +6309,7 @@ socket.registerMessageHandler((data) => {
         }
       }
 
-      apply_terrain_effects();
+      apply_terrain_effects(data);
     } else if (data.command == 'battle_mod_response') {
       game_state.battle_mod = data.value
       if (game_state.battle_mod == 0) {
