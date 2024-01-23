@@ -4498,6 +4498,30 @@ function check_default_cooldowns(i) {
   check_cooldown(i, "punishing_strike_user", "");
 }
 
+function check_all_round_effects(i, character, data) {
+  safety_service_target_round_effect(i);
+  belvet_buff_target_round_effect(i);
+  hook_target_round_effect(i);
+  calingalator_target_round_effect(i);
+  pich_pich_user_round_effect(i);
+  pich_pich_target_round_effect(i);
+  aim_round_effect(i);
+  adrenaline_target_round_effect(i);
+  poisonous_adrenaline_target_round_effect(i);
+  shocked_round_effect(i);
+  cut_limb_round_effect(i, character);
+  healed_round_effect(i);
+  blind_round_effect(i, character);
+  Marcus_stacks_round_effect(i);
+  shield_up_round_effect(i, character);
+  big_bro_round_effect(i, character);
+  tobacco_strike_round_effect(i);
+  acid_bomb_poison_round_effect(i, character);
+  gas_bomb_poison_round_effect(i, character, data);
+  meleed_round_effect(i);
+  sniper_passive_round_effect(i, character);
+}
+
 function safety_service_target_round_effect(i) {
   if (character_state.special_effects[i].hasOwnProperty("safety_service_target")) {
     if (character_state.special_effects[i].safety_service_target.duration == 0) {
@@ -4627,6 +4651,182 @@ function poisonous_adrenaline_target_round_effect(i) {
         var message = "Адреналин в крови " + character.name + " заканчивается, наступает похмелье (" + HP_cost + " хп и " + stamina_cost + " выносливости)"
         pushToList(message)
       }
+  }
+}
+
+function shocked_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("shocked")) {
+    if (character_state.special_effects[i].shocked.cooldown == 0) {
+      character_state.defensive_advantage[i] = character_state.defensive_advantage[i] + 1
+      delete character_state.special_effects[i].shocked
+    } else {
+      character_state.special_effects[i].shocked.cooldown = character_state.special_effects[i].shocked.cooldown - 1
+    }
+  }
+}
+
+function cut_limb_round_effect(i, character) {
+  if (character_state.special_effects[i].hasOwnProperty("cut_limb")) {
+    if (character_state.special_effects[i].cut_limb.duration == 0) {
+      delete character_state.special_effects[i].cut_limb
+      var message = "Сухожилия " + character.name + " восстановились."
+      pushToList(message)
+    } else {
+      character_state.move_action[i] = -10
+      character_state.special_effects[i].cut_limb.duration = character_state.special_effects[i].cut_limb.duration - 1
+    }
+  }
+}
+
+function healed_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("healed")) {
+    if (character_state.special_effects[i].healed.cooldown > 0) {
+      character_state.move_action[i] = character_state.move_action[i]/2
+      character_state.main_action[i] = character_state.main_action[i] - 1
+      character_state.bonus_action[i] = character_state.bonus_action[i] - 1
+      character_state.special_effects[i].healed.cooldown = character_state.special_effects[i].healed.cooldown - 1
+    } else {
+      delete character_state.special_effects[i].healed
+    }
+  }
+}
+
+function blind_round_effect(i, character) {
+  if (character_state.special_effects[i].hasOwnProperty("blind")) {
+    if (character_state.special_effects[i].blind.cooldown > 0) {
+      character_state.special_effects[i].blind.cooldown = character_state.special_effects[i].blind.cooldown - 1
+    } else {
+      delete character_state.special_effects[i].blind
+      character_state.ranged_advantage[i] = character_state.ranged_advantage[i] + 2
+      character_state.melee_advantage[i] = character_state.melee_advantage[i] + 1
+      var message = "Зрение " + character.name + " восстановилось"
+      pushToList(message)
+    }
+  }
+}
+
+function Marcus_stacks_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("Markus_stacks")) {
+    character_state.special_effects[i].Markus_stacks = character_state.special_effects[i].Markus_stacks - 1
+    if (character_state.special_effects[i].Markus_stacks == 0) {
+      delete character_state.special_effects[i].Markus_stacks
+    }
+  }
+}
+
+function shield_up_round_effect(i, character) {
+  if (character_state.special_effects[i].hasOwnProperty("shield_up")) {
+    character_state.move_action[i] = Math.ceil(character_state.move_action[i]/2)
+    character_state.stamina[i] = character_state.stamina[i] - character_state.special_effects[i].shield_up.stamina_cost
+    var message = character.name + " продолжает держать щит (спасибо)"
+    pushToList(message)
+  }
+}
+
+function big_bro_round_effect(i, character) {
+  if (character_state.special_effects[i].hasOwnProperty("big_bro")) {
+    if (character_state.special_effects[i].big_bro.cooldown == 0) {
+      character_state.bonus_KD[i] = character_state.bonus_KD[i] - character_state.special_effects[i].big_bro.bonus_KD
+      delete character_state.special_effects[i].big_bro
+      var message = character.name + " теряет защиту Большого Брата"
+      pushToList(message)
+    } else {
+      character_state.special_effects[i].big_bro.cooldown = character_state.special_effects[i].big_bro.cooldown - 1
+    }
+  }
+}
+
+function tobacco_strike_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("tobacco_strike")) {
+    if (character_state.special_effects[i].tobacco_strike.cooldown == 0) {
+      delete character_state.special_effects[i].tobacco_strike
+    } else {
+      if (character_state.special_effects[i].tobacco_strike.cooldown == tobacco_strike_cooldown) {
+        character_state.attack_bonus[i] = character_state.attack_bonus[i] - tobacco_strike_bonus
+      }
+      character_state.special_effects[i].tobacco_strike.cooldown = character_state.special_effects[i].tobacco_strike.cooldown - 1
+    }
+  }
+}
+
+function acid_bomb_poison_round_effect(i, character) {
+  if (character_state.special_effects[i].hasOwnProperty("acid_bomb_poison")) {
+    if (character_state.special_effects[i].acid_bomb_poison.duration == 0) {
+      character_state.bonus_KD[i] = character_state.bonus_KD[i] + character_state.special_effects[i].acid_bomb_poison.bonus_KD
+      delete character_state.special_effects[i].acid_bomb_poison
+      var message = "Броня " + character.name + " наконец восстановилась"
+      pushToList(message)
+    } else {
+      character_state.special_effects[i].acid_bomb_poison.duration = character_state.special_effects[i].acid_bomb_poison.duration - 1
+    }
+  }
+}
+
+function gas_bomb_poison_round_effect(i, character, data) {
+  if (character_state.special_effects[i].hasOwnProperty("gas_bomb_poison")) {
+    var save_roll = data.save_roll_list[i]
+    if (save_roll >= character_state.special_effects[i].gas_bomb_poison.threshold) {
+      character_state.special_effects[i].gas_bomb_poison.poison_level = character_state.special_effects[i].gas_bomb_poison.poison_level - 1
+      var message = character.name + " успешно кидает спасбросок и уменьшает стадию отравления (теперь " + character_state.special_effects[i].gas_bomb_poison.poison_level + ")"
+      pushToList(message)
+    } else {
+      var message = character.name + " проваливает спасбросок. Стадия отравления остается прежней (" + character_state.special_effects[i].gas_bomb_poison.poison_level + ")"
+      pushToList(message)
+    }
+
+    var count = character_state.special_effects[i].gas_bomb_poison.poison_level
+    while (count > 0) {
+      //character_state.move_action[i] = character_state.move_action[i] - gas_bomb_move_reduction
+      if (count % 2 == 1) {
+        character_state.main_action[i] = character_state.main_action[i] - 1
+      } else {
+        character_state.bonus_action[i] = character_state.bonus_action[i] - 1
+      }
+      count = count - 1
+    }
+
+    if (character_state.special_effects[i].gas_bomb_poison.poison_level <= 0) {
+      delete character_state.special_effects[i].gas_bomb_poison
+      var message = character.name + " больше не отравлен!"
+      pushToList(message)
+    }
+  }
+}
+
+function meleed_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("meleed")) {
+    if (character_state.special_effects[i].meleed.cooldown <= 0) {
+      delete character_state.special_effects[i].meleed
+      character_state.ranged_advantage[i] = character_state.ranged_advantage[i] + 1
+    } else {
+      character_state.special_effects[i].meleed.cooldown = character_state.special_effects[i].meleed.cooldown - 1
+    }
+  }
+}
+
+function sniper_passive_round_effect(i, character) {
+  if (character.special_type == 'sniper') {
+    var effects_object = character_state.special_effects[i]
+    if (effects_object.hasOwnProperty("sniper_passive")) {
+      var current_attack_bonus = effects_object.sniper_passive.attack_bonus
+      var current_damage_bonus = effects_object.sniper_passive.damage_bonus
+      if (current_attack_bonus == -5) {
+        var new_attack_bonus = 0
+        var new_damage_bonus = 0
+      } else {
+        var new_attack_bonus = Math.min(current_attack_bonus + 1, 4)
+        var new_damage_bonus = Math.min(current_damage_bonus + 2, 8)
+      }
+      character_state.attack_bonus[i] = character_state.attack_bonus[i] - current_attack_bonus + new_attack_bonus
+      character_state.damage_bonus[i] = character_state.damage_bonus[i] - current_damage_bonus + new_damage_bonus
+      character_state.special_effects[i].sniper_passive.attack_bonus = new_attack_bonus
+      character_state.special_effects[i].sniper_passive.damage_bonus = new_damage_bonus
+    } else {
+      var sniper_passive_object = {}
+      sniper_passive_object.attack_bonus = 0
+      sniper_passive_object.damage_bonus = 0
+      character_state.special_effects[i].sniper_passive = sniper_passive_object
+    }
   }
 }
 
@@ -6145,167 +6345,7 @@ socket.registerMessageHandler((data) => {
           move_and_actions_replenish(character, i);
           apply_tiredness(character, i);
           check_default_cooldowns(i);
-
-          safety_service_target_round_effect(i);
-          belvet_buff_target_round_effect(i);
-          hook_target_round_effect(i);
-          calingalator_target_round_effect(i);
-          pich_pich_user_round_effect(i);
-          pich_pich_target_round_effect(i);
-          aim_round_effect(i);
-          adrenaline_target_round_effect(i);
-          poisonous_adrenaline_target_round_effect(i);
-
-          if (character_state.special_effects[i].hasOwnProperty("shocked")) {
-            if (character_state.special_effects[i].shocked.cooldown == 0) {
-              character_state.defensive_advantage[i] = character_state.defensive_advantage[i] + 1
-              delete character_state.special_effects[i].shocked
-            } else {
-              character_state.special_effects[i].shocked.cooldown = character_state.special_effects[i].shocked.cooldown - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("cut_limb")) {
-            if (character_state.special_effects[i].cut_limb.duration == 0) {
-              delete character_state.special_effects[i].cut_limb
-              var message = "Сухожилия " + character.name + " восстановились."
-              pushToList(message)
-            } else {
-              character_state.move_action[i] = -10
-              character_state.special_effects[i].cut_limb.duration = character_state.special_effects[i].cut_limb.duration - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("healed")) {
-            if (character_state.special_effects[i].healed.cooldown > 0) {
-              character_state.move_action[i] = character_state.move_action[i]/2
-              character_state.main_action[i] = character_state.main_action[i] - 1
-              character_state.bonus_action[i] = character_state.bonus_action[i] - 1
-              character_state.special_effects[i].healed.cooldown = character_state.special_effects[i].healed.cooldown - 1
-            } else {
-              delete character_state.special_effects[i].healed
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("blind")) {
-            if (character_state.special_effects[i].blind.cooldown > 0) {
-              character_state.special_effects[i].blind.cooldown = character_state.special_effects[i].blind.cooldown - 1
-            } else {
-              delete character_state.special_effects[i].blind
-              character_state.ranged_advantage[i] = character_state.ranged_advantage[i] + 2
-              character_state.melee_advantage[i] = character_state.melee_advantage[i] + 1
-              var message = "Зрение " + character.name + " восстановилось"
-              pushToList(message)
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("Markus_stacks")) {
-            character_state.special_effects[i].Markus_stacks = character_state.special_effects[i].Markus_stacks - 1
-            if (character_state.special_effects[i].Markus_stacks == 0) {
-              delete character_state.special_effects[i].Markus_stacks
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("shield_up")) {
-            character_state.move_action[i] = Math.ceil(character_state.move_action[i]/2)
-            character_state.stamina[i] = character_state.stamina[i] - character_state.special_effects[i].shield_up.stamina_cost
-            var message = character.name + " продолжает держать щит (спасибо)"
-            pushToList(message)
-          }
-          if (character_state.special_effects[i].hasOwnProperty("big_bro")) {
-            if (character_state.special_effects[i].big_bro.cooldown == 0) {
-              character_state.bonus_KD[i] = character_state.bonus_KD[i] - character_state.special_effects[i].big_bro.bonus_KD
-              delete character_state.special_effects[i].big_bro
-              var message = character.name + " теряет защиту Большого Брата"
-              pushToList(message)
-            } else {
-              character_state.special_effects[i].big_bro.cooldown = character_state.special_effects[i].big_bro.cooldown - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("tobacco_strike")) {
-            if (character_state.special_effects[i].tobacco_strike.cooldown == 0) {
-              delete character_state.special_effects[i].tobacco_strike
-            } else {
-              if (character_state.special_effects[i].tobacco_strike.cooldown == tobacco_strike_cooldown) {
-                character_state.attack_bonus[i] = character_state.attack_bonus[i] - tobacco_strike_bonus
-              }
-              character_state.special_effects[i].tobacco_strike.cooldown = character_state.special_effects[i].tobacco_strike.cooldown - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("acid_bomb_poison")) {
-            if (character_state.special_effects[i].acid_bomb_poison.duration == 0) {
-              character_state.bonus_KD[i] = character_state.bonus_KD[i] + character_state.special_effects[i].acid_bomb_poison.bonus_KD
-              delete character_state.special_effects[i].acid_bomb_poison
-              var message = "Броня " + character.name + " наконец восстановилась"
-              pushToList(message)
-            } else {
-              character_state.special_effects[i].acid_bomb_poison.duration = character_state.special_effects[i].acid_bomb_poison.duration - 1
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("gas_bomb_poison")) {
-            var save_roll = data.save_roll_list[i]
-            if (save_roll >= character_state.special_effects[i].gas_bomb_poison.threshold) {
-              character_state.special_effects[i].gas_bomb_poison.poison_level = character_state.special_effects[i].gas_bomb_poison.poison_level - 1
-              var message = character.name + " успешно кидает спасбросок и уменьшает стадию отравления (теперь " + character_state.special_effects[i].gas_bomb_poison.poison_level + ")"
-              pushToList(message)
-            } else {
-              var message = character.name + " проваливает спасбросок. Стадия отравления остается прежней (" + character_state.special_effects[i].gas_bomb_poison.poison_level + ")"
-              pushToList(message)
-            }
-
-            var count = character_state.special_effects[i].gas_bomb_poison.poison_level
-            while (count > 0) {
-              //character_state.move_action[i] = character_state.move_action[i] - gas_bomb_move_reduction
-              if (count % 2 == 1) {
-                character_state.main_action[i] = character_state.main_action[i] - 1
-              } else {
-                character_state.bonus_action[i] = character_state.bonus_action[i] - 1
-              }
-              count = count - 1
-            }
-
-            if (character_state.special_effects[i].gas_bomb_poison.poison_level <= 0) {
-              delete character_state.special_effects[i].gas_bomb_poison
-              var message = character.name + " больше не отравлен!"
-              pushToList(message)
-            }
-          }
-
-          if (character_state.special_effects[i].hasOwnProperty("meleed")) {
-            if (character_state.special_effects[i].meleed.cooldown <= 0) {
-              delete character_state.special_effects[i].meleed
-              character_state.ranged_advantage[i] = character_state.ranged_advantage[i] + 1
-            } else {
-              character_state.special_effects[i].meleed.cooldown = character_state.special_effects[i].meleed.cooldown - 1
-            }
-          }
-
-          if (character.special_type == 'sniper') {
-            var effects_object = character_state.special_effects[i]
-            if (effects_object.hasOwnProperty("sniper_passive")) {
-              var current_attack_bonus = effects_object.sniper_passive.attack_bonus
-              var current_damage_bonus = effects_object.sniper_passive.damage_bonus
-              if (current_attack_bonus == -5) {
-                var new_attack_bonus = 0
-                var new_damage_bonus = 0
-              } else {
-                var new_attack_bonus = Math.min(current_attack_bonus + 1, 4)
-                var new_damage_bonus = Math.min(current_damage_bonus + 2, 8)
-              }
-              character_state.attack_bonus[i] = character_state.attack_bonus[i] - current_attack_bonus + new_attack_bonus
-              character_state.damage_bonus[i] = character_state.damage_bonus[i] - current_damage_bonus + new_damage_bonus
-              character_state.special_effects[i].sniper_passive.attack_bonus = new_attack_bonus
-              character_state.special_effects[i].sniper_passive.damage_bonus = new_damage_bonus
-            } else {
-              var sniper_passive_object = {}
-              sniper_passive_object.attack_bonus = 0
-              sniper_passive_object.damage_bonus = 0
-              character_state.special_effects[i].sniper_passive = sniper_passive_object
-            }
-          }
+          check_all_round_effects(i, character, data);
         }
       }
 
