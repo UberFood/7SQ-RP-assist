@@ -107,7 +107,7 @@ var shield_up_KD = 3
 var adrenaline_move_increase = 4
 var charge_move_increase = 4
 
-var gas_bomb_threshold = 11
+var gas_bomb_base_threshold = 10
 var gas_bomb_move_reduction = 2
 var gas_bomb_stamina_cost = 3
 var gas_bomb_obstacle = 15
@@ -3734,7 +3734,7 @@ function gas_bomb(index, cell) {
     toSend.room_number = my_room;
     toSend.user_index = user_character_number
     toSend.position = index
-    toSend.threshold = gas_bomb_threshold
+    toSend.threshold = compute_gas_bomb_threshold(character)
     socket.sendMessage(toSend);
 
     if (game_state.board_state[index] == 0) {// анимация только в пустую клетку
@@ -4227,7 +4227,7 @@ function forced_movement(from_index, to_index, character_number) {
 }
 
 // прок газовой гранаты
-function apply_bomb(position, radius) {
+function apply_bomb(position, radius, threshold) {
   var candidate_cells = index_in_radius(position, radius)
   //console.log(candidate_cells)
   for (let i = 0; i < candidate_cells.length; i++) {
@@ -4238,10 +4238,13 @@ function apply_bomb(position, radius) {
       pushToList(message)
       if (character_state.special_effects[target_character_number].hasOwnProperty("gas_bomb_poison")) {
         character_state.special_effects[target_character_number].gas_bomb_poison.poison_level = character_state.special_effects[target_character_number].gas_bomb_poison.poison_level + 1
+        if (character_state.special_effects[target_character_number].gas_bomb_poison.threshold < threshold) {
+          character_state.special_effects[target_character_number].gas_bomb_poison.threshold = threshold;
+        }
       } else {
         var gas_bomb_poison_object = {}
         gas_bomb_poison_object.poison_level = 1
-        gas_bomb_poison_object.threshold = gas_bomb_threshold
+        gas_bomb_poison_object.threshold = threshold
         character_state.special_effects[target_character_number].gas_bomb_poison = gas_bomb_poison_object
       }
       character_state.bonus_action[target_character_number] = character_state.bonus_action[target_character_number] - 1
@@ -4365,6 +4368,12 @@ function shocked_effect(target) {
   }
 }
 
+// computations related to skills
+function compute_gas_bomb_threshold(character) {
+  let bonus = Math.floor(parseInt(character.intelligence)/2);
+  return bonus + gas_bomb_base_threshold;
+}
+
 // new round actions
 
 function start_new_round() {
@@ -4399,7 +4408,7 @@ function apply_terrain_effects(data) {
         case "gas_bomb":
             var position = game_state.terrain_effects[i].position;
             var radius = game_state.terrain_effects[i].radius;
-            apply_bomb(position, radius)
+            apply_bomb(position, radius, game_state.terrain_effects[i].threshold);
             if (radius >= 4) {
               if (my_role == "gm") {
                 if (game_state.board_state[position] == obstacle_number_to_board_number(gas_bomb_obstacle)) {
@@ -5597,7 +5606,7 @@ socket.registerMessageHandler((data) => {
 
             var initial_radius = 2
 
-            apply_bomb(data.position, initial_radius)
+            apply_bomb(data.position, initial_radius, data.threshold)
 
             break;
 
