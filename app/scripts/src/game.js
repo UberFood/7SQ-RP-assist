@@ -132,6 +132,7 @@ var force_field_obstacle = 24
 var action_splash_cooldown = 4
 
 var invisibility_detection_radius = 2;
+var invisibility_detection_threshold = 10;
 
 var big_bro_range = 2
 var heal_range = 1
@@ -1093,6 +1094,61 @@ function get_object_picture(index_in_board_state) {
   return image;
 }
 
+// Move related functions
+
+function setup_move_send_object(from_index, to_index, character_number, distance) {
+  var toSend = {};
+  toSend.command = 'move_character';
+  toSend.from_index = from_index;
+  toSend.to_index = to_index;
+  toSend.character_number = character_number;
+  toSend.character_avatar = character_detailed_info[character_number].avatar;
+  toSend.room_number = my_room;
+  toSend.distance = distance;
+  toSend.left_shield = 0;
+  toSend.mines_exploded = [];
+  toSend.mines_damage = 0;
+  toSend.invisibility_ended_id = [];
+  return toSend;
+}
+
+function updateMoveForceFieldStatus(chosen_character_index, to_index, toSend) {
+  if (character_state.special_effects[chosen_character_index].hasOwnProperty("force_field_target")) {
+    var shield_index = character_state.special_effects[chosen_character_index].force_field_target.shield_index
+    if(!game_state.terrain_effects[shield_index].cells_protected.includes(to_index)) {// покинул зону защиты
+      toSend.left_shield = 1
+      toSend.shield_index = shield_index
+    }
+  }
+  return toSend;
+}
+
+function updateMoveOwnInvisibility(chosen_character_index, to_index, toSend) {
+  if (character_state.invisibility[chosen_character_index] != "all") {//user is invisible
+    var immediate_nbh = index_in_radius(to_index, 1);
+    for (let i = 0; i < immediate_nbh.length; i++) {
+        if (game_state.board_state[immediate_nbh[i]] > 0 && game_state.board_state[immediate_nbh[i]] != chosen_character_index) {// there are characters there
+          toSend.invisibility_ended_id.push(chosen_character_index);
+          break;
+        }
+    }
+    if (toSend.invisibility_ended_id.length == 0) {
+      var extended_nbh = index_in_radius(to_index, invisibility_detection_radius);
+      for (let i = 0; i < extended_nbh.length; i++) {
+          if (game_state.board_state[extended_nbh[i]] > 0 && game_state.board_state[extended_nbh[i]] != chosen_character_index) {// there are characters there
+            var current_char_num = game_state.board_state[extended_nbh[i]];
+            var roll = roll_x(20) + parseInt(character_detailed_info[current_char_num].intelligence);
+            if (roll >= invisibility_detection_threshold) {
+              toSend.invisibility_ended_id.push(chosen_character_index);
+              break;
+            }
+          }
+      }
+    }
+  }
+  return toSend;
+}
+
 // Move - Delete - Select
 
 function move_character(to_index, to_cell) {
@@ -1105,49 +1161,9 @@ function move_character(to_index, to_cell) {
 
   if (distance <= max_distance) {
     if (!(game_state.battle_mod == 1 && distance > 1.6)) {
-      var toSend = {};
-      toSend.command = 'move_character';
-      toSend.from_index = chosen_index;
-      toSend.to_index = to_index;
-      toSend.character_number = chosen_character_index;
-      toSend.character_avatar = character_detailed_info[chosen_character_index].avatar;
-      toSend.room_number = my_room;
-      toSend.distance = distance
-      toSend.left_shield = 0
-      toSend.mines_exploded = []
-      toSend.mines_damage = 0
-
-      if (character_state.special_effects[chosen_character_index].hasOwnProperty("force_field_target")) {
-        var shield_index = character_state.special_effects[chosen_character_index].force_field_target.shield_index
-        if(!game_state.terrain_effects[shield_index].cells_protected.includes(to_index)) {// покинул зону защиты
-          toSend.left_shield = 1
-          toSend.shield_index = shield_index
-        }
-      }
-
-      toSend.invisibility_ended_id = [];
-      if (character_state.invisibility[chosen_character_index] != "all") {//user is invisible
-        var immediate_nbh = index_in_radius(to_index, 1);
-        for (let i = 0; i < immediate_nbh.length; i++) {
-            if (game_state.board_state[immediate_nbh[i]] > 0 && game_state.board_state[immediate_nbh[i]] != chosen_character_index) {// there are characters there
-              toSend.invisibility_ended_id.push(chosen_character_index);
-              break;
-            }
-        }
-        if (toSend.invisibility_ended_id.length == 0) {
-          var extended_nbh = index_in_radius(to_index, invisibility_detection_radius);
-          for (let i = 0; i < extended_nbh.length; i++) {
-              if (game_state.board_state[extended_nbh[i]] > 0 && game_state.board_state[extended_nbh[i]] != chosen_character_index) {// there are characters there
-                var current_char_num = game_state.board_state[extended_nbh[i]];
-                var roll = roll_x(20) + parseInt(character_detailed_info[current_char_num].intelligence);
-                if (roll > 10) {
-                  toSend.invisibility_ended_id.push(chosen_character_index);
-                  break;
-                }
-              }
-          }
-        }
-      }
+      var toSend = setup_move_send_object(chosen_index, to_index, chosen_character_index, distance);
+      toSend = updateMoveForceFieldStatus(chosen_character_index, to_index, toSend);
+      toSend = updateMoveOwnInvisibility(chosen_character_index, to_index, toSend);
 
       if (game_state.landmines.positions.includes(to_index)) {
         toSend.mines_exploded.push(to_index)
@@ -1196,7 +1212,7 @@ function move_character(to_index, to_cell) {
       var to_cell = document.getElementById('cell_' + to_index);
       character_chosen.cell = to_cell
     } else {
-      alert("В бою нужно двигаться поступательно (1-2 клетки)")
+      alert("В бою нужно двигаться поступательно (1-1.5 клетки)")
       undo_selection()
     }
   } else {
