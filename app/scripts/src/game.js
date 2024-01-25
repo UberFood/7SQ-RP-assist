@@ -2687,13 +2687,17 @@ function use_skill(skill_index, character_number, position, cell) {
   skill_index = parseInt(skill_index)
   switch(skill_index) {
     case 0: //Рывок
-      if (character_state.bonus_action[character_number] > 0 && (!character_state.special_effects[character_number].hasOwnProperty("charge_user") || character_detailed_info[character_number].special_type == "rogue")) {
-        var toSend = {};
-        toSend.command = 'skill';
-        toSend.room_number = my_room;
-        toSend.skill_index = skill_index
-        toSend.user_index = character_number
-        socket.sendMessage(toSend);
+      if (character_state.bonus_action[character_number] > 0) {
+        if ((!character_state.special_effects[character_number].hasOwnProperty("charge_user"))) {
+          var toSend = {};
+          toSend.command = 'skill';
+          toSend.room_number = my_room;
+          toSend.skill_index = skill_index
+          toSend.user_index = character_number
+          socket.sendMessage(toSend);
+        } else {
+          alert("Вы уже совершили максимальное число рывков в этот ход")
+        }
       } else {
         alert("Не хватает действий!")
       }
@@ -4500,6 +4504,7 @@ function check_default_cooldowns(i) {
   check_cooldown(i, "acid_bomb_user", "");
   check_cooldown(i, "force_field_user", "");
   check_cooldown(i, "charge_user", "");
+  check_cooldown(i, "pre_charge", "");
   check_cooldown(i, "cut_limb_user", "");
   check_cooldown(i, "adrenaline_user", "");
   check_cooldown(i, "poisonous_adrenaline_user", "");
@@ -5353,9 +5358,16 @@ socket.registerMessageHandler((data) => {
             var charge_move_increase = parseInt(character.agility)
             character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
             character_state.move_action[user_index] = character_state.move_action[user_index] + charge_move_increase
-            var charge_user_object = {}
-            charge_user_object.cooldown = 0
-            character_state.special_effects[user_index].charge_user = charge_user_object
+            if (character.special_type != 'rogue' || character_state.special_effects[user_index].hasOwnProperty('pre_charge')) {
+              var charge_user_object = {}
+              charge_user_object.cooldown = 0
+              character_state.special_effects[user_index].charge_user = charge_user_object
+            } else {
+              var pre_charge_object = {}
+              pre_charge_object.cooldown = 0
+              character_state.special_effects[user_index].pre_charge = pre_charge_object
+            }
+
             var message = character.name + " совершает рывок"
             pushToList(message)
             break;
