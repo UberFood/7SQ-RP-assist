@@ -1123,28 +1123,56 @@ function updateMoveForceFieldStatus(chosen_character_index, to_index, toSend) {
   return toSend;
 }
 
-function updateMoveOwnInvisibility(chosen_character_index, to_index, toSend) {
-  if (character_state.invisibility[chosen_character_index] != "all") {//user is invisible
-    var immediate_nbh = index_in_radius(to_index, 1);
-    for (let i = 0; i < immediate_nbh.length; i++) {
-        if (game_state.board_state[immediate_nbh[i]] > 0 && game_state.board_state[immediate_nbh[i]] != chosen_character_index) {// there are characters there
-          toSend.invisibility_ended_id.push(chosen_character_index);
-          break;
-        }
-    }
-    if (toSend.invisibility_ended_id.length == 0) {
-      var extended_nbh = index_in_radius(to_index, invisibility_detection_radius);
-      for (let i = 0; i < extended_nbh.length; i++) {
-          if (game_state.board_state[extended_nbh[i]] > 0 && game_state.board_state[extended_nbh[i]] != chosen_character_index) {// there are characters there
-            var current_char_num = game_state.board_state[extended_nbh[i]];
-            var roll = roll_x(20) + parseInt(character_detailed_info[current_char_num].intelligence);
-            if (roll >= invisibility_detection_threshold) {
+function updateMoveOwnInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_nbh) {
+  if (character_state.invisibility[chosen_character_index] != "all") { //user is invisible
+    for (let i = 0; i < extended_nbh.length; i++) {
+        var current_cell = extended_nbh[i];
+        var object_number = game_state.board_state[current_cell];
+        if (object_number > 0 && object_number != chosen_character_index) { // there are characters there
+            if (immediate_nbh.includes(current_cell)) {
               toSend.invisibility_ended_id.push(chosen_character_index);
               break;
+            } else {
+              var roll = roll_x(20) + parseInt(character_detailed_info[object_number].intelligence);
+              if (roll >= invisibility_detection_threshold) {
+                toSend.invisibility_ended_id.push(chosen_character_index);
+                break;
+              }
+            }
+        }
+    }
+  }
+  return toSend;
+}
+
+function updateMoveOthersInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_nbh) {
+  for (let i = 0; i < extended_nbh.length; i++) {
+      var current_cell = extended_nbh[i];
+      var object_number = game_state.board_state[current_cell];
+      if (object_number > 0 && object_number != chosen_character_index) {// there are characters there
+        if (character_state.invisibility[object_number] != "all") {
+          if (immediate_nbh.includes(current_cell)) {
+            toSend.invisibility_ended_id.push(object_number);
+          } else {
+            var roll = roll_x(20) + parseInt(character_detailed_info[chosen_character_index].intelligence);
+            if (roll >= invisibility_detection_threshold) {
+              toSend.invisibility_ended_id.push(object_number);
             }
           }
+        }
       }
-    }
+  }
+  return toSend;
+}
+
+function updateMoveLandminesExploded(chosen_character_index, to_index, toSend, immediate_nbh) {
+
+  for (let i = 0; i < immediate_nbh.length; i++) {
+      var current_cell = immediate_nbh[i];
+      if (game_state.landmines.positions.includes(current_cell)) {
+        toSend.mines_exploded.push(current_cell)
+        toSend.mines_damage = toSend.mines_damage + roll_x(mines_1_distance_damage);
+      }
   }
   return toSend;
 }
@@ -1162,48 +1190,14 @@ function move_character(to_index, to_cell) {
   if (distance <= max_distance) {
     if (!(game_state.battle_mod == 1 && distance > 1.6)) {
       var toSend = setup_move_send_object(chosen_index, to_index, chosen_character_index, distance);
+
+      var immediate_nbh = index_in_radius(to_index, 1.6);
+      var extended_invisibility_nbh = index_in_radius(to_index, invisibility_detection_radius);
+
       toSend = updateMoveForceFieldStatus(chosen_character_index, to_index, toSend);
-      toSend = updateMoveOwnInvisibility(chosen_character_index, to_index, toSend);
-
-      if (game_state.landmines.positions.includes(to_index)) {
-        toSend.mines_exploded.push(to_index)
-        toSend.mines_damage = toSend.mines_damage + roll_x(mines_0_distance_damage);
-      }
-
-      var immediate_nbh = index_in_radius(to_index, 1);
-      for (let i = 0; i < immediate_nbh.length; i++) {
-          if (game_state.board_state[immediate_nbh[i]] > 0 && game_state.board_state[immediate_nbh[i]] != chosen_character_index) {// there are characters there
-            if (character_state.invisibility[game_state.board_state[immediate_nbh[i]]] != "all") {
-                toSend.invisibility_ended_id.push(game_state.board_state[immediate_nbh[i]]);
-            }
-          }
-
-          if (game_state.landmines.positions.includes(immediate_nbh[i]) && immediate_nbh[i] != to_index) {
-            toSend.mines_exploded.push(immediate_nbh[i])
-            toSend.mines_damage = toSend.mines_damage + roll_x(mines_1_distance_damage);
-          }
-      }
-
-      var one_and_half_nbh = index_in_radius(to_index, 1.6);
-      for (let i = 0; i < one_and_half_nbh.length; i++) {
-          if (game_state.landmines.positions.includes(one_and_half_nbh[i]) && (!immediate_nbh.includes(one_and_half_nbh[i]))) {
-            toSend.mines_exploded.push(one_and_half_nbh[i])
-            toSend.mines_damage = toSend.mines_damage + roll_x(mines_1p5_distance_damage);
-          }
-      }
-
-      var extended_nbh = index_in_radius(to_index, invisibility_detection_radius);
-      for (let i = 0; i < extended_nbh.length; i++) {
-          if (game_state.board_state[extended_nbh[i]] > 0 && game_state.board_state[extended_nbh[i]] != chosen_character_index && (!immediate_nbh.includes(extended_nbh[i]))) {// there are characters there
-            var current_char_num = game_state.board_state[extended_nbh[i]];
-            if (character_state.invisibility[current_char_num] != "all") {
-              var roll = roll_x(20) + parseInt(character_detailed_info[chosen_character_index].intelligence);
-              if (roll > 10) {
-                toSend.invisibility_ended_id.push(current_char_num);
-              }
-            }
-          }
-      }
+      toSend = updateMoveOwnInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
+      toSend = updateMoveOthersInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
+      toSend = updateMoveLandminesExploded(chosen_character_index, to_index, toSend, immediate_nbh);
 
       clear_containers();
       socket.sendMessage(toSend);
