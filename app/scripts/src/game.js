@@ -107,6 +107,8 @@ var shield_up_KD = 3
 var adrenaline_move_increase = 4
 var charge_move_increase = 4
 
+var sniper_passive_penalty = -5;
+
 var gas_bomb_base_threshold = 10
 var gas_bomb_move_reduction = 2
 var gas_bomb_stamina_cost = 3
@@ -1096,6 +1098,43 @@ function get_object_picture(index_in_board_state) {
 
 // Move related functions
 
+function move_character(to_index, to_cell) {
+  character_chosen.in_process = 0; // end the motion
+  var chosen_index = character_chosen.char_position
+  var chosen_character_index = character_chosen.char_id
+
+  var distance = findDistance(to_index, chosen_index)
+  var max_distance = character_state.move_action[chosen_character_index]
+
+  if (distance <= max_distance) {
+    if (!(game_state.battle_mod == 1 && distance > 1.6)) {
+      var toSend = setup_move_send_object(chosen_index, to_index, chosen_character_index, distance);
+
+      var immediate_nbh = index_in_radius(to_index, 1.6);
+      var extended_invisibility_nbh = index_in_radius(to_index, invisibility_detection_radius);
+
+      toSend = updateMoveForceFieldStatus(chosen_character_index, to_index, toSend);
+      toSend = updateMoveOwnInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
+      toSend = updateMoveOthersInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
+      toSend = updateMoveLandminesExploded(chosen_character_index, to_index, toSend, immediate_nbh);
+
+      clear_containers();
+      socket.sendMessage(toSend);
+
+      character_chosen.char_position = to_index
+      var to_cell = document.getElementById('cell_' + to_index);
+      character_chosen.cell = to_cell
+    } else {
+      alert("В бою нужно двигаться поступательно (1-1.5 клетки)")
+      undo_selection()
+    }
+  } else {
+    alert("Полегче, мсье Болт")
+    undo_selection()
+  }
+
+}
+
 function setup_move_send_object(from_index, to_index, character_number, distance) {
   var toSend = {};
   toSend.command = 'move_character';
@@ -1166,55 +1205,94 @@ function updateMoveOthersInvisibility(chosen_character_index, to_index, toSend, 
 }
 
 function updateMoveLandminesExploded(chosen_character_index, to_index, toSend, immediate_nbh) {
-
-  for (let i = 0; i < immediate_nbh.length; i++) {
-      var current_cell = immediate_nbh[i];
-      if (game_state.landmines.positions.includes(current_cell)) {
-        toSend.mines_exploded.push(current_cell)
-        toSend.mines_damage = toSend.mines_damage + roll_x(mines_1_distance_damage);
-      }
+  var character = character_detailed_info[chosen_character_index];
+  if (!character.hasOwnProperty("landmine_immune")) {
+    for (let i = 0; i < immediate_nbh.length; i++) {
+        var current_cell = immediate_nbh[i];
+        if (game_state.landmines.positions.includes(current_cell)) {
+          toSend.mines_exploded.push(current_cell)
+          toSend.mines_damage = toSend.mines_damage + roll_x(mines_1_distance_damage);
+        }
+    }
   }
   return toSend;
 }
 
-// Move - Delete - Select
-
-function move_character(to_index, to_cell) {
-  character_chosen.in_process = 0; // end the motion
-  var chosen_index = character_chosen.char_position
-  var chosen_character_index = character_chosen.char_id
-
-  var distance = findDistance(to_index, chosen_index)
-  var max_distance = character_state.move_action[chosen_character_index]
-
-  if (distance <= max_distance) {
-    if (!(game_state.battle_mod == 1 && distance > 1.6)) {
-      var toSend = setup_move_send_object(chosen_index, to_index, chosen_character_index, distance);
-
-      var immediate_nbh = index_in_radius(to_index, 1.6);
-      var extended_invisibility_nbh = index_in_radius(to_index, invisibility_detection_radius);
-
-      toSend = updateMoveForceFieldStatus(chosen_character_index, to_index, toSend);
-      toSend = updateMoveOwnInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
-      toSend = updateMoveOthersInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
-      toSend = updateMoveLandminesExploded(chosen_character_index, to_index, toSend, immediate_nbh);
-
-      clear_containers();
-      socket.sendMessage(toSend);
-
-      character_chosen.char_position = to_index
-      var to_cell = document.getElementById('cell_' + to_index);
-      character_chosen.cell = to_cell
-    } else {
-      alert("В бою нужно двигаться поступательно (1-1.5 клетки)")
-      undo_selection()
-    }
-  } else {
-    alert("Полегче, мсье Болт")
-    undo_selection()
-  }
-
+function receiveMoveBasicState(to_index, from_index, character_number) {
+  game_state.board_state[to_index] = character_number;
+  game_state.board_state[from_index] = 0;
+  character_state.position[character_number] = to_index;
+  character_state.has_moved[character_number] = 1;
 }
+
+function receiveMoveInvisibilityReveal(invisibility_ended_id) {
+  for (let i = 0; i < invisibility_ended_id.length; i++) {
+    var id = invisibility_ended_id[i];
+    character_state.invisibility[id] = "all";
+
+    var position = character_state.position[id];
+    var to_cell = document.getElementById('cell_' + position);
+    var avatar = get_object_picture(id);
+    to_cell.src = avatar;
+  }
+}
+
+function receiveMoveForceFieldInteraction(left_shield, character_number, shield_index) {
+  // remove shielded property from character and remove character from shielded list
+    if (left_shield == 1) {
+      delete character_state.special_effects[character_number].force_field_target;
+      var index = game_state.terrain_effects[shield_index].character_list.indexOf(character_number);
+      if (index !== -1) {
+        game_state.terrain_effects[shield_index].character_list.splice(index, 1);
+      }
+    }
+}
+
+function receiveMoveLandmineExplosions(mines_exploded, mines_damage, character_number) {
+    var character = character_detailed_info[character_number];
+    for (let i = 0; i < mines_exploded.length; i++) {
+      var mine_position = mines_exploded[i];
+      var cell = document.getElementById('cell_' + mine_position);
+      cell.src = fogOrPic(mine_position);
+      var index = game_state.landmines.positions.indexOf(mine_position);
+      if (index > -1) {
+        game_state.landmines.positions.splice(index,1);
+      }
+      game_state.landmines.knowers[mine_position] = [];
+    }
+
+    if (mines_damage > 0) {
+      explosion_audio.play();
+      do_damage(character_number, mines_damage);
+      var message = character.name + " подрывается на минах получая " + mines_damage + " урона";
+      pushToList(message);
+    }
+}
+
+function receiveMoveSubstractActions(character_number, distance) {
+
+  character_state.move_action[character_number] = character_state.move_action[character_number] - parseFloat(distance);
+}
+
+function receiveMoveSniperPassive(character_number) {
+  var effects_object = character_state.special_effects[character_number]
+  if (effects_object.hasOwnProperty("sniper_passive")) {
+    var current_attack_bonus = effects_object.sniper_passive.attack_bonus
+    var current_damage_bonus = effects_object.sniper_passive.damage_bonus
+    character_state.attack_bonus[character_number] = character_state.attack_bonus[character_number] - current_attack_bonus + sniper_passive_penalty
+    character_state.damage_bonus[character_number] = character_state.damage_bonus[character_number] - current_damage_bonus
+    character_state.special_effects[character_number].sniper_passive.attack_bonus = sniper_passive_penalty
+    character_state.special_effects[character_number].sniper_passive.damage_bonus = 0
+  } else {
+    var sniper_passive_object = {}
+    sniper_passive_object.attack_bonus = sniper_passive_penalty
+    sniper_passive_object.damage_bonus = 0
+    character_state.special_effects[character_number].sniper_passive = sniper_passive_object
+    character_state.attack_bonus[character_number] = character_state.attack_bonus[character_number] + sniper_passive_penalty
+  }
+}
+
+// Delete - Select
 
 function delete_character(index, character_number) {
   clear_containers()
@@ -5203,72 +5281,17 @@ socket.registerMessageHandler((data) => {
       var from_index = data.from_index;
 
       if (game_state.board_state[to_index] == 0 && game_state.board_state[from_index] == data.character_number) {
-        game_state.board_state[to_index] = data.character_number;
-        character_state.position[data.character_number] = to_index;
+        var character = character_detailed_info[data.character_number];
 
-        for (let i = 0; i < data.invisibility_ended_id.length; i++) {
-          var id = data.invisibility_ended_id[i];
-          character_state.invisibility[id] = "all";
-
-          var position = character_state.position[id];
-          var to_cell = document.getElementById('cell_' + position);
-          var avatar = get_object_picture(id);
-          to_cell.src = avatar;
-        }
-
-        var character = character_detailed_info[data.character_number]
-
-        if (!character.hasOwnProperty("landmine_immune")) {
-          for (let i = 0; i < data.mines_exploded.length; i++) {
-            var mine_position = data.mines_exploded[i]
-            var cell = document.getElementById('cell_' + mine_position);
-            cell.src = fogOrPic(mine_position)
-            var index = game_state.landmines.positions.indexOf(mine_position)
-            if (index > -1) {
-              game_state.landmines.positions.splice(index,1)
-            }
-            game_state.landmines.knowers[mine_position] = []
-          }
-
-          if (data.mines_damage > 0) {
-            explosion_audio.play();
-            do_damage(data.character_number, data.mines_damage)
-            var message = character.name + " подрывается на минах получая " + data.mines_damage + " урона"
-            pushToList(message)
-          }
-        }
-
-      // remove shielded property from character and remove character from shielded list
-        if (data.left_shield == 1) {
-          delete character_state.special_effects[data.character_number].force_field_target
-          var index = game_state.terrain_effects[data.shield_index].character_list.indexOf(data.character_number)
-          if (index !== -1) {
-            game_state.terrain_effects[data.shield_index].character_list.splice(index, 1);
-          }
-        }
-
-        character_state.has_moved[data.character_number] = 1;
+        receiveMoveBasicState(to_index, from_index, data.character_number);
+        receiveMoveInvisibilityReveal(data.invisibility_ended_id);
+        receiveMoveForceFieldInteraction(data.left_shield, data.character_number, data.shield_index);
+        receiveMoveLandmineExplosions(data.mines_exploded, data.mines_damage, data.character_number);
 
         if (game_state.battle_mod == 1) {
-          character_state.stamina[data.character_number] = character_state.stamina[data.character_number] - stamina_move_cost
-          character_state.move_action[data.character_number] = character_state.move_action[data.character_number] - parseFloat(data.distance)
-          var character = character_detailed_info[data.character_number]
+          receiveMoveSubstractActions(data.character_number, data.distance);
           if (character.special_type == "sniper") {
-            var effects_object = character_state.special_effects[data.character_number]
-            if (effects_object.hasOwnProperty("sniper_passive")) {
-              var current_attack_bonus = effects_object.sniper_passive.attack_bonus
-              var current_damage_bonus = effects_object.sniper_passive.damage_bonus
-              character_state.attack_bonus[data.character_number] = character_state.attack_bonus[data.character_number] - current_attack_bonus - 5
-              character_state.damage_bonus[data.character_number] = character_state.damage_bonus[data.character_number] - current_damage_bonus
-              character_state.special_effects[data.character_number].sniper_passive.attack_bonus = -5
-              character_state.special_effects[data.character_number].sniper_passive.damage_bonus = 0
-            } else {
-              var sniper_passive_object = {}
-              sniper_passive_object.attack_bonus = -5
-              sniper_passive_object.damage_bonus = 0
-              character_state.special_effects[data.character_number].sniper_passive = sniper_passive_object
-              character_state.attack_bonus[data.character_number] = character_state.attack_bonus[data.character_number] - 5
-            }
+            receiveMoveSniperPassive(data.character_number);
           }
         }
 
@@ -5277,7 +5300,6 @@ socket.registerMessageHandler((data) => {
           to_cell.src = get_object_picture(data.character_number);
         }
 
-        game_state.board_state[from_index] = 0;
         if (!((my_role == 'player')&&(game_state.fog_state[from_index] == 1))) {
           var old_cell = document.getElementById("cell_" + from_index);
           old_cell.src = EMPTY_CELL_PIC;
