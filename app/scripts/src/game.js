@@ -1310,8 +1310,36 @@ function receiveMoveSniperPassive(character_number) {
 }
 
 // Move related skills
-function jump (to_index, to_cell) {
+function jump(to_index, to_cell) {
+  var chosen_character_index = character_chosen.char_id;
+  var chosen_index = character_state.position[chosen_character_index];
 
+  var distance = findDistance(to_index, chosen_index)
+  var max_distance = findJumpDistance(chosen_character_index);
+
+  if (distance <= max_distance) {
+    var toSend = setup_move_send_object(chosen_index, to_index, chosen_character_index, distance);
+    toSend.command = 'skill';
+    toSend.skill_index = character_chosen.skill_id;
+
+    var immediate_nbh = index_in_radius(to_index, 1.6);
+    var extended_invisibility_nbh = index_in_radius(to_index, invisibility_detection_radius);
+
+    toSend = updateMoveForceFieldStatus(chosen_character_index, to_index, toSend);
+    toSend = updateMoveOwnInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
+    toSend = updateMoveOthersInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
+    toSend = updateMoveLandminesExploded(chosen_character_index, to_index, toSend, immediate_nbh);
+
+    clear_containers();
+    socket.sendMessage(toSend);
+
+  } else {
+    alert("Кенгуру может прыгнуть на 10 метров, а вы нет");
+  }
+}
+
+function receiveJumpSubstractActions(character_number) {
+  character_state.bonus_action[character_number] = character_state.bonus_action[character_number] - 1;
 }
 
 // Delete - Select
@@ -2776,6 +2804,13 @@ function do_damage(character_number, damage) {
 
 function findThrowRange(character) {
   return throw_base_range + parseInt(character.strength)*2
+}
+
+function findJumpDistance(character_number) {
+  var character = character_detailed_info[character_number];
+  var distance = Math.ceil(parseInt(character.strength)/2);
+  console.log(distance);
+  return distance;
 }
 
 function melee_penalty(data) {
@@ -4275,6 +4310,12 @@ function check_cooldown(character_number, effect, message) {
   }
 }
 
+function setCooldown(character_number, cooldown_name, cooldown_length) {
+  var cooldown_object = {};
+  cooldown_object.cooldown = cooldown_length;
+  character_state.special_effects[character_number][cooldown_name] = cooldown_object;
+}
+
 function restore_hp(character_number, amount) {
   var character = character_detailed_info[character_number]
   character_state.HP[character_number] = Math.min(character_state.HP[character_number] + amount, HP_values[character.stamina]);
@@ -4640,6 +4681,7 @@ function check_default_cooldowns(i) {
   check_cooldown(i, "poisonous_adrenaline_user", "");
   check_cooldown(i, "hook_user", "");
   check_cooldown(i, "punishing_strike_user", "");
+  check_cooldown(i, "jump_user", "");
 }
 
 function check_all_round_effects(i, character, data) {
@@ -6416,6 +6458,29 @@ socket.registerMessageHandler((data) => {
           default:
             console.log("fucked up resolving punishment")
             break;
+        }
+        break;
+
+      case 37: // прыжок
+        var to_index = data.to_index;
+        var from_index = data.from_index;
+
+        if (game_state.board_state[to_index] == 0 && game_state.board_state[from_index] == data.character_number) {
+          var character = character_detailed_info[data.character_number];
+
+          receiveMoveBasicState(to_index, from_index, data.character_number);
+          receiveMoveInvisibilityReveal(data.invisibility_ended_id);
+          receiveMoveForceFieldInteraction(data.left_shield, data.character_number, data.shield_index);
+          receiveMoveLandmineExplosions(data.mines_exploded, data.mines_damage, data.character_number);
+          receiveMoveImageState(to_index, from_index, data.character_number);
+
+          if (game_state.battle_mod == 1) {
+            receiveJumpSubstractActions(data.character_number);
+            setCooldown(data.character_number, 'jump_user', 0);
+            if (character.special_type == "sniper") {
+              receiveMoveSniperPassive(data.character_number);
+            }
+          }
         }
         break;
 
