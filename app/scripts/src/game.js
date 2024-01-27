@@ -1099,9 +1099,10 @@ function get_object_picture(index_in_board_state) {
 // Move related functions
 
 function move_character(to_index, to_cell) {
+
   character_chosen.in_process = 0; // end the motion
-  var chosen_index = character_chosen.char_position
-  var chosen_character_index = character_chosen.char_id
+  var chosen_character_index = character_chosen.char_id;
+  var chosen_index = character_state.position[chosen_character_index];
 
   var distance = findDistance(to_index, chosen_index)
   var max_distance = character_state.move_action[chosen_character_index]
@@ -1121,9 +1122,7 @@ function move_character(to_index, to_cell) {
       clear_containers();
       socket.sendMessage(toSend);
 
-      character_chosen.char_position = to_index
-      var to_cell = document.getElementById('cell_' + to_index);
-      character_chosen.cell = to_cell
+      //updateMoveCharacterChosenInteraction(to_index);
     } else {
       alert("В бою нужно двигаться поступательно (1-1.5 клетки)")
       undo_selection()
@@ -1218,11 +1217,29 @@ function updateMoveLandminesExploded(chosen_character_index, to_index, toSend, i
   return toSend;
 }
 
+function updateMoveCharacterChosenInteraction(to_index) {
+  character_chosen.char_position = to_index
+  var to_cell = document.getElementById('cell_' + to_index);
+  character_chosen.cell = to_cell
+}
+
 function receiveMoveBasicState(to_index, from_index, character_number) {
   game_state.board_state[to_index] = character_number;
   game_state.board_state[from_index] = 0;
   character_state.position[character_number] = to_index;
   character_state.has_moved[character_number] = 1;
+}
+
+function receiveMoveImageState(to_index, from_index, character_number) {
+  if (!(((my_role == 'player')&&(game_state.fog_state[to_index] == 1)) || (character_state.invisibility[character_number] != "all" && character_state.invisibility[character_number] != my_name))) {
+    var to_cell = document.getElementById('cell_' + to_index);
+    to_cell.src = get_object_picture(character_number);
+  }
+
+  if (!((my_role == 'player')&&(game_state.fog_state[from_index] == 1))) {
+    var old_cell = document.getElementById("cell_" + from_index);
+    old_cell.src = EMPTY_CELL_PIC;
+  }
 }
 
 function receiveMoveInvisibilityReveal(invisibility_ended_id) {
@@ -1290,6 +1307,11 @@ function receiveMoveSniperPassive(character_number) {
     character_state.special_effects[character_number].sniper_passive = sniper_passive_object
     character_state.attack_bonus[character_number] = character_state.attack_bonus[character_number] + sniper_passive_penalty
   }
+}
+
+// Move related skills
+function jump (to_index, to_cell) {
+
 }
 
 // Delete - Select
@@ -2014,14 +2036,18 @@ function choose_character_to_attack(cell) {
 
 function stop_attack() {
   character_chosen.in_process = 0
-  var old_cell = document.getElementById("cell_" + character_chosen.char_position);
-  old_cell.src = get_object_picture(character_chosen.char_id);
+  var character_number = character_chosen.char_id;
+  var position = character_state.position[character_number];
+  var old_cell = document.getElementById("cell_" + position);
+  old_cell.src = get_object_picture(character_number);
 }
 
 function stop_skill() {
   character_chosen.in_process = 0
-  var old_cell = document.getElementById("cell_" + character_chosen.char_position);
-  old_cell.src = get_object_picture(character_chosen.char_id);
+  var character_number = character_chosen.char_id;
+  var position = character_state.position[character_number];
+  var old_cell = document.getElementById("cell_" + position);
+  old_cell.src = get_object_picture(character_number);
 }
 
 // initiative related functions
@@ -3178,6 +3204,18 @@ function use_skill(skill_index, character_number, position, cell) {
       }
       break;
 
+    case 37: // прыжок
+      if (!character_state.special_effects[character_number].hasOwnProperty("jump_user")) {
+        if (character_state.bonus_action[character_number] > 0) {
+          choose_character_skill(skill_index, character_number, position, cell)
+        } else {
+          alert("Не хватает действий!")
+        }
+      } else {
+        alert("Вы можете совершить лишь один прыжок за ход!")
+      }
+      break;
+
     default:
       alert("Не знаем это умение")
   }
@@ -3267,6 +3305,10 @@ function perform_skill(index, cell) {
 
     case 36:
       punishing_strike(index, cell);
+      break;
+
+    case 37:
+      jump(index, cell);
       break;
 
     default:
@@ -5029,25 +5071,27 @@ function clear_character(number) {
 }
 
 function w_onclick() {
-  if (my_role == "gm" || character_state.visibility[character_chosen.char_id] == 1) {
+  var character_number = character_chosen.char_id;
+  if (my_role == "gm" || character_state.visibility[character_number] == 1) {
     if (character_chosen.in_process == 1) {
       undo_selection()
     } else {
-      var index = character_chosen.char_position
-      var cell = character_chosen.cell
+      var index = character_state.position[character_number];
+      var cell = document.getElementById('cell_' + index);
       choose_character_to_move(index, cell, true);
     }
   }
 }
 
 function a_onclick() {
-  if (my_role == "gm" || character_state.visibility[character_chosen.char_id] == 1) {
+  var character_number = character_chosen.char_id
+  if (my_role == "gm" || character_state.visibility[character_number] == 1) {
 
     if (character_chosen.in_process == 2) {
       stop_attack()
     } else {
-      var character_number = character_chosen.char_id
-      var cell = character_chosen.cell
+      var index = character_state.position[character_number];
+      var cell = document.getElementById('cell_' + index);
       var main_actions_left = character_state.main_action[character_number]
       if (main_actions_left > 0) {
         choose_character_to_attack(cell)
@@ -5287,22 +5331,13 @@ socket.registerMessageHandler((data) => {
         receiveMoveInvisibilityReveal(data.invisibility_ended_id);
         receiveMoveForceFieldInteraction(data.left_shield, data.character_number, data.shield_index);
         receiveMoveLandmineExplosions(data.mines_exploded, data.mines_damage, data.character_number);
+        receiveMoveImageState(to_index, from_index, data.character_number);
 
         if (game_state.battle_mod == 1) {
           receiveMoveSubstractActions(data.character_number, data.distance);
           if (character.special_type == "sniper") {
             receiveMoveSniperPassive(data.character_number);
           }
-        }
-
-        if (!(((my_role == 'player')&&(game_state.fog_state[to_index] == 1)) || (character_state.invisibility[data.character_number] != "all" && character_state.invisibility[data.character_number] != my_name))) {
-          var to_cell = document.getElementById('cell_' + to_index);
-          to_cell.src = get_object_picture(data.character_number);
-        }
-
-        if (!((my_role == 'player')&&(game_state.fog_state[from_index] == 1))) {
-          var old_cell = document.getElementById("cell_" + from_index);
-          old_cell.src = EMPTY_CELL_PIC;
         }
       }
     } else if (data.command == 'delete_object_response') {
