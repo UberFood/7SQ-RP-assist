@@ -160,7 +160,8 @@ var acid_bomb_radius = 1.6
 var mines_0_distance_damage = 20
 var mines_1_distance_damage = 15
 var mines_1p5_distance_damage = 10
-var landmine_detection_radius = 2.9
+var landmine_detection_radius = 4;
+var landmine_diffusion_radius = 3;
 var landmine_diffuse_threshold = 10
 
 var tobacco_strike_hp_percentage = 0.1
@@ -2158,61 +2159,6 @@ function rollInitiative() {
   socket.sendMessage(toSend);
 }
 
-function roll_attack(type, attacker, target, advantage_bonus) {
-  var advantage = 0
-  if ((type == "ranged")||(type == "energy")) {
-    advantage = character_state.ranged_advantage[attacker];
-    if (character_state.special_effects[attacker].hasOwnProperty("adaptive_fighting")) {
-      if (character_state.special_effects[attacker].adaptive_fighting == 0) {
-        advantage = advantage + 1;
-        console.log("Сработал рейнджовый стак универсальности");
-      }
-      character_state.special_effects[attacker].adaptive_fighting = 1;
-    }
-  } else if (type == "melee") {
-    advantage = character_state.melee_advantage[attacker]
-    if (character_state.special_effects[attacker].hasOwnProperty("adaptive_fighting")) {
-      if (character_state.special_effects[attacker].adaptive_fighting == 1) {
-        advantage = advantage + 1;
-        console.log("Сработал милли стак универсальности");
-      }
-      character_state.special_effects[attacker].adaptive_fighting = 0;
-    }
-  }
-  advantage = advantage - character_state.defensive_advantage[target] + advantage_bonus
-
-  var roll = 0
-
-  if (advantage >= 2) { // Дикое преимущество = 4 куба
-    console.log("Дикое преимущество")
-    var roll1 = roll_x(20)
-    var roll2 = roll_x(20)
-    var roll3 = roll_x(20)
-    var roll4 = roll_x(20)
-    roll = Math.max(roll1, roll2, roll3, roll4)
-  } else if (advantage == 1) {
-    console.log("Преимущество")
-    var roll1 = roll_x(20)
-    var roll2 = roll_x(20)
-    roll = Math.max(roll1, roll2)
-  } else if (advantage == 0) {
-    roll = roll_x(20)
-  } else if (advantage == -1) {
-    console.log("Помеха")
-    var roll1 = roll_x(20)
-    var roll2 = roll_x(20)
-    roll = Math.min(roll1, roll2)
-  } else {
-    console.log("Дикая помеха")
-    var roll1 = roll_x(20)
-    var roll2 = roll_x(20)
-    var roll3 = roll_x(20)
-    var roll4 = roll_x(20)
-    roll = Math.min(roll1, roll2, roll3, roll4)
-  }
-  return roll
-}
-
 function roll_evasion(target_character, target_character_number) {
   console.log("Бонус уворота: " + character_state.evade_bonus[target_character_number])
   var evade_roll = roll_x(20) + parseInt(target_character.agility) + character_state.universal_bonus[target_character_number] + character_state.evade_bonus[target_character_number]
@@ -2405,7 +2351,66 @@ function change_battle_mod() {
   socket.sendMessage(toSend);
 }
 
+// Attack related passives
+
+function adaptive_fighting_bonus(attack_type, attacker_id) {
+  var bonus = 0;
+  var adaptive_state = character_state.special_effects[attacker_id].adaptive_fighting;
+  if (attack_type == "ranged"||attack_type == "energy") {
+    if (adaptive_state == 0) {
+      bonus = 1;
+      console.log("Сработал рейнджовый стак универсальности");
+    }
+  } else if (attack_type == "melee") {
+    if (adaptive_state == 1) {
+      bonus = 1;
+      console.log("Сработал милли стак универсальности");
+    }
+  }
+  return bonus;
+}
+
 // attack related things (computation)
+
+function calculateAdvantage(type, attacker, target, advantage_bonus) {
+  var advantage = 0;
+  if ((type == "ranged")||(type == "energy")) {
+    advantage = character_state.ranged_advantage[attacker];
+  } else if (type == "melee") {
+    advantage = character_state.melee_advantage[attacker];
+  }
+
+  if (character_state.special_effects[attacker].hasOwnProperty('adaptive_fighting')) {
+    advantage += adaptive_fighting_bonus(type, attacker);
+  }
+  advantage = advantage - character_state.defensive_advantage[target] + advantage_bonus;
+  return advantage;
+}
+
+function rollWithAdvantage(advantage) {
+  var number_of_rolls = 1 + Math.abs(advantage);
+  var rolls_array = [];
+  for (let i = 0; i < number_of_rolls; i++) {
+    let roll = roll_x(20);
+    rolls_array.push(roll);
+  }
+  var toRet = rolls_array[0];
+  if (advantage > 0) {
+    toRet = Math.max(...rolls_array);
+  } else if (advantage < 0) {
+    toRet = Math.min(...rolls_array);
+  }
+  console.log(rolls_array);
+  console.log(toRet);
+  return toRet;
+}
+
+function roll_attack(type, attacker, target, advantage_bonus) {
+  var advantage = calculateAdvantage(type, attacker, target, advantage_bonus);
+
+  var roll = rollWithAdvantage(advantage);
+  return roll;
+}
 
 function character_KD(target_character_number) {
   return parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
@@ -3942,7 +3947,7 @@ function diffuse_landmine(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
   var character = character_detailed_info[user_character_number]
-  if (isInRange(index, user_position, landmine_detection_radius)) {
+  if (isInRange(index, user_position, landmine_diffusion_radius)) {
     var toSend = {};
     toSend.command = 'skill';
     toSend.skill_index = character_chosen.skill_id
