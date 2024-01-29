@@ -119,7 +119,9 @@ var light_sound_bomb_radius = 4
 var light_sound_bomb_threshold = 15
 var light_sound_bomb_skill_cooldown = 5
 
-var weak_spot_threshold = 15
+var weak_spot_threshold = 15;
+const weak_spot_range = 25;
+const weak_spot_cover_impossible_threshold = 10;
 
 var shocked_cooldown = 0
 
@@ -3512,23 +3514,34 @@ function belvet_buff(index, cell) {
 function weak_spot(index, cell) {
   var target_character_number = game_state.board_state[index]
   var user_character_number = character_chosen.char_id
+  var user_position = character_state.position[user_character_number];
   var attacking_character = character_detailed_info[user_character_number]
 
-  var toSend = {};
-  toSend.command = 'skill';
-  toSend.skill_index = character_chosen.skill_id
-  toSend.room_number = my_room;
-  toSend.user_index = user_character_number
-  toSend.target_id = target_character_number
+  if (isInRange(user_position, index, weak_spot_range)) {
+    var accumulated_cover = get_accumulated_cover(user_position, index);
 
-  var int_check = roll_x(20) + parseInt(attacking_character.intelligence) + character_state.universal_bonus[user_character_number]
-  if (int_check >= weak_spot_threshold) {
-    toSend.outcome = "success"
+    if (accumulated_cover < weak_spot_cover_impossible_threshold) {
+      var toSend = {};
+      toSend.command = 'skill';
+      toSend.skill_index = character_chosen.skill_id
+      toSend.room_number = my_room;
+      toSend.user_index = user_character_number
+      toSend.target_id = target_character_number
+
+      var int_check = roll_x(20) + parseInt(attacking_character.intelligence) + character_state.universal_bonus[user_character_number]
+      if (int_check >= weak_spot_threshold) {
+        toSend.outcome = "success"
+      } else {
+        toSend.outcome = "fail"
+      }
+
+      socket.sendMessage(toSend);
+    } else {
+      alert('Слишком много препятствий закрывают обзор');
+    }
   } else {
-    toSend.outcome = "fail"
+    alert('Слишком далеко, чтобы хорошо рассмотреть цель');
   }
-
-  socket.sendMessage(toSend);
 }
 
 function heal(index, cell) {
@@ -3710,7 +3723,6 @@ function punishing_strike(index, cell) {
   }
 }
 
-// increase attack roll by agility bonus (2*mod)
 function cut_limbs(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
