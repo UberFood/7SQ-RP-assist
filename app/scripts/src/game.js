@@ -1352,190 +1352,55 @@ function receiveJumpSubstractActions(character_number) {
   character_state.bonus_action[character_number] = character_state.bonus_action[character_number] - 1;
 }
 
-// Delete - Select
+// Select character functions
 
-function delete_character(index, character_number) {
-  clear_containers()
-  var toSend = {};
-  toSend.command = 'delete_object';
-  toSend.room_number = my_room;
-  toSend.index = index;
-  toSend.character_number = character_number
-  socket.sendMessage(toSend);
-}
-
-function change_weapon(character_number, weapon_index) {
-  character_state.current_weapon[character_number] = weapon_index
-  character_chosen.weapon_id = weapon_index
-
-  var weapon = weapon_detailed_info[weapon_index]
-
-  var weapon_mini_display = document.getElementById("weapon_mini_display");
-  weapon_mini_display.src = weapon.avatar;
-}
-
-function display_weapon_detailed(weapon_index, container, showImage) {
-  var default_weapon = weapon_detailed_info[weapon_index]
-
-  var weapon_range_display = document.createElement("h2");
-  weapon_range_display.id = "weapon_range_display";
-  weapon_range_display.innerHTML = "Дальность: " + default_weapon.range
-
-  var weapon_damage_display = document.createElement("h2");
-  weapon_damage_display.id = "weapon_damage_display";
-  weapon_damage_display.innerHTML = "Урон: " + default_weapon.damage[0] + 'd' + default_weapon.damage[1]
-
-  var weapon_name_display = document.createElement("h2");
-  weapon_name_display.id = "weapon_name_display";
-  weapon_name_display.innerHTML = default_weapon.name
-
-  if (showImage) {
-    var weapon_avatar_display = document.createElement("IMG");
-    weapon_avatar_display.id = "weapon_avatar_display"
-    weapon_avatar_display.src = default_weapon.avatar;
-    weapon_avatar_display.style.width = '250px';
-    weapon_avatar_display.style.height = '250px';
-  }
-  container.append(weapon_name_display)
-  if (showImage) {
-    container.append(weapon_avatar_display)
-  }
-  container.append(weapon_range_display)
-  container.append(weapon_damage_display)
-  container.show()
-}
-
-function display_armor_detailed(character_number, container) {
-  var KD_display = document.createElement("h2");
-  var KD_value = parseInt(character_state.KD_points[character_number]) + parseInt(character_state.bonus_KD[character_number])
-  KD_display.innerHTML = "КД: " + KD_value;
-
-  var melee_resist_display = document.createElement("h2");
-  var melee_resist = character_state.melee_resist[character_number]*100;
-  melee_resist_display.innerHTML = "Милли резист: " + melee_resist + "%";
-
-  var bullet_resist_display = document.createElement("h2");
-  var bullet_resist = character_state.bullet_resist[character_number]*100;
-  bullet_resist_display.innerHTML = "Стрелковый резист: " + bullet_resist + "%";
-
-  var evade_bonus_display = document.createElement("h2");
-  evade_bonus_display.innerHTML = "Уклонение: " + character_state.evade_bonus[character_number];
-
-  var defensive_advantage_display = document.createElement("h2");
-  defensive_advantage_display.innerHTML = "Уязвимость: " + character_state.defensive_advantage[character_number];
-
-  container.append(KD_display);
-  container.append(melee_resist_display);
-  container.append(bullet_resist_display);
-  container.append(evade_bonus_display);
-  container.append(defensive_advantage_display);
-  container.show();
-}
-
-function display_spirit_detailed(character_number, container) {
-  var attack_bonus_display = document.createElement("h2");
-  attack_bonus_display.innerHTML = "Бонус атаки: " + character_state.attack_bonus[character_number];
-
-  var damage_bonus_display = document.createElement("h2");
-  damage_bonus_display.innerHTML = "Бонус урона: " + character_state.damage_bonus[character_number];
-
-  var universal_bonus_display = document.createElement("h2");
-  universal_bonus_display.innerHTML = "Всеобщий бонус: " + character_state.universal_bonus[character_number];
-
-  var melee_advantage_display = document.createElement("h2");
-  melee_advantage_display.innerHTML = "Melee adv: " + character_state.melee_advantage[character_number];
-
-  var ranged_advantage_display = document.createElement("h2");
-  ranged_advantage_display.innerHTML = "Ranged adv: " + character_state.ranged_advantage[character_number];
-
-  container.append(attack_bonus_display);
-  container.append(damage_bonus_display);
-  container.append(universal_bonus_display);
-  container.append(melee_advantage_display);
-  container.append(ranged_advantage_display);
-  container.show();
-}
-
-function select_character(index, cell) {
-  var character_number = game_state.board_state[index]
-
-  if (character_state.invisibility[character_number] == "all" || character_state.invisibility[character_number] == my_name) {
-  var character = character_detailed_info[character_number];
-
+function selectCharacterHandleChosenObject(character_number, index, cell) {
   character_chosen.char_id = character_number
   character_chosen.char_position = index
   character_chosen.cell = cell
+}
 
-  let name = character.name;
-  let avatar = character.avatar;
+function selectCharacterVisibleAvatarDisplay(character_number) {
+  var main_action = character_state.main_action[character_number]
+  var bonus_action = character_state.bonus_action[character_number]
+  var move_action = Math.floor(character_state.move_action[character_number])
 
-  clear_containers()
+  var main_action_display = document.createElement("h2");
+  main_action_display.id = "main_action_display";
+  main_action_display.innerHTML = "Основных: " + main_action
 
-  var name_display = document.createElement("h2");
-  name_display.innerHTML = name;
+  var bonus_action_display = document.createElement("h2");
+  bonus_action_display.id = "bonus_action_display";
+  bonus_action_display.innerHTML = "Бонусных: " + bonus_action
 
-  var avatar_container = document.createElement("div");
-  var avatar_display = document.createElement("IMG");
-  avatar_display.src = avatar;
-  avatar_display.classList.add("avatar");
+  var move_action_display = document.createElement("h2");
+  move_action_display.id = "move_action_display";
+  move_action_display.innerHTML = "Передвижение: " + move_action
 
-  avatar_container.appendChild(avatar_display)
+  if (character_state.invisibility[character_number] != "all") {// в инвизе
+    var invise_display = document.createElement("IMG");
+    invise_display.src = INVISE_IMAGE;
+    invise_display.style.height = '50px';
+    invise_display.style.width = '50px';
+  }
 
-  character_info_container.append(name_display);
-  character_info_container.append(avatar_container);
+  if (character_state.special_effects[character_number].hasOwnProperty("aim")) {//  Прицелен
+    var aim_display = document.createElement("IMG");
+    aim_display.src = AIM_IMAGE;
+    aim_display.style.height = '50px';
+    aim_display.style.width = '50px';
+  }
 
-  if (my_role == "gm" || character_state.visibility[character_number] == 1) {
+  weapon_info_container.html("")
+  weapon_info_container.append(main_action_display)
+  weapon_info_container.append(bonus_action_display)
+  weapon_info_container.append(move_action_display)
+  weapon_info_container.append(invise_display)
+  weapon_info_container.append(aim_display)
+  weapon_info_container.show()
+}
 
-    avatar_display.onclick = function() {
-      show_modal(character_number, 0);
-    }
-
-    avatar_display.onmouseenter = function(event) {
-
-      var main_action = character_state.main_action[character_number]
-      var bonus_action = character_state.bonus_action[character_number]
-      var move_action = Math.floor(character_state.move_action[character_number])
-
-      var main_action_display = document.createElement("h2");
-      main_action_display.id = "main_action_display";
-      main_action_display.innerHTML = "Основных: " + main_action
-
-      var bonus_action_display = document.createElement("h2");
-      bonus_action_display.id = "bonus_action_display";
-      bonus_action_display.innerHTML = "Бонусных: " + bonus_action
-
-      var move_action_display = document.createElement("h2");
-      move_action_display.id = "move_action_display";
-      move_action_display.innerHTML = "Передвижение: " + move_action
-
-      if (character_state.invisibility[character_number] != "all") {// в инвизе
-        var invise_display = document.createElement("IMG");
-        invise_display.src = INVISE_IMAGE;
-        invise_display.style.height = '50px';
-        invise_display.style.width = '50px';
-      }
-
-      if (character_state.special_effects[character_number].hasOwnProperty("aim")) {//  Прицелен
-        var aim_display = document.createElement("IMG");
-        aim_display.src = AIM_IMAGE;
-        aim_display.style.height = '50px';
-        aim_display.style.width = '50px';
-      }
-
-      weapon_info_container.html("")
-      weapon_info_container.append(main_action_display)
-      weapon_info_container.append(bonus_action_display)
-      weapon_info_container.append(move_action_display)
-      weapon_info_container.append(invise_display)
-      weapon_info_container.append(aim_display)
-      weapon_info_container.show()
-    }
-
-    avatar_display.onmouseleave = function(event) {
-      weapon_info_container.html("")
-      weapon_info_container.hide()
-    }
-
+function selectCharacterVisibleConstructDisplays(character, character_number) {
   var strength_display = document.createElement("h2");
   strength_display.innerHTML = "Cила: " + character.strength;
 
@@ -1572,7 +1437,9 @@ function select_character(index, cell) {
   character_info_container.append(HP_display);
   character_info_container.append(tired_display);
   character_info_container.append(initiative_display);
+}
 
+function selectCharacterConstructMoveButton(index, cell) {
   var move_button = document.createElement("button");
   move_button.innerHTML = "Перемещение";
   move_button.index = index;
@@ -1588,6 +1455,51 @@ function select_character(index, cell) {
       alert("Вы потратили все перемещения на этом ходу!")
     }
   }
+  return move_button;
+}
+
+function select_character(index, cell) {
+  var character_number = game_state.board_state[index]
+
+  if (character_state.invisibility[character_number] == "all" || character_state.invisibility[character_number] == my_name) {
+  var character = character_detailed_info[character_number];
+  let name = character.name;
+  let avatar = character.avatar;
+
+  selectCharacterHandleChosenObject(character_number, index, cell);
+  clear_containers();
+
+  var name_display = document.createElement("h2");
+  name_display.innerHTML = name;
+
+  var avatar_container = document.createElement("div");
+  var avatar_display = document.createElement("IMG");
+  avatar_display.src = avatar;
+  avatar_display.classList.add("avatar");
+
+  avatar_container.appendChild(avatar_display)
+
+  character_info_container.append(name_display);
+  character_info_container.append(avatar_container);
+
+  if (my_role == "gm" || character_state.visibility[character_number] == 1) {
+
+    avatar_display.onclick = function() {
+      show_modal(character_number, 0);
+    }
+
+    avatar_display.onmouseenter = function(event) {
+      selectCharacterVisibleAvatarDisplay(character_number);
+    }
+
+    avatar_display.onmouseleave = function(event) {
+      weapon_info_container.html("")
+      weapon_info_container.hide()
+    }
+
+    selectCharacterVisibleConstructDisplays(character, character_number);
+
+  var move_button = selectCharacterConstructMoveButton(index, cell);
 
   if (my_role == "gm") {
 
@@ -1812,6 +1724,110 @@ function select_character(index, cell) {
 
 }
 
+}
+
+// Delete - Select
+
+function delete_character(index, character_number) {
+  clear_containers()
+  var toSend = {};
+  toSend.command = 'delete_object';
+  toSend.room_number = my_room;
+  toSend.index = index;
+  toSend.character_number = character_number
+  socket.sendMessage(toSend);
+}
+
+function change_weapon(character_number, weapon_index) {
+  character_state.current_weapon[character_number] = weapon_index
+  character_chosen.weapon_id = weapon_index
+
+  var weapon = weapon_detailed_info[weapon_index]
+
+  var weapon_mini_display = document.getElementById("weapon_mini_display");
+  weapon_mini_display.src = weapon.avatar;
+}
+
+function display_weapon_detailed(weapon_index, container, showImage) {
+  var default_weapon = weapon_detailed_info[weapon_index]
+
+  var weapon_range_display = document.createElement("h2");
+  weapon_range_display.id = "weapon_range_display";
+  weapon_range_display.innerHTML = "Дальность: " + default_weapon.range
+
+  var weapon_damage_display = document.createElement("h2");
+  weapon_damage_display.id = "weapon_damage_display";
+  weapon_damage_display.innerHTML = "Урон: " + default_weapon.damage[0] + 'd' + default_weapon.damage[1]
+
+  var weapon_name_display = document.createElement("h2");
+  weapon_name_display.id = "weapon_name_display";
+  weapon_name_display.innerHTML = default_weapon.name
+
+  if (showImage) {
+    var weapon_avatar_display = document.createElement("IMG");
+    weapon_avatar_display.id = "weapon_avatar_display"
+    weapon_avatar_display.src = default_weapon.avatar;
+    weapon_avatar_display.style.width = '250px';
+    weapon_avatar_display.style.height = '250px';
+  }
+  container.append(weapon_name_display)
+  if (showImage) {
+    container.append(weapon_avatar_display)
+  }
+  container.append(weapon_range_display)
+  container.append(weapon_damage_display)
+  container.show()
+}
+
+function display_armor_detailed(character_number, container) {
+  var KD_display = document.createElement("h2");
+  var KD_value = parseInt(character_state.KD_points[character_number]) + parseInt(character_state.bonus_KD[character_number])
+  KD_display.innerHTML = "КД: " + KD_value;
+
+  var melee_resist_display = document.createElement("h2");
+  var melee_resist = character_state.melee_resist[character_number]*100;
+  melee_resist_display.innerHTML = "Милли резист: " + melee_resist + "%";
+
+  var bullet_resist_display = document.createElement("h2");
+  var bullet_resist = character_state.bullet_resist[character_number]*100;
+  bullet_resist_display.innerHTML = "Стрелковый резист: " + bullet_resist + "%";
+
+  var evade_bonus_display = document.createElement("h2");
+  evade_bonus_display.innerHTML = "Уклонение: " + character_state.evade_bonus[character_number];
+
+  var defensive_advantage_display = document.createElement("h2");
+  defensive_advantage_display.innerHTML = "Уязвимость: " + character_state.defensive_advantage[character_number];
+
+  container.append(KD_display);
+  container.append(melee_resist_display);
+  container.append(bullet_resist_display);
+  container.append(evade_bonus_display);
+  container.append(defensive_advantage_display);
+  container.show();
+}
+
+function display_spirit_detailed(character_number, container) {
+  var attack_bonus_display = document.createElement("h2");
+  attack_bonus_display.innerHTML = "Бонус атаки: " + character_state.attack_bonus[character_number];
+
+  var damage_bonus_display = document.createElement("h2");
+  damage_bonus_display.innerHTML = "Бонус урона: " + character_state.damage_bonus[character_number];
+
+  var universal_bonus_display = document.createElement("h2");
+  universal_bonus_display.innerHTML = "Всеобщий бонус: " + character_state.universal_bonus[character_number];
+
+  var melee_advantage_display = document.createElement("h2");
+  melee_advantage_display.innerHTML = "Melee adv: " + character_state.melee_advantage[character_number];
+
+  var ranged_advantage_display = document.createElement("h2");
+  ranged_advantage_display.innerHTML = "Ranged adv: " + character_state.ranged_advantage[character_number];
+
+  container.append(attack_bonus_display);
+  container.append(damage_bonus_display);
+  container.append(universal_bonus_display);
+  container.append(melee_advantage_display);
+  container.append(ranged_advantage_display);
+  container.show();
 }
 
 function send_effect_command(character_number, effect_index) {
