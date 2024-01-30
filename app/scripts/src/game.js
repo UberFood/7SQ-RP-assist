@@ -1361,6 +1361,19 @@ function selectCharacterHandleChosenObject(character_number, index, cell) {
   character_chosen.weapon_id = character_state.current_weapon[character_number]
 }
 
+function selectCharacterConstructNameDisplay(name) {
+  var name_display = document.createElement("h2");
+  name_display.innerHTML = name;
+  return name_display;
+}
+
+function selectCharacterConstructAvatarDisplayObject(avatar) {
+  var avatar_display = document.createElement("IMG");
+  avatar_display.src = avatar;
+  avatar_display.classList.add("avatar");
+  return avatar_display;
+}
+
 function selectCharacterVisibleAvatarDisplay(character_number) {
   var main_action = character_state.main_action[character_number]
   var bonus_action = character_state.bonus_action[character_number]
@@ -1563,6 +1576,20 @@ function selectCharacterConstructSimpleRollButton(character) {
   return simple_roll_button;
 }
 
+function selectCharacterConstructAttackButton(character_number, cell) {
+  var attack_button = document.createElement("button");
+  attack_button.innerHTML = "Атаковать";
+  attack_button.onclick = function(event) {
+    var main_actions_left = character_state.main_action[character_number]
+    if (main_actions_left > 0) {
+      choose_character_to_attack(cell)
+    } else {
+      alert("У вас не осталось действий!")
+    }
+  }
+  return attack_button;
+}
+
 function selectCharacterConstructWeaponMiniDisplay(character_number) {
   var default_weapon_index = character_state.current_weapon[character_number]
   var default_weapon = weapon_detailed_info[default_weapon_index]
@@ -1588,27 +1615,95 @@ function selectCharacterConstructWeaponMiniDisplay(character_number) {
   return weapon_mini_display;
 }
 
+function selectCharacterConstructArmorMiniDisplay(character_number) {
+  var armor_mini_display = document.createElement("IMG");
+  armor_mini_display.id = "armor_mini_display";
+  armor_mini_display.src = armor_image(character_number);
+  armor_mini_display.classList.add("mini_display");
+  armor_mini_display.onmouseenter = function(event) {
+    weapon_info_container.html("")
+    display_armor_detailed(character_number, weapon_info_container)
+  }
+
+  armor_mini_display.onmouseleave = function(event) {
+    weapon_info_container.html("")
+    weapon_info_container.hide()
+  }
+  return armor_mini_display;
+}
+
+function selectCharacterConstructSpiritMiniDisplay(character_number) {
+  var spirit_mini_display = document.createElement("IMG");
+  spirit_mini_display.id = "spirit_mini_display";
+  spirit_mini_display.src = spirit_image(character_number);
+  spirit_mini_display.classList.add("mini_display");
+  spirit_mini_display.onmouseenter = function(event) {
+    weapon_info_container.html("")
+    display_spirit_detailed(character_number, weapon_info_container)
+  }
+
+  spirit_mini_display.onmouseleave = function(event) {
+    weapon_info_container.html("")
+    weapon_info_container.hide()
+  }
+  return spirit_mini_display;
+}
+
+function selectCharacterConstructButtonList(move_button, search_button, attack_button, simple_roll_button, delete_button, damage_button,
+  damage_field, change_character_visibility_button, effect_select, effect_button) {
+  var button_list = document.createElement("ul");
+  button_list.className = "button_list";
+  var line1 = document.createElement("li");
+  var line2 = document.createElement("li");
+  var line3 = document.createElement("li");
+  var line4 = document.createElement("li");
+  var line5 = document.createElement("li");
+  var line6 = document.createElement("li");
+  var line7 = document.createElement("li");
+  var line8 = document.createElement("li");
+  var line9 = document.createElement("li");
+
+  line1.appendChild(move_button);
+  line2.appendChild(search_button);
+  line3.appendChild(attack_button);
+  line4.appendChild(simple_roll_button);
+  if (my_role == "gm") {
+    line5.appendChild(delete_button);
+    line6.appendChild(damage_button);
+    line6.appendChild(damage_field);
+    line7.appendChild(change_character_visibility_button);
+    line8.appendChild(effect_select);
+    line9.appendChild(effect_button);
+  }
+
+  button_list.appendChild(line1);
+  button_list.appendChild(line2);
+  button_list.appendChild(line3);
+  button_list.appendChild(line4);
+  if (my_role == "gm") {
+    button_list.appendChild(line5);
+    button_list.appendChild(line6);
+    button_list.appendChild(line7);
+    button_list.appendChild(line8);
+    button_list.appendChild(line9);
+  }
+  return button_list;
+}
+
 function select_character(index, cell) {
   var character_number = game_state.board_state[index]
 
   if (character_state.invisibility[character_number] == "all" || character_state.invisibility[character_number] == my_name) {
   var character = character_detailed_info[character_number];
-  let name = character.name;
-  let avatar = character.avatar;
 
-  selectCharacterHandleChosenObject(character_number, index, cell);
   clear_containers();
+  selectCharacterHandleChosenObject(character_number, index, cell);
 
-  var name_display = document.createElement("h2");
-  name_display.innerHTML = name;
-
+  var name_display = selectCharacterConstructNameDisplay(character.name);
   var avatar_container = document.createElement("div");
-  var avatar_display = document.createElement("IMG");
-  avatar_display.src = avatar;
-  avatar_display.classList.add("avatar");
+  var avatar_display = selectCharacterConstructAvatarDisplayObject(character.avatar);
 
   avatar_container.appendChild(avatar_display)
-
   character_info_container.append(name_display);
   character_info_container.append(avatar_container);
 
@@ -1630,6 +1725,7 @@ function select_character(index, cell) {
     selectCharacterVisibleConstructDisplays(character, character_number);
 
   var move_button = selectCharacterConstructMoveButton(index, cell);
+  var attack_button = selectCharacterConstructAttackButton(character_number, cell);
   var search_button = selectCharacterConstructSearchButton(index);
   var simple_roll_button = selectCharacterConstructSimpleRollButton(character);
 
@@ -1642,93 +1738,16 @@ function select_character(index, cell) {
     var effect_button = selectCharacterConstructEffectButton(character_number);
   }
 
-  var weapon_mini_display = selectCharacterConstructWeaponMiniDisplay(character_number)
+  var weapon_mini_display = selectCharacterConstructWeaponMiniDisplay(character_number);
+  var armor_mini_display = selectCharacterConstructArmorMiniDisplay(character_number);
+  var spirit_mini_display = selectCharacterConstructSpiritMiniDisplay(character_number);
 
-  avatar_container.append(weapon_mini_display)
+  avatar_container.append(weapon_mini_display);
+  avatar_container.append(armor_mini_display);
+  avatar_container.append(spirit_mini_display);
 
-  var armor_mini_display = document.createElement("IMG");
-  armor_mini_display.id = "armor_mini_display";
-  armor_mini_display.src = armor_image(character_number);
-  armor_mini_display.classList.add("mini_display");
-  armor_mini_display.onmouseenter = function(event) {
-    weapon_info_container.html("")
-    display_armor_detailed(character_number, weapon_info_container)
-  }
-
-  armor_mini_display.onmouseleave = function(event) {
-    weapon_info_container.html("")
-    weapon_info_container.hide()
-  }
-
-  avatar_container.append(armor_mini_display)
-
-  var spirit_mini_display = document.createElement("IMG");
-  spirit_mini_display.id = "spirit_mini_display";
-  spirit_mini_display.src = spirit_image(character_number);
-  spirit_mini_display.classList.add("mini_display");
-  spirit_mini_display.onmouseenter = function(event) {
-    weapon_info_container.html("")
-    display_spirit_detailed(character_number, weapon_info_container)
-  }
-
-  spirit_mini_display.onmouseleave = function(event) {
-    weapon_info_container.html("")
-    weapon_info_container.hide()
-  }
-
-  avatar_container.append(spirit_mini_display)
-
-  var attack_button = document.createElement("button");
-  attack_button.innerHTML = "Атаковать";
-  attack_button.onclick = function(event) {
-    var main_actions_left = character_state.main_action[character_number]
-    if (main_actions_left > 0) {
-      choose_character_to_attack(cell)
-    } else {
-      alert("У вас не осталось действий!")
-    }
-  }
-
-  var skillset = character.skillset
-
-  var button_list = document.createElement("ul");
-  button_list.className = "button_list";
-  var line1 = document.createElement("li");
-  var line2 = document.createElement("li");
-  var line3 = document.createElement("li");
-  var line4 = document.createElement("li");
-  var line5 = document.createElement("li");
-  var line6 = document.createElement("li");
-  var line7 = document.createElement("li");
-  var line8 = document.createElement("li");
-  var line9 = document.createElement("li");
-  var line10 = document.createElement("li");
-
-  line1.appendChild(move_button);
-  if (my_role == "gm") {
-    line2.appendChild(delete_button);
-    line3.appendChild(damage_button);
-    line3.appendChild(damage_field);
-    line8.appendChild(change_character_visibility_button);
-    line9.appendChild(effect_select);
-    line10.appendChild(effect_button);
-  }
-  line4.appendChild(search_button);
-  line6.appendChild(attack_button);
-  line7.appendChild(simple_roll_button);
-
-
-  button_list.appendChild(line1);
-  button_list.appendChild(line4);
-  button_list.appendChild(line6);
-  button_list.appendChild(line7);
-  if (my_role == "gm") {
-    button_list.appendChild(line2);
-    button_list.appendChild(line3);
-    button_list.appendChild(line8);
-    button_list.appendChild(line9);
-    button_list.appendChild(line10);
-  }
+  var button_list = selectCharacterConstructButtonList(move_button, search_button, attack_button, simple_roll_button,
+     delete_button, damage_button, damage_field, change_character_visibility_button, effect_select, effect_button);
 
   character_info_container.append(button_list);
 
