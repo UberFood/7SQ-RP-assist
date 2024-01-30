@@ -213,6 +213,8 @@ var hacking_critical_fail_threshold = 10;
 var hacking_success_threshold = 16;
 var hacking_critical_success_threshold = 25;
 
+const jump_cover_impossible_threshold = 10;
+
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
 const stamina_values = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195];
@@ -1321,21 +1323,26 @@ function jump(to_index, to_cell) {
   var max_distance = findJumpDistance(chosen_character_index);
 
   if (distance <= max_distance) {
-    var toSend = setup_move_send_object(chosen_index, to_index, chosen_character_index, distance);
-    toSend.command = 'skill';
-    toSend.skill_index = character_chosen.skill_id;
+    var accumulated_cover = get_accumulated_cover(chosen_index, to_index);
 
-    var immediate_nbh = index_in_radius(to_index, 1.6);
-    var extended_invisibility_nbh = index_in_radius(to_index, invisibility_detection_radius);
+    if (accumulated_cover < jump_cover_impossible_threshold) {
+      var toSend = setup_move_send_object(chosen_index, to_index, chosen_character_index, distance);
+      toSend.command = 'skill';
+      toSend.skill_index = character_chosen.skill_id;
 
-    toSend = updateMoveForceFieldStatus(chosen_character_index, to_index, toSend);
-    toSend = updateMoveOwnInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
-    toSend = updateMoveOthersInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
-    toSend = updateMoveLandminesExploded(chosen_character_index, to_index, toSend, immediate_nbh);
+      var immediate_nbh = index_in_radius(to_index, 1.6);
+      var extended_invisibility_nbh = index_in_radius(to_index, invisibility_detection_radius);
 
-    clear_containers();
-    socket.sendMessage(toSend);
+      toSend = updateMoveForceFieldStatus(chosen_character_index, to_index, toSend);
+      toSend = updateMoveOwnInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
+      toSend = updateMoveOthersInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
+      toSend = updateMoveLandminesExploded(chosen_character_index, to_index, toSend, immediate_nbh);
 
+      clear_containers();
+      socket.sendMessage(toSend);
+    } else {
+      alert("Слишком много препятствий чтобы их перепрыгнуть");
+    }
   } else {
     alert("Кенгуру может прыгнуть на 10 метров, а вы нет");
   }
