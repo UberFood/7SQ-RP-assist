@@ -1358,6 +1358,7 @@ function selectCharacterHandleChosenObject(character_number, index, cell) {
   character_chosen.char_id = character_number
   character_chosen.char_position = index
   character_chosen.cell = cell
+  character_chosen.weapon_id = character_state.current_weapon[character_number]
 }
 
 function selectCharacterVisibleAvatarDisplay(character_number) {
@@ -1458,6 +1459,135 @@ function selectCharacterConstructMoveButton(index, cell) {
   return move_button;
 }
 
+function selectCharacterConstructDeleteButton(index, character_number) {
+  var delete_button = document.createElement("button");
+  delete_button.innerHTML = "Уничтожить";
+  delete_button.index = index;
+  delete_button.onclick = function(event) {
+    delete_character(index, character_number);
+  }
+  return delete_button;
+}
+
+function selectCharacterConstructVisibilityButton(character_number) {
+  var change_character_visibility_button = document.createElement("button");
+  var visibility_message = "";
+  if (character_state.visibility[character_number] == 0) {
+    visibility_message = "Открыть доступ";
+  } else {
+    visibility_message = "Закрыть доступ";
+  }
+  change_character_visibility_button.innerHTML = visibility_message;
+  change_character_visibility_button.onclick = function(event) {
+    change_character_visibility(character_number);
+  }
+  return change_character_visibility_button;
+}
+
+function selectCharacterConstructDamageButton(character_number) {
+  var damage_button = document.createElement("button");
+  damage_button.innerHTML = "Нанести урон";
+  damage_button.onclick = function(event) {
+    var damage_field = document.getElementById("damage_field");
+    if (!(damage_field.value === "")) {
+      var damage = parseInt(damage_field.value);
+      var HP_display = document.getElementById("HP_display");
+      var new_HP = character_state.HP[character_number] - damage;
+      HP_display.innerHTML = "ХП: " + new_HP;
+
+      var toSend = {};
+      toSend.command = 'deal_damage';
+      toSend.character_number = character_number;
+      toSend.damage = damage;
+      toSend.room_number = my_room;
+      socket.sendMessage(toSend);
+    }
+  }
+  return damage_button;
+}
+
+function selectCharacterConstructDamageField() {
+  var damage_field = document.createElement("input");
+  damage_field.id = "damage_field";
+  damage_field.type = "number";
+  damage_field.placeholder = "Урон";
+  return damage_field;
+}
+
+function selectCharacterConstructEffectSelect() {
+  var effect_select = document.createElement("select");
+  effect_select.id = "effect_select";
+
+  for (let i = 0; i < effect_list.length; i++) {
+    var current_option = document.createElement("option");
+    current_option.innerHTML = effect_list[i];
+    current_option.value = i;
+    effect_select.appendChild(current_option);
+  }
+  return effect_select;
+}
+
+function selectCharacterConstructEffectButton(character_number) {
+  var effect_button = document.createElement("button");
+  effect_button.innerHTML = "Применить эффект";
+  effect_button.onclick = function(event) {
+    var effect_select = document.getElementById("effect_select");
+    var effect_index = effect_select.value;
+    send_effect_command(character_number, effect_index);
+  }
+  return effect_button;
+}
+
+function selectCharacterConstructSearchButton(index) {
+  var search_button = document.createElement("button");
+  search_button.innerHTML = "Обыскать";
+  search_button.index = index;
+  search_button.onclick = function(event) {
+    search_action(event.target);
+  }
+  return search_button;
+}
+
+function selectCharacterConstructSimpleRollButton(character) {
+  var simple_roll_button = document.createElement("button");
+  simple_roll_button.innerHTML = "Просто d20";
+  simple_roll_button.onclick = function(event) {
+    var roll = roll_x(20)
+    var toSend = {}
+    toSend.command = "simple_roll"
+    toSend.character_name = character.name
+    toSend.room_number = my_room
+    toSend.roll = roll
+    socket.sendMessage(toSend);
+  }
+  return simple_roll_button;
+}
+
+function selectCharacterConstructWeaponMiniDisplay(character_number) {
+  var default_weapon_index = character_state.current_weapon[character_number]
+  var default_weapon = weapon_detailed_info[default_weapon_index]
+
+  var weapon_mini_display = document.createElement("IMG");
+  weapon_mini_display.id = "weapon_mini_display"
+  weapon_mini_display.src = default_weapon.avatar;
+  weapon_mini_display.classList.add("mini_display");
+  weapon_mini_display.onmouseenter = function(event) {
+    weapon_info_container.html("")
+    var weapon_index = character_state.current_weapon[character_number]
+    display_weapon_detailed(weapon_index, weapon_info_container, true)
+  }
+
+  weapon_mini_display.onmouseleave = function(event) {
+    weapon_info_container.html("")
+    weapon_info_container.hide()
+  }
+
+  weapon_mini_display.onclick = function() {
+      show_weapon_modal(character_number, 0);
+  }
+  return weapon_mini_display;
+}
+
 function select_character(index, cell) {
   var character_number = game_state.board_state[index]
 
@@ -1500,118 +1630,19 @@ function select_character(index, cell) {
     selectCharacterVisibleConstructDisplays(character, character_number);
 
   var move_button = selectCharacterConstructMoveButton(index, cell);
+  var search_button = selectCharacterConstructSearchButton(index);
+  var simple_roll_button = selectCharacterConstructSimpleRollButton(character);
 
   if (my_role == "gm") {
-
-    var delete_button = document.createElement("button");
-    delete_button.innerHTML = "Уничтожить";
-    delete_button.index = index;
-    delete_button.cell = cell;
-    delete_button.onclick = function(event) {
-      delete_character(index, character_number);
-    }
-
-    var change_character_visibility_button = document.createElement("button");
-    var visibility_message = "";
-    if (character_state.visibility[character_number] == 0) {
-      visibility_message = "Открыть доступ";
-    } else {
-      visibility_message = "Закрыть доступ";
-    }
-    change_character_visibility_button.innerHTML = visibility_message;
-    change_character_visibility_button.onclick = function(event) {
-      change_character_visibility(character_number);
-    }
-
-    var damage_button = document.createElement("button");
-    damage_button.innerHTML = "Нанести урон";
-    damage_button.index = index;
-    damage_button.onclick = function(event) {
-      var damage_field = document.getElementById("damage_field");
-      if (!(damage_field.value === "")) {
-        var damage = parseInt(damage_field.value);
-        var HP_display = document.getElementById("HP_display");
-        var new_HP = character_state.HP[character_number] - damage;
-        HP_display.innerHTML = "ХП: " + new_HP;
-
-        var toSend = {};
-        toSend.command = 'deal_damage';
-        toSend.character_number = character_number;
-        toSend.damage = damage;
-        toSend.room_number = my_room;
-        socket.sendMessage(toSend);
-      }
+    var delete_button = selectCharacterConstructDeleteButton(index, character_number);
+    var change_character_visibility_button = selectCharacterConstructVisibilityButton(character_number);
+    var damage_button = selectCharacterConstructDamageButton(character_number);
+    var damage_field = selectCharacterConstructDamageField();
+    var effect_select = selectCharacterConstructEffectSelect();
+    var effect_button = selectCharacterConstructEffectButton(character_number);
   }
 
-    var damage_field = document.createElement("input");
-    damage_field.id = "damage_field";
-    damage_field.type = "number";
-    damage_field.placeholder = "Урон";
-
-    var effect_select = document.createElement("select");
-    effect_select.id = "effect_select";
-
-    for (let i = 0; i < effect_list.length; i++) {
-      var current_option = document.createElement("option");
-      current_option.innerHTML = effect_list[i];
-      current_option.value = i;
-      effect_select.appendChild(current_option);
-    }
-
-    var effect_button = document.createElement("button");
-    effect_button.innerHTML = "Применить эффект";
-    effect_button.onclick = function(event) {
-      var effect_select = document.getElementById("effect_select");
-      var effect_index = effect_select.value;
-      send_effect_command(character_number, effect_index);
-    }
-  }
-
-  var search_button = document.createElement("button");
-  search_button.innerHTML = "Обыскать";
-  search_button.index = index;
-  search_button.onclick = function(event) {
-    search_action(event.target);
-  }
-
-  var simple_roll_button = document.createElement("button");
-  simple_roll_button.innerHTML = "Просто d20";
-  simple_roll_button.onclick = function(event) {
-    var roll = roll_x(20)
-    var toSend = {}
-    toSend.command = "simple_roll"
-    toSend.character_name = character.name
-    toSend.room_number = my_room
-    toSend.roll = roll
-    socket.sendMessage(toSend);
-  }
-
-  var inventory = character.inventory
-
-  var default_weapon_index = character_state.current_weapon[character_number]
-  character_chosen.weapon_id = default_weapon_index
-  var default_weapon = weapon_detailed_info[default_weapon_index]
-
-  var weapon_mini_display = document.createElement("IMG");
-  weapon_mini_display.id = "weapon_mini_display"
-  weapon_mini_display.src = default_weapon.avatar;
-  weapon_mini_display.classList.add("mini_display");
-  weapon_mini_display.onmouseenter = function(event) {
-    weapon_info_container.html("")
-    var weapon_index = character_state.current_weapon[character_number]
-    display_weapon_detailed(weapon_index, weapon_info_container, true)
-  }
-
-  weapon_mini_display.onmouseleave = function(event) {
-    weapon_info_container.html("")
-    weapon_info_container.hide()
-  }
-
-  weapon_mini_display.onclick = function() {
-    if (my_role == "gm" || character_state.visibility[character_number] == 1) {
-      show_weapon_modal(character_number, 0);
-    }
-  }
+  var weapon_mini_display = selectCharacterConstructWeaponMiniDisplay(character_number)
 
   avatar_container.append(weapon_mini_display)
 
