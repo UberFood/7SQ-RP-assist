@@ -1,3 +1,3 @@
-{"name":"Лэнс","avatar":"/images/Лэнс.png", "chibi_avatar": "/images/Чиби_Лэнс.png", "strength":"4","stamina":"8","agility":"6","intelligence":"3", "KD_points": "11", "special_type": "tank", "inventory": [3,1], "skillset": [11,23,27,37], "group":"vanshot1", "bullet_resist": "5", "extra_movement":"-1", "evade_bonus": "2"}
+{"name":"Лэнс","avatar":"/images/Лэнс1.png", "chibi_avatar": "/images/Чиби Лэнс1.png", "strength":"4","stamina":"8","agility":"6","intelligence":"3", "KD_points": "11", "special_type": "tank", "inventory": [3,1], "skillset": [11,23,27,37], "group":"vanshot1", "bullet_resist": "5", "extra_movement":"-1", "evade_bonus": "2"}
 
 
