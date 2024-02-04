@@ -970,6 +970,11 @@ function add_character(board_index) {
   anima_optgroup.className = "character_optgroup"
   anima_optgroup.label = "Звери"
 
+  var vanshot1_optgroup = document.createElement("optgroup");
+  vanshot1_optgroup.id = "vanshot1_optgroup"
+  vanshot1_optgroup.className = "character_optgroup"
+  vanshot1_optgroup.label = "Ваншот 1"
+
   var other_optgroup = document.createElement("optgroup");
   other_optgroup.id = "other_optgroup"
   other_optgroup.className = "character_optgroup"
@@ -999,6 +1004,9 @@ function add_character(board_index) {
       case "anima":
         anima_optgroup.appendChild(current_option);
         break;
+      case "vanshot1":
+        vanshot1_optgroup.appendChild(current_option);
+        break;
       default:
         other_optgroup.appendChild(current_option);
 
@@ -1026,6 +1034,7 @@ function add_character(board_index) {
 
   select.append(players_optgroup);
   select.append(shield_optgroup);
+  select.append(vanshot1_optgroup);
   select.append(sword_optgroup);
   select.append(mutant_optgroup);
   select.append(anima_optgroup);
