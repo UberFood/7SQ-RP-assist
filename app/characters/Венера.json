@@ -1,0 +1,1 @@
+{"name":"Венера","avatar":"/images/venera.png","chibi_avatar":"/images/chibi_venera.png","strength":"1","stamina":"3","agility":"1","intelligence":"10", "KD_points": "12", "special_type": "med", "inventory": [28,39], "skillset": [0,4,10,12,24,15], "group":"mutant", "extra_movement":"1", "melee_resist": "20.0", "bullet_resist": "20.0"}
