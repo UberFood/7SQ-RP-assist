@@ -213,14 +213,10 @@ wss.on('connection', (ws) => {
         clientSocket.send(JSON.stringify(data));
       });
     } else if (data.command == 'deal_damage') {
-      var response = {};
-      response.room_number = data.room_number;
-      response.command = 'deal_damage_response';
-      response.to_name = 'all';
-      response.character_number = data.character_number;
-      response.damage = data.damage;
+      data.command = 'deal_damage_response';
+      data.to_name = 'all';
       wss.clients.forEach(function(clientSocket) {
-        clientSocket.send(JSON.stringify(response));
+        clientSocket.send(JSON.stringify(data));
       });
     } else if (data.command == 'save_game') {
       var response = {};

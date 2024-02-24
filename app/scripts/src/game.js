@@ -1519,6 +1519,7 @@ function selectCharacterConstructDamageButton(character_number) {
 
       var toSend = {};
       toSend.command = 'deal_damage';
+      toSend.type = 'damage';
       toSend.character_number = character_number;
       toSend.damage = damage;
       toSend.room_number = my_room;
@@ -1528,12 +1529,43 @@ function selectCharacterConstructDamageButton(character_number) {
   return damage_button;
 }
 
+function selectCharacterConstructStaminaButton(character_number) {
+  var stamina_button = document.createElement("button");
+  stamina_button.innerHTML = "Вычесть выносливость";
+  stamina_button.onclick = function(event) {
+    var stamina_field = document.getElementById("stamina_field");
+    if (!(stamina_field.value === "")) {
+      var stamina_change = parseInt(stamina_field.value);
+      var stamina_display = document.getElementById("tired_display");
+      var new_stamina = character_state.stamina[character_number] - stamina_change;
+      stamina_display.innerHTML = "Выносливость: " + new_stamina;
+
+      var toSend = {};
+      toSend.command = 'deal_damage';
+      toSend.type = 'stamina';
+      toSend.character_number = character_number;
+      toSend.stamina_change = stamina_change;
+      toSend.room_number = my_room;
+      socket.sendMessage(toSend);
+    }
+  }
+  return stamina_button;
+}
+
 function selectCharacterConstructDamageField() {
   var damage_field = document.createElement("input");
   damage_field.id = "damage_field";
   damage_field.type = "number";
   damage_field.placeholder = "Урон";
   return damage_field;
+}
+
+function selectCharacterConstructStaminaField() {
+  var stamina_field = document.createElement("input");
+  stamina_field.id = "stamina_field";
+  stamina_field.type = "number";
+  stamina_field.placeholder = "Стамина";
+  return stamina_field;
 }
 
 function selectCharacterConstructEffectSelect() {
@@ -1659,7 +1691,8 @@ function selectCharacterConstructSpiritMiniDisplay(character_number) {
 }
 
 function selectCharacterConstructButtonList(move_button, search_button, attack_button, simple_roll_button, delete_button, damage_button,
-  damage_field, change_character_visibility_button, effect_select, effect_button) {
+  damage_field, change_character_visibility_button, effect_select, effect_button, stamina_button,
+    stamina_field) {
   var button_list = document.createElement("ul");
   button_list.className = "button_list";
   var line1 = document.createElement("li");
@@ -1671,6 +1704,7 @@ function selectCharacterConstructButtonList(move_button, search_button, attack_b
   var line7 = document.createElement("li");
   var line8 = document.createElement("li");
   var line9 = document.createElement("li");
+  var line10 = document.createElement("li");
 
   line1.appendChild(move_button);
   line2.appendChild(search_button);
@@ -1680,9 +1714,11 @@ function selectCharacterConstructButtonList(move_button, search_button, attack_b
     line5.appendChild(delete_button);
     line6.appendChild(damage_button);
     line6.appendChild(damage_field);
-    line7.appendChild(change_character_visibility_button);
-    line8.appendChild(effect_select);
-    line9.appendChild(effect_button);
+    line7.appendChild(stamina_button);
+    line7.appendChild(stamina_field);
+    line8.appendChild(change_character_visibility_button);
+    line9.appendChild(effect_select);
+    line10.appendChild(effect_button);
   }
 
   button_list.appendChild(line1);
@@ -1695,6 +1731,7 @@ function selectCharacterConstructButtonList(move_button, search_button, attack_b
     button_list.appendChild(line7);
     button_list.appendChild(line8);
     button_list.appendChild(line9);
+    button_list.appendChild(line10);
   }
   return button_list;
 }
@@ -1743,6 +1780,8 @@ function select_character(index, cell) {
     var change_character_visibility_button = selectCharacterConstructVisibilityButton(character_number);
     var damage_button = selectCharacterConstructDamageButton(character_number);
     var damage_field = selectCharacterConstructDamageField();
+    var stamina_button = selectCharacterConstructStaminaButton(character_number);
+    var stamina_field = selectCharacterConstructStaminaField();
     var effect_select = selectCharacterConstructEffectSelect();
     var effect_button = selectCharacterConstructEffectButton(character_number);
   }
@@ -1756,7 +1795,7 @@ function select_character(index, cell) {
   avatar_container.append(spirit_mini_display);
 
   var button_list = selectCharacterConstructButtonList(move_button, search_button, attack_button, simple_roll_button,
-     delete_button, damage_button, damage_field, change_character_visibility_button, effect_select, effect_button);
+     delete_button, damage_button, damage_field, change_character_visibility_button, effect_select, effect_button, stamina_button, stamina_field);
 
   character_info_container.append(button_list);
 
@@ -5498,7 +5537,11 @@ socket.registerMessageHandler((data) => {
       initiative_order_array = data.initiative_order_array;
       display_initiative_line();
     } else if (data.command == 'deal_damage_response') {
-      character_state.HP[data.character_number] = character_state.HP[data.character_number] - data.damage;
+      if (data.type == 'damage') {
+        character_state.HP[data.character_number] = character_state.HP[data.character_number] - data.damage;
+      } else {
+        character_state.stamina[data.character_number] -= data.stamina_change;
+      }
     } else if (data.command == 'save_game_response') {
       if (data.success == 1) {
         alert('Game ' + data.save_name + ' saved succesfully');
