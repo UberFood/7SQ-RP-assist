@@ -215,6 +215,9 @@ var hacking_critical_success_threshold = 25;
 
 const jump_cover_impossible_threshold = 10;
 
+const carry_range = 1;
+const carry_distance_modifier = 2;
+
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
 const stamina_values = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195];
@@ -3379,6 +3382,18 @@ function use_skill(skill_index, character_number, position, cell) {
       }
       break;
 
+    case 38: // Перенести
+      if (! (character_state.special_effects[character_number].hasOwnProperty("carry_user") || character_state.special_effects[character_number].hasOwnProperty("carry_target"))) {
+        if (character_state.bonus_action[character_number] > 0) {
+          choose_character_skill(skill_index, character_number, position, cell)
+        } else {
+          alert("Не хватает действий!")
+        }
+      } else {
+        alert("Вы можете тащить лишь одну цель одновременно!");
+      }
+      break;
+
     default:
       alert("Не знаем это умение")
   }
@@ -3474,6 +3489,10 @@ function perform_skill(index, cell) {
       jump(index, cell);
       break;
 
+    case 38:
+      carry(index, cell);
+      break;
+
     default:
       alert("Unknown targeted skill")
   }
@@ -3486,6 +3505,28 @@ function choose_character_skill(skill_index, character_number, position, cell) {
   character_chosen.char_id = character_number
   character_chosen.char_position = position
   cell.src = "./images/Chidori.webp";
+}
+
+function carry(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  if (isInRange(index, user_position, carry_range)) {
+    var target_character_number = game_state.board_state[index]
+    if (! (character_state.special_effects[target_character_number].hasOwnProperty("carry_target") || character_state.special_effects[target_character_number].hasOwnProperty("carry_user"))) {
+      var toSend = {};
+      toSend.command = 'skill';
+      toSend.skill_index = character_chosen.skill_id
+      toSend.room_number = my_room;
+      toSend.user_index = user_character_number
+      toSend.target_index = target_character_number
+      toSend.distance_modifier = carry_distance_modifier;
+      socket.sendMessage(toSend);
+    } else {
+      alert("Эта цель уже участвует в тащинге (цель тащат/тащит)");
+    }
+  } else {
+    alert("Цель слишком далеко чтобы подхватить")
+  }
 }
 
 function hook(index, cell) {
@@ -6624,6 +6665,25 @@ socket.registerMessageHandler((data) => {
             }
           }
         }
+        break;
+
+      case 38: // carry
+        if (game_state.battle_mod == 1) {
+          character_state.bonus_action[user_index] -= carry_bonus_actions_cost
+        }
+        var carry_user = character_detailed_info[user_index]
+        var carry_target = character_detailed_info[data.target_index]
+        var message = carry_user.name + " будет оттаскивать " + carry_target.name
+        pushToList(message)
+
+        var carry_target_object = {}
+        carry_target_object.carry_user_index = user_index
+        character_state.special_effects[data.target_index].carry_target = carry_target_object
+
+        var carry_user_object = {}
+        carry_user_object.carry_target_index = data.target_index;
+        carry_user_object.carry_distance_modifier = data.carry_distance_modifier;
+        character_state.special_effects[user_index].carry_user = carry_user_object
         break;
 
         default:
