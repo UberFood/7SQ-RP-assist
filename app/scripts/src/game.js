@@ -217,6 +217,7 @@ const jump_cover_impossible_threshold = 10;
 
 const carry_range = 1;
 const carry_distance_modifier = 2;
+const carry_bonus_actions_cost = 1;
 
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415];
@@ -1124,9 +1125,18 @@ function move_character(to_index, to_cell) {
   var distance = findDistance(to_index, chosen_index)
   var max_distance = character_state.move_action[chosen_character_index]
 
+  var true_distance = distance;
+  if (character_state.special_effects[chosen_character_index].hasOwnProperty("carry_user")) {
+    distance *= character_state.special_effects[chosen_character_index].carry_user.carry_distance_modifier;
+  }
+
   if (distance <= max_distance) {
-    if (!(game_state.battle_mod == 1 && distance > 1.6)) {
+    if (!(game_state.battle_mod == 1 && true_distance > 1.6)) {
       var toSend = setup_move_send_object(chosen_index, to_index, chosen_character_index, distance);
+
+      if (character_state.special_effects[chosen_character_index].hasOwnProperty("carry_user")) {
+        toSend.carry_target_index = character_state.special_effects[chosen_character_index].carry_user.carry_target_index;
+      }
 
       var immediate_nbh = index_in_radius(to_index, 1.6);
       var extended_invisibility_nbh = index_in_radius(to_index, invisibility_detection_radius);
@@ -1324,6 +1334,12 @@ function receiveMoveSniperPassive(character_number) {
     character_state.special_effects[character_number].sniper_passive = sniper_passive_object
     character_state.attack_bonus[character_number] = character_state.attack_bonus[character_number] + sniper_passive_penalty
   }
+}
+
+function receiveMoveCarryAction(carry_target_index, carry_to_position) {
+  var carry_from_position = character_state.position[carry_target_index];
+  receiveMoveBasicState(carry_to_position, carry_from_position, carry_target_index);
+  receiveMoveImageState(carry_to_position, carry_from_position, carry_target_index);
 }
 
 // Move related skills
@@ -3390,7 +3406,9 @@ function use_skill(skill_index, character_number, position, cell) {
           alert("Не хватает действий!")
         }
       } else {
-        alert("Вы можете тащить лишь одну цель одновременно!");
+        if (character_state.special_effects[character_number].hasOwnProperty("carry_user")) {
+          
+        }
       }
       break;
 
@@ -3519,7 +3537,7 @@ function carry(index, cell) {
       toSend.room_number = my_room;
       toSend.user_index = user_character_number
       toSend.target_index = target_character_number
-      toSend.distance_modifier = carry_distance_modifier;
+      toSend.carry_distance_modifier = carry_distance_modifier;
       socket.sendMessage(toSend);
     } else {
       alert("Эта цель уже участвует в тащинге (цель тащат/тащит)");
@@ -5553,6 +5571,9 @@ socket.registerMessageHandler((data) => {
         receiveMoveForceFieldInteraction(data.left_shield, data.character_number, data.shield_index);
         receiveMoveLandmineExplosions(data.mines_exploded, data.mines_damage, data.character_number);
         receiveMoveImageState(to_index, from_index, data.character_number);
+        if (data.hasOwnProperty("carry_target_index")) {
+          receiveMoveCarryAction(data.carry_target_index, data.from_index);
+        }
 
         if (game_state.battle_mod == 1) {
           receiveMoveSubstractActions(data.character_number, data.distance);
