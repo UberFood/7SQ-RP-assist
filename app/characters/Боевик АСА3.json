@@ -1,2 +1,2 @@
-{"name":"Боевик АСА","avatar":"/images/ASA.jpg", "strength":"2","stamina":"3","agility":"6","intelligence":"1", "KD_points": "10", "special_type": "rogue", "inventory": [32,38], "skillset": [2,17,0, 37,4,10,11,26,29], "group":"vanshot1", "evade_bonus": "3", "melee_resist": "10", "extra_movement":"1"}
+{"name":"Боевик АСА","avatar":"/images/ASA.jpg","strength":"2","stamina":"3","agility":"6","intelligence":"1", "KD_points": "10", "special_type": "rogue", "inventory": [32,38], "skillset": [2,17,0, 37,4,10,11,26,29], "group":"vanshot1", "evade_bonus": "3", "melee_resist": "10", "extra_movement":"1"}
 
