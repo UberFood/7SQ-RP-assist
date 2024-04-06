@@ -1,2 +1,2 @@
-{"name":"Террорист","avatar":"/images/Ter_10.png", "chibi_avatar": "/images/Chibi_Ter_10.png","strength":"2","stamina":"2","agility":"4","intelligence":"6", "KD_points": "12", "special_type": "rogue", "inventory": [6,7,4], "skillset": [2,17,0, 37,4,10,11,26,29], "evade_bonus": "4","extra_movement":"3"}
+{"name":"Террорист","avatar":"/images/Ter_10.png", "chibi_avatar": "/images/Chibi_Ter_10.png","strength":"2","stamina":"2","agility":"4","intelligence":"6", "KD_points": "12", "special_type": "rogue", "inventory": [43,4], "skillset": [2,17,0, 37,4,10,11,26,29], "evade_bonus": "4","extra_movement":"3"}
 
