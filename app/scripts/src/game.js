@@ -3406,9 +3406,19 @@ function use_skill(skill_index, character_number, position, cell) {
           alert("Не хватает действий!")
         }
       } else {
+        var toSend = {};
+        toSend.command = 'skill';
+        toSend.room_number = my_room;
+        toSend.skill_index = skill_index
+        toSend.skill_interrupt = true;
         if (character_state.special_effects[character_number].hasOwnProperty("carry_user")) {
-          
+          toSend.carry_user_index = character_number
+          toSend.carry_target_index = character_state.special_effects[character_number].carry_user.carry_target_index;
+        } else if (character_state.special_effects[character_number].hasOwnProperty("carry_target")) {
+          toSend.carry_user_index = character_state.special_effects[character_number].carry_target.carry_user_index;
+          toSend.carry_target_index = character_number;
         }
+        socket.sendMessage(toSend);
       }
       break;
 
@@ -6689,22 +6699,31 @@ socket.registerMessageHandler((data) => {
         break;
 
       case 38: // carry
-        if (game_state.battle_mod == 1) {
-          character_state.bonus_action[user_index] -= carry_bonus_actions_cost
+        if (!data.hasOwnProperty("skill_interrupt")) {
+          if (game_state.battle_mod == 1) {
+            character_state.bonus_action[user_index] -= carry_bonus_actions_cost
+          }
+          var carry_user = character_detailed_info[user_index]
+          var carry_target = character_detailed_info[data.target_index]
+          var message = carry_user.name + " будет оттаскивать " + carry_target.name
+          pushToList(message)
+
+          var carry_target_object = {}
+          carry_target_object.carry_user_index = user_index
+          character_state.special_effects[data.target_index].carry_target = carry_target_object
+
+          var carry_user_object = {}
+          carry_user_object.carry_target_index = data.target_index;
+          carry_user_object.carry_distance_modifier = data.carry_distance_modifier;
+          character_state.special_effects[user_index].carry_user = carry_user_object
+        } else {
+          var carry_user = character_detailed_info[data.carry_user_index]
+          var carry_target = character_detailed_info[data.carry_target_index]
+          var message = carry_user.name + " перестает тащить " + carry_target.name;
+          pushToList(message)
+          delete character_state.special_effects[data.carry_user_index].carry_user;
+          delete character_state.special_effects[data.carry_target_index].carry_target;
         }
-        var carry_user = character_detailed_info[user_index]
-        var carry_target = character_detailed_info[data.target_index]
-        var message = carry_user.name + " будет оттаскивать " + carry_target.name
-        pushToList(message)
-
-        var carry_target_object = {}
-        carry_target_object.carry_user_index = user_index
-        character_state.special_effects[data.target_index].carry_target = carry_target_object
-
-        var carry_user_object = {}
-        carry_user_object.carry_target_index = data.target_index;
-        carry_user_object.carry_distance_modifier = data.carry_distance_modifier;
-        character_state.special_effects[user_index].carry_user = carry_user_object
         break;
 
         default:
