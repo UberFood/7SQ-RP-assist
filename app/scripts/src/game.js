@@ -3422,6 +3422,23 @@ function use_skill(skill_index, character_number, position, cell) {
       }
       break;
 
+    case 39: // пас
+      if (character_state.main_action[character_number] > 0) {
+        if (character_state.special_effects[character_number].hasOwnProperty("carry_user") ) {
+          var ball_index = character_state.special_effects[character_number].carry_user.carry_target_index;
+          var ball = character_detailed_info[ball_index];
+          if (ball.special_type = "ball") {
+            choose_character_skill(skill_index, character_number, position, cell)
+          } else {
+            alert("Пасовать можно только мяч... (сюрприз-сюрприз)");
+          }
+        } else {
+          alert("Что вы собирались пасовать..?");
+        }
+      } else {
+        alert("Не хватает действий!")
+      }
+      break;
     default:
       alert("Не знаем это умение")
   }
@@ -3521,6 +3538,10 @@ function perform_skill(index, cell) {
       carry(index, cell);
       break;
 
+    case 39:
+      pass_the_ball(index, cell);
+      break;
+
     default:
       alert("Unknown targeted skill")
   }
@@ -3533,6 +3554,32 @@ function choose_character_skill(skill_index, character_number, position, cell) {
   character_chosen.char_id = character_number
   character_chosen.char_position = position
   cell.src = "./images/Chidori.webp";
+}
+
+function find_pass_range(user_character_number) {
+  var character = character_detailed_info[user_character_number];
+  var strength = parseInt(character.strength);
+  return 2*strength;
+}
+
+function pass_the_ball(index, cell) {
+  var user_character_number = character_chosen.char_id;
+  var user_position = character_chosen.char_position;
+  var pass_range = find_pass_range(user_character_number);
+  var ball_index = character_state.special_effects[user_character_number].carry_user.carry_target_index;
+  if (isInRange(index, user_position, pass_range)) {
+    var toSend = {}
+    toSend.command = 'skill';
+    toSend.skill_index = character_chosen.skill_id
+    toSend.room_number = my_room;
+    toSend.landing_position = index;
+    toSend.ball_index = ball_index
+    toSend.ball_position = character_state.position[ball_index];
+    toSend.passer_index = user_character_number;
+    socket.sendMessage(toSend);
+  } else {
+    alert("Не хватит силы для такого паса")
+  }
 }
 
 function carry(index, cell) {
@@ -6723,6 +6770,21 @@ socket.registerMessageHandler((data) => {
           pushToList(message)
           delete character_state.special_effects[data.carry_user_index].carry_user;
           delete character_state.special_effects[data.carry_target_index].carry_target;
+        }
+        break;
+
+      case 39: // pass
+        var to_index = data.landing_position;
+        var from_index = data.ball_position;
+        var ball_index = data.ball_index;
+        if (game_state.board_state[to_index] == 0) {// pass to empty space
+          delete character_state.special_effects[data.passer_index].carry_user;
+          delete character_state.special_effects[ball_index].carry_target;
+          receiveMoveBasicState(to_index, from_index, ball_index);
+          receiveMoveImageState(to_index, from_index, ball_index);
+          if (game_state.battle_mod == 1) {
+            character_state.main_action[data.passer_index] -= 1;
+          }
         }
         break;
 
