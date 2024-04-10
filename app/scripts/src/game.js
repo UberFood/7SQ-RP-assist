@@ -1133,26 +1133,10 @@ function move_character(to_index, to_cell) {
 
   if (distance <= max_distance) {
     if (!(game_state.battle_mod == 1 && true_distance > 1.6)) {
-      var toSend = setup_move_send_object(chosen_index, to_index, chosen_character_index, distance);
-
-      if (character_state.special_effects[chosen_character_index].hasOwnProperty("carry_user")) {
-        toSend.carry_in_progress = true;
-        toSend.carry_target_index = character_state.special_effects[chosen_character_index].carry_user.carry_target_index;
-      }
-
-      var immediate_nbh = index_in_radius(to_index, 1.6);
-      var extended_invisibility_nbh = index_in_radius(to_index, invisibility_detection_radius);
-
-      toSend = updateMoveForceFieldStatus(chosen_character_index, to_index, toSend);
-      toSend = updateMoveOwnInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
-      toSend = updateMoveOthersInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
-      toSend = updateMoveLandminesExploded(chosen_character_index, to_index, toSend, immediate_nbh);
-      toSend = updateMoveCarryTargetInterrupt(chosen_character_index, toSend);
+      var toSend = constructMoveSendObject(chosen_index, to_index, chosen_character_index, distance)
 
       clear_containers();
       socket.sendMessage(toSend);
-
-      //updateMoveCharacterChosenInteraction(to_index);
     } else {
       alert("В бою нужно двигаться поступательно (1-1.5 клетки)")
       undo_selection()
@@ -1162,6 +1146,21 @@ function move_character(to_index, to_cell) {
     undo_selection()
   }
 
+}
+
+function constructMoveSendObject(chosen_index, to_index, chosen_character_index, distance) {
+  var toSend = setup_move_send_object(chosen_index, to_index, chosen_character_index, distance);
+
+  var immediate_nbh = index_in_radius(to_index, 1.6);
+  var extended_invisibility_nbh = index_in_radius(to_index, invisibility_detection_radius);
+
+  toSend = updateMoveForceFieldStatus(chosen_character_index, to_index, toSend);
+  toSend = updateMoveOwnInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
+  toSend = updateMoveOthersInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
+  toSend = updateMoveLandminesExploded(chosen_character_index, to_index, toSend, immediate_nbh);
+  toSend = updateCarryUserStatus(chosen_character_index, toSend);
+  toSend = updateMoveCarryTargetInterrupt(chosen_character_index, toSend);
+  return toSend;
 }
 
 function setup_move_send_object(from_index, to_index, character_number, distance) {
@@ -1177,6 +1176,14 @@ function setup_move_send_object(from_index, to_index, character_number, distance
   toSend.mines_exploded = [];
   toSend.mines_damage = 0;
   toSend.invisibility_ended_id = [];
+  return toSend;
+}
+
+function updateCarryUserStatus(chosen_character_index, toSend) {
+  if (character_state.special_effects[chosen_character_index].hasOwnProperty("carry_user")) {
+    toSend.carry_in_progress = true;
+    toSend.carry_target_index = character_state.special_effects[chosen_character_index].carry_user.carry_target_index;
+  }
   return toSend;
 }
 
@@ -1260,6 +1267,46 @@ function updateMoveCarryTargetInterrupt(chosen_character_index, toSend) {
     toSend.carry_target_index = chosen_character_index;
   }
   return toSend;
+}
+
+function receiveMoveOverall(data, action) {
+  var to_index = data.to_index;
+  var from_index = data.from_index;
+
+  if (game_state.board_state[to_index] == 0 && game_state.board_state[from_index] == data.character_number) {
+    var character = character_detailed_info[data.character_number];
+
+    receiveMoveBasicState(to_index, from_index, data.character_number);
+    receiveMoveInvisibilityReveal(data.invisibility_ended_id);
+    receiveMoveForceFieldInteraction(data.left_shield, data.character_number, data.shield_index);
+    receiveMoveLandmineExplosions(data.mines_exploded, data.mines_damage, data.character_number);
+    receiveMoveImageState(to_index, from_index, data.character_number);
+    if (data.hasOwnProperty("carry_in_progress")) {
+      receiveMoveCarryAction(data.carry_target_index, data.from_index);
+    }
+    if (data.hasOwnProperty("carry_interrupt")) {
+      carry_interruption(data.carry_user_index, data.carry_target_index);
+    }
+
+    if (game_state.battle_mod == 1) {
+      switch(action) {
+        case "move":
+          receiveMoveSubstractActions(data.character_number, data.distance);
+          break;
+
+        case "jump":
+          receiveJumpSubstractActions(data.character_number);
+          setCooldown(data.character_number, 'jump_user', 0);
+          break;
+
+        default:
+          console.log("Unknown movement type");
+      }
+      if (character.special_type == "sniper") {
+        receiveMoveSniperPassive(data.character_number);
+      }
+    }
+  }
 }
 
 function receiveMoveBasicState(to_index, from_index, character_number) {
@@ -1366,17 +1413,12 @@ function jump(to_index, to_cell) {
     var accumulated_cover = get_accumulated_cover(chosen_index, to_index);
 
     if (accumulated_cover < jump_cover_impossible_threshold) {
-      var toSend = setup_move_send_object(chosen_index, to_index, chosen_character_index, distance);
+      var toSend = {};
+      toSend.room_number = my_room;
       toSend.command = 'skill';
       toSend.skill_index = character_chosen.skill_id;
-
-      var immediate_nbh = index_in_radius(to_index, 1.6);
-      var extended_invisibility_nbh = index_in_radius(to_index, invisibility_detection_radius);
-
-      toSend = updateMoveForceFieldStatus(chosen_character_index, to_index, toSend);
-      toSend = updateMoveOwnInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
-      toSend = updateMoveOthersInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
-      toSend = updateMoveLandminesExploded(chosen_character_index, to_index, toSend, immediate_nbh);
+      toSend.user_index = chosen_character_index;
+      toSend.movement_object = constructMoveSendObject(chosen_index, to_index, chosen_character_index, distance)
 
       clear_containers();
       socket.sendMessage(toSend);
@@ -5642,31 +5684,7 @@ socket.registerMessageHandler((data) => {
       }
       game_state.board_state[data.cell_id] = data.obstacle_number * (-1);
     } else if (data.command == 'move_character_response') {
-      var to_index = data.to_index;
-      var from_index = data.from_index;
-
-      if (game_state.board_state[to_index] == 0 && game_state.board_state[from_index] == data.character_number) {
-        var character = character_detailed_info[data.character_number];
-
-        receiveMoveBasicState(to_index, from_index, data.character_number);
-        receiveMoveInvisibilityReveal(data.invisibility_ended_id);
-        receiveMoveForceFieldInteraction(data.left_shield, data.character_number, data.shield_index);
-        receiveMoveLandmineExplosions(data.mines_exploded, data.mines_damage, data.character_number);
-        receiveMoveImageState(to_index, from_index, data.character_number);
-        if (data.hasOwnProperty("carry_in_progress")) {
-          receiveMoveCarryAction(data.carry_target_index, data.from_index);
-        }
-        if (data.hasOwnProperty("carry_interrupt")) {
-          carry_interruption(data.carry_user_index, data.carry_target_index);
-        }
-
-        if (game_state.battle_mod == 1) {
-          receiveMoveSubstractActions(data.character_number, data.distance);
-          if (character.special_type == "sniper") {
-            receiveMoveSniperPassive(data.character_number);
-          }
-        }
-      }
+      receiveMoveOverall(data, "move");
     } else if (data.command == 'delete_object_response') {
       if (data.hasOwnProperty("character_number")) {
         clear_character(data.character_number)
@@ -6751,26 +6769,7 @@ socket.registerMessageHandler((data) => {
         break;
 
       case 37: // прыжок
-        var to_index = data.to_index;
-        var from_index = data.from_index;
-
-        if (game_state.board_state[to_index] == 0 && game_state.board_state[from_index] == data.character_number) {
-          var character = character_detailed_info[data.character_number];
-
-          receiveMoveBasicState(to_index, from_index, data.character_number);
-          receiveMoveInvisibilityReveal(data.invisibility_ended_id);
-          receiveMoveForceFieldInteraction(data.left_shield, data.character_number, data.shield_index);
-          receiveMoveLandmineExplosions(data.mines_exploded, data.mines_damage, data.character_number);
-          receiveMoveImageState(to_index, from_index, data.character_number);
-
-          if (game_state.battle_mod == 1) {
-            receiveJumpSubstractActions(data.character_number);
-            setCooldown(data.character_number, 'jump_user', 0);
-            if (character.special_type == "sniper") {
-              receiveMoveSniperPassive(data.character_number);
-            }
-          }
-        }
+        receiveMoveOverall(data.movement_object, "jump");
         break;
 
       case 38: // carry
