@@ -214,6 +214,7 @@ var hacking_success_threshold = 16;
 var hacking_critical_success_threshold = 25;
 
 const jump_cover_impossible_threshold = 10;
+const jump_base_distance = 1;
 
 const carry_range = 1;
 const carry_distance_modifier = 2;
@@ -1135,6 +1136,7 @@ function move_character(to_index, to_cell) {
       var toSend = setup_move_send_object(chosen_index, to_index, chosen_character_index, distance);
 
       if (character_state.special_effects[chosen_character_index].hasOwnProperty("carry_user")) {
+        toSend.carry_in_progress = true;
         toSend.carry_target_index = character_state.special_effects[chosen_character_index].carry_user.carry_target_index;
       }
 
@@ -1145,6 +1147,7 @@ function move_character(to_index, to_cell) {
       toSend = updateMoveOwnInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
       toSend = updateMoveOthersInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
       toSend = updateMoveLandminesExploded(chosen_character_index, to_index, toSend, immediate_nbh);
+      toSend = updateMoveCarryTargetInterrupt(chosen_character_index, toSend);
 
       clear_containers();
       socket.sendMessage(toSend);
@@ -1248,6 +1251,15 @@ function updateMoveCharacterChosenInteraction(to_index) {
   character_chosen.char_position = to_index
   var to_cell = document.getElementById('cell_' + to_index);
   character_chosen.cell = to_cell
+}
+
+function updateMoveCarryTargetInterrupt(chosen_character_index, toSend) {
+  if (character_state.special_effects[chosen_character_index].hasOwnProperty("carry_target")) {
+    toSend.carry_interrupt = true;
+    toSend.carry_user_index = character_state.special_effects[chosen_character_index].carry_target.carry_user_index;
+    toSend.carry_target_index = chosen_character_index;
+  }
+  return toSend;
 }
 
 function receiveMoveBasicState(to_index, from_index, character_number) {
@@ -2955,7 +2967,7 @@ function findThrowRange(character) {
 
 function findJumpDistance(character_number) {
   var character = character_detailed_info[character_number];
-  var distance = Math.ceil(parseInt(character.strength)/2);
+  var distance = jump_base_distance + Math.ceil(parseInt(character.strength)/2);
   console.log(distance);
   return distance;
 }
@@ -3389,7 +3401,11 @@ function use_skill(skill_index, character_number, position, cell) {
     case 37: // прыжок
       if (!character_state.special_effects[character_number].hasOwnProperty("jump_user")) {
         if (character_state.bonus_action[character_number] > 0) {
-          choose_character_skill(skill_index, character_number, position, cell)
+          if (!character_state.special_effects[character_number].hasOwnProperty("carry_user")) {
+            choose_character_skill(skill_index, character_number, position, cell)
+          } else {
+            alert("Вы не можете прыгать с таким грузом на руках!");
+          }
         } else {
           alert("Не хватает действий!")
         }
@@ -3410,7 +3426,7 @@ function use_skill(skill_index, character_number, position, cell) {
         toSend.command = 'skill';
         toSend.room_number = my_room;
         toSend.skill_index = skill_index
-        toSend.skill_interrupt = true;
+        toSend.carry_interrupt = true;
         if (character_state.special_effects[character_number].hasOwnProperty("carry_user")) {
           toSend.carry_user_index = character_number
           toSend.carry_target_index = character_state.special_effects[character_number].carry_user.carry_target_index;
@@ -3602,6 +3618,15 @@ function carry(index, cell) {
   } else {
     alert("Цель слишком далеко чтобы подхватить")
   }
+}
+
+function carry_interruption(carry_user_index, carry_target_index) {
+  var carry_user = character_detailed_info[carry_user_index]
+  var carry_target = character_detailed_info[carry_target_index]
+  var message = carry_user.name + " перестает тащить " + carry_target.name;
+  pushToList(message)
+  delete character_state.special_effects[carry_user_index].carry_user;
+  delete character_state.special_effects[carry_target_index].carry_target;
 }
 
 function hook(index, cell) {
@@ -5628,8 +5653,11 @@ socket.registerMessageHandler((data) => {
         receiveMoveForceFieldInteraction(data.left_shield, data.character_number, data.shield_index);
         receiveMoveLandmineExplosions(data.mines_exploded, data.mines_damage, data.character_number);
         receiveMoveImageState(to_index, from_index, data.character_number);
-        if (data.hasOwnProperty("carry_target_index")) {
+        if (data.hasOwnProperty("carry_in_progress")) {
           receiveMoveCarryAction(data.carry_target_index, data.from_index);
+        }
+        if (data.hasOwnProperty("carry_interrupt")) {
+          carry_interruption(data.carry_user_index, data.carry_target_index);
         }
 
         if (game_state.battle_mod == 1) {
@@ -6746,7 +6774,7 @@ socket.registerMessageHandler((data) => {
         break;
 
       case 38: // carry
-        if (!data.hasOwnProperty("skill_interrupt")) {
+        if (!data.hasOwnProperty("carry_interrupt")) {
           if (game_state.battle_mod == 1) {
             character_state.bonus_action[user_index] -= carry_bonus_actions_cost
           }
@@ -6764,12 +6792,7 @@ socket.registerMessageHandler((data) => {
           carry_user_object.carry_distance_modifier = data.carry_distance_modifier;
           character_state.special_effects[user_index].carry_user = carry_user_object
         } else {
-          var carry_user = character_detailed_info[data.carry_user_index]
-          var carry_target = character_detailed_info[data.carry_target_index]
-          var message = carry_user.name + " перестает тащить " + carry_target.name;
-          pushToList(message)
-          delete character_state.special_effects[data.carry_user_index].carry_user;
-          delete character_state.special_effects[data.carry_target_index].carry_target;
+          carry_interruption(data.carry_user_index, data.carry_target_index);
         }
         break;
 
