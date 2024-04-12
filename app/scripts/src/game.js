@@ -218,6 +218,7 @@ const jump_base_distance = 1;
 
 const belvet_jump_base_distance = 2;
 const belvet_jump_weapon_id = 30;
+const belvet_jump_cooldown = 2;
 
 const carry_range = 1;
 const carry_distance_modifier = 2;
@@ -3014,7 +3015,11 @@ function do_damage(character_number, damage) {
 }
 
 function deal_AOE_damage(damage_object_array, user_index) {
-
+  var cover_string = "";
+  for (let i = 0; i < damage_object_array.length; i++) {
+    var damage_object = damage_object_array[i];
+    receiveAttack_outcome_switch(user_index, damage_object.target_id, damage_object.outcome, damage_object.attack_roll, damage_object.evade_roll, damage_object.damage_roll, damage_object.attack_type, cover_string)
+  }
 }
 
 function findThrowRange(character) {
@@ -3099,7 +3104,7 @@ function receiveAttack_construct_cover_string(cover_level) {
   return cover_string;
 }
 
-function receiveAttack_outcome_switch(attacker_id, target_id, outcome, attack_roll, evade_roll, damage_roll, cover_string) {
+function receiveAttack_outcome_switch(attacker_id, target_id, outcome, attack_roll, evade_roll, damage_roll, attack_type, cover_string) {
   var attacker = character_detailed_info[attacker_id]
   var target = character_detailed_info[target_id]
 
@@ -3613,7 +3618,7 @@ function use_skill(skill_index, character_number, position, cell) {
       break;
 
     case 40: // belvet jump
-      if (!character_state.special_effects[character_number].hasOwnProperty("belvet_jump_user")) {
+      if (!character_state.special_effects[character_number].hasOwnProperty("belvet_jump")) {
         if (character_state.main_action[character_number] > 0 && character_state.bonus_action[character_number] > 0) {
           if (!character_state.special_effects[character_number].hasOwnProperty("carry_user")) {
             choose_character_skill(skill_index, character_number, position, cell)
@@ -3808,12 +3813,13 @@ function belvet_jump_damage_object(from_index, to_index, character_number) {
   var candidate_cells = cells_on_line(from_index, to_index, game_state.size);
   var cover_modifier = cover_mod(0);
   var weapon = weapon_detailed_info[belvet_jump_weapon_id];
-  for (let i = 0; i < candidate_cells.length; i++) {
+  for (let i = 0; i < candidate_cells.length - 1; i++) {
     let cell_index = candidate_cells[i];
     if (game_state.board_state[cell_index] > 0) {// is character
       var target_character_number = game_state.board_state[cell_index];
       var damage_object = attack_hitting_template({}, weapon, character_number, target_character_number, cover_modifier, 0);
-      damage_object.target_character_number = target_character_number;
+      damage_object.target_id = target_character_number;
+      damage_object.attack_type = weapon.type;
       damage_object_array.push(damage_object);
     }
   }
@@ -5183,6 +5189,7 @@ function check_default_cooldowns(i) {
   check_cooldown(i, "hook_user", "");
   check_cooldown(i, "punishing_strike_user", "");
   check_cooldown(i, "jump_user", "");
+  check_cooldown(i, "belvet_jump", "");
 }
 
 function check_all_round_effects(i, character, data) {
@@ -7032,7 +7039,7 @@ socket.registerMessageHandler((data) => {
       quick_attack_check(data);
       move_reduction_check(data);
       var cover_string = receiveAttack_construct_cover_string(data.cover_level);
-      receiveAttack_outcome_switch(data.attacker_id, data.target_id, data.outcome, data.attack_roll, data.evade_roll, data.damage_roll, cover_string)
+      receiveAttack_outcome_switch(data.attacker_id, data.target_id, data.outcome, data.attack_roll, data.evade_roll, data.damage_roll, data.attack_type, cover_string)
     } else if (data.command == 'attack_obstacle_response') {
       if (data.attack_type == "ranged") {
         var audio = gunshot_audio
