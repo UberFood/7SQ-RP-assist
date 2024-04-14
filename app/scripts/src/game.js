@@ -4158,23 +4158,8 @@ function punishing_strike(index, cell) {
   var user_character_number = character_chosen.char_id
   var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]];
   var attacking_character = character_detailed_info[user_character_number]
-  var stat_bonus;
-  switch(weapon.type) {
-    case "melee":
-      stat_bonus = attacking_character.strength;
-      break;
-    case "ranged":
-      stat_bonus = attacking_character.intelligence;
-      break;
-    case "energy":
-      stat_bonus = attacking_character.intelligence;
-      break;
-    default:
-      stat_bonus = 0;
-  }
-  console.log(stat_bonus);
-  var bonus_attack = stat_bonus + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
   var accumulated_cover = get_accumulated_cover(index, user_position)
+  var bonus_attack = 0;
   var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon, accumulated_cover);
   if (toSend == null) {
     alert("Далековато")
@@ -4231,7 +4216,7 @@ function quick_attack(index, cell) {
   var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]]
   if (weapon.hasOwnProperty("subtype") && weapon.subtype == "PP") {
     var attacking_character = character_detailed_info[user_character_number]
-    var bonus_attack = parseInt(attacking_character.intelligence) + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
+    var bonus_attack = 0;
 
     var accumulated_cover = get_accumulated_cover(index, user_position)
     var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon, accumulated_cover)
@@ -4255,7 +4240,7 @@ function punch_rainfall(index, cell) {
     var attacking_character = character_detailed_info[user_character_number]
     var target_char_id = game_state.board_state[index]
     var target_character = character_detailed_info[target_char_id]
-    var bonus_attack = parseInt(attacking_character.agility) + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
+    var bonus_attack = 0;
 
     var total_damage = 0;
     var attacks_successful = 0;
@@ -4302,7 +4287,7 @@ function shock_wave(index, cell) {
   var user_character_number = character_chosen.char_id
   var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]]
   var attacking_character = character_detailed_info[user_character_number]
-  var bonus_attack = parseInt(attacking_character.intelligence) + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
+  var bonus_attack = 0;
 
   var accumulated_cover = get_accumulated_cover(index, user_position);
   var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon, accumulated_cover)
@@ -4763,19 +4748,13 @@ function curved_bullets(index, cell) {
   var user_character_number = character_chosen.char_id
   var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]]
   var attacking_character = character_detailed_info[user_character_number]
-  var bonus_attack = parseInt(attacking_character.intelligence) + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
-  if (character_state.special_effects[user_character_number].hasOwnProperty("aim")) {
-    bonus_attack = bonus_attack + parseInt(attacking_character.intelligence);
-  }
+  var bonus_attack = 0;
   var accumulated_cover = get_accumulated_cover(index, user_position);
   accumulated_cover = Math.max(parseInt(parseFloat(accumulated_cover)/2) - 2, 0)
   var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon, accumulated_cover)
   if (toSend == null) {
     alert("Далековато")
   } else {
-    if (character_state.special_effects[user_character_number].hasOwnProperty("aim")) {
-      toSend.aim_over = 1;
-    }
     socket.sendMessage(toSend);
   }
 }
