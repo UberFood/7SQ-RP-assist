@@ -2362,8 +2362,8 @@ function rollInitiative() {
   socket.sendMessage(toSend);
 }
 
-function roll_evasion(target_character, target_character_number) {
-  console.log("Бонус уворота: " + character_state.evade_bonus[target_character_number])
+function roll_evasion(target_character_number) {
+  var target_character = character_detailed_info[target_character_number];
   var evade_roll = roll_x(20) + parseInt(target_character.agility) + character_state.universal_bonus[target_character_number] + character_state.evade_bonus[target_character_number]
   return evade_roll
 }
@@ -2603,8 +2603,6 @@ function rollWithAdvantage(advantage) {
   } else if (advantage < 0) {
     toRet = Math.min(...rolls_array);
   }
-  console.log(rolls_array);
-  console.log(toRet);
   return toRet;
 }
 
@@ -2646,19 +2644,12 @@ function weapon_damage_bonus(raw_damage, weapon, character_number) {
 function perform_attack(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
+  var target_character_number = game_state.board_state[index]
   var weapon = weapon_detailed_info[character_chosen.weapon_id]
 
   if (isInRange(index, user_position, weapon.range)) {
-
     var accumulated_cover = get_accumulated_cover(user_position, index)
     var cover_modifier = cover_mod(accumulated_cover)
-
-
-    var target_character_number = game_state.board_state[index]
-    var target_character_KD = character_KD(target_character_number)
-    var target_character = character_detailed_info[target_character_number]
-    var attacking_character = character_detailed_info[user_character_number]
-
 
     var toSend = {};
     toSend.command = 'resolve_attack';
@@ -2670,78 +2661,16 @@ function perform_attack(index, cell) {
     toSend.cover_level = cover_modifier.cover_level
     toSend.user_invisibility_ended = 0
 
-    if (weapon.hasOwnProperty("subtype") && weapon.subtype == "PP") {
-      toSend.quick_attack_ready = true;
-    }
-
-    if (character_state.invisibility[user_character_number] != "all" && weapon.type != "throwing") {
-      toSend.user_invisibility_ended = 1
-    }
+    toSend = sendAttack_quick_attack_check(toSend, weapon)
+    toSend = sendAttack_invisibility_over_check(toSend, user_character_number, weapon.type);
 
     if (cover_modifier.isPossible) {
-      var attack_roll = roll_attack(weapon.type, user_character_number, target_character_number, cover_modifier.advantage_bonus)
-      if (attack_roll < 20) {// no crit
-        if (weapon.type == "ranged") {
-          var cumulative_attack_roll = attack_roll + parseInt(attacking_character.intelligence)
-          if (character_state.special_effects[user_character_number].hasOwnProperty("aim")) {// Прицел даблит бонус попадания
-            cumulative_attack_roll = cumulative_attack_roll + parseInt(attacking_character.intelligence);
-            toSend.aim_over = 1;
-          }
-        } else if (weapon.type == "melee") {
-          var cumulative_attack_roll = attack_roll + parseInt(attacking_character.strength)
-        } else if (weapon.type == "energy") {
-          var cumulative_attack_roll = attack_roll + 2*parseInt(attacking_character.intelligence)
-        } else if (weapon.type == "throwing") {
-          var cumulative_attack_roll = attack_roll + parseInt(attacking_character.agility)
-        }
-
-        var attack_bonus = character_state.attack_bonus[user_character_number]
-        var universal_bonus = character_state.universal_bonus[user_character_number]
-        console.log("Бонус атаки: " + attack_bonus);
-        console.log("Бонус всеобщий: " + universal_bonus);
-
-        cumulative_attack_roll = cumulative_attack_roll + attack_bonus + universal_bonus + cover_modifier.attack_bonus
-
-        toSend.attack_roll = cumulative_attack_roll
-
-        if (cumulative_attack_roll > target_character_KD) {// Есть пробитие
-          if (character_state.can_evade[target_character_number] == 1) {
-            var evade_roll = roll_evasion(target_character, target_character_number)
-            toSend.evade_roll = evade_roll
-            if (evade_roll > cumulative_attack_roll) { //succesfully evaded
-              toSend.outcome = "evaded"
-            } else {
-              var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
-              toSend.damage_roll = damage_roll
-              toSend.outcome = "damage_after_evasion"
-            }
-          } else {
-            var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
-            toSend.damage_roll = damage_roll
-            toSend.outcome = "damage_without_evasion"
-          }
-        } else {
-          toSend.outcome = "KD_block"
-        }
-      } else { // full crit
-        toSend.attack_roll = attack_roll
-        var damage_roll = compute_damage(weapon, user_character_number, attack_roll, target_character_number)
-        toSend.damage_roll = damage_roll
-        toSend.outcome = "full_crit"
-      }
-
+      toSend = attack_hitting_template(toSend, weapon, user_character_number, target_character_number, cover_modifier, 0);
     } else {
       toSend.outcome = "full_cover"
-  }
-
-    if (toSend.hasOwnProperty("damage_roll") && weapon.hasOwnProperty("subtype") && weapon.subtype == "drobovik") {
-      var slow_scale = parseFloat(weapon.slow_scale);
-      var full_hp = HP_values[parseInt(target_character.stamina)]
-      var current_moves = character_state.move_action[target_character_number]
-      var fraction = parseFloat(toSend.damage_roll)/parseFloat(full_hp)
-      var move_reduction = current_moves * fraction * slow_scale;
-      toSend.move_reduction = move_reduction;
     }
+
+    toSend = sendAttack_drobovik_slow_check(toSend, target_character_number, weapon)
     socket.sendMessage(toSend);
 
   } else {
@@ -2955,18 +2884,16 @@ function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, b
 }
 
 function attack_hitting_template(toSend, weapon, user_id, target_character_number, cover_modifier, bonus_attack) {
-  var target_character_KD = parseInt(character_state.KD_points[target_character_number]) + parseInt(character_state.bonus_KD[target_character_number])
-  var target_character = character_detailed_info[target_character_number]
+  var target_character_KD = character_KD(target_character_number)
   var attack_roll = roll_attack(weapon.type, user_id, target_character_number, cover_modifier.advantage_bonus)
 
   if (attack_roll < 20) {// no crit
-    var cumulative_attack_roll = attack_roll + bonus_attack + cover_modifier.attack_bonus
-
-    toSend.attack_roll = cumulative_attack_roll
+    toSend = sendAttack_cumulative_attack_roll(toSend, weapon.type, attack_roll, user_id, cover_modifier.attack_bonus, bonus_attack);
+    var cumulative_attack_roll = toSend.attack_roll;
 
     if (cumulative_attack_roll > target_character_KD) {// Есть пробитие
       if (character_state.can_evade[target_character_number] == 1) {
-        var evade_roll = roll_evasion(target_character, target_character_number)
+        var evade_roll = roll_evasion(target_character_number)
         toSend.evade_roll = evade_roll
         if (evade_roll > cumulative_attack_roll) { //succesfully evaded
           toSend.outcome = "evaded"
@@ -3029,7 +2956,6 @@ function findThrowRange(character) {
 function findJumpDistance(character_number) {
   var character = character_detailed_info[character_number];
   var distance = jump_base_distance + Math.ceil(parseInt(character.strength)/2);
-  console.log(distance);
   return distance;
 }
 
@@ -3148,6 +3074,57 @@ function receiveAttack_outcome_switch(attacker_id, target_id, outcome, attack_ro
       console.log("fucked up resolving damage")
       break;
   }
+}
+
+function sendAttack_cumulative_attack_roll(toSend, weapon_type, attack_roll, user_character_number, cover_modifier_bonus, bonus_attack) {
+  var attacking_character = character_detailed_info[user_character_number];
+  if (weapon_type == "ranged") {
+    var cumulative_attack_roll = attack_roll + parseInt(attacking_character.intelligence)
+    if (character_state.special_effects[user_character_number].hasOwnProperty("aim")) {// Прицел даблит бонус попадания
+      cumulative_attack_roll = cumulative_attack_roll + parseInt(attacking_character.intelligence);
+      toSend.aim_over = 1;
+    }
+  } else if (weapon_type == "melee") {
+    var cumulative_attack_roll = attack_roll + parseInt(attacking_character.strength)
+  } else if (weapon_type == "energy") {
+    var cumulative_attack_roll = attack_roll + 2*parseInt(attacking_character.intelligence)
+  } else if (weapon_type == "throwing") {
+    var cumulative_attack_roll = attack_roll + parseInt(attacking_character.agility)
+  }
+
+  var attack_bonus = character_state.attack_bonus[user_character_number]
+  var universal_bonus = character_state.universal_bonus[user_character_number]
+
+  cumulative_attack_roll = cumulative_attack_roll + attack_bonus + universal_bonus + cover_modifier_bonus + bonus_attack;
+  toSend.attack_roll = cumulative_attack_roll;
+  return toSend;
+}
+
+function sendAttack_quick_attack_check(toSend, weapon) {
+  if (weapon.hasOwnProperty("subtype") && weapon.subtype == "PP") {
+    toSend.quick_attack_ready = true;
+  }
+  return toSend;
+}
+
+function sendAttack_invisibility_over_check(toSend, user_character_number, weapon_type) {
+  if (character_state.invisibility[user_character_number] != "all" && weapon_type != "throwing") {
+    toSend.user_invisibility_ended = 1
+  }
+  return toSend;
+}
+
+function sendAttack_drobovik_slow_check(toSend, target_character_number, weapon) {
+  var target_character = character_detailed_info[target_character_number];
+  if (toSend.hasOwnProperty("damage_roll") && weapon.hasOwnProperty("subtype") && weapon.subtype == "drobovik") {
+    var slow_scale = parseFloat(weapon.slow_scale);
+    var full_hp = HP_values[parseInt(target_character.stamina)]
+    var current_moves = character_state.move_action[target_character_number]
+    var fraction = parseFloat(toSend.damage_roll)/parseFloat(full_hp)
+    var move_reduction = current_moves * fraction * slow_scale;
+    toSend.move_reduction = move_reduction;
+  }
+  return toSend;
 }
 
 // Skills!
@@ -4219,7 +4196,7 @@ function cut_limbs(index, cell) {
   var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]]
   if (weapon.type == "melee") {
     var attacking_character = character_detailed_info[user_character_number]
-    var bonus_attack = 2*parseInt(attacking_character.agility) + character_state.attack_bonus[user_character_number] + character_state.universal_bonus[user_character_number]
+    var bonus_attack = parseInt(attacking_character.agility)
 
     var accumulated_cover = get_accumulated_cover(index, user_position)
     var toSend = damage_skill_template(index, user_position, weapon.range, user_character_number, character_chosen.skill_id, bonus_attack, weapon, accumulated_cover)
