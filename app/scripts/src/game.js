@@ -506,8 +506,8 @@ function alt_onclick(index) {
 function board_double_click(index, cell) {
   var entity_number = game_state.board_state[index];
   if (entity_number < 0) { //препятствие
-    if (obstacle_detailed_info[Math.abs(entity_number)].hasOwnProperty("item_container")) { // тогда можем положить туда предметы
-      console.log("Item container")
+    if (obstacle_detailed_info[Math.abs(entity_number)].hasOwnProperty("item_container") && my_role == "gm") { // тогда можем положить туда предметы
+      show_add_item_modal(index, 0);
     }
   }
 }
@@ -1852,7 +1852,7 @@ function select_character(index, cell) {
   if (my_role == "gm" || character_state.visibility[character_number] == 1) {
 
     avatar_display.onclick = function() {
-      show_modal(character_number, 0);
+      show_skill_modal(character_number, 0);
     }
 
     avatar_display.onmouseenter = function(event) {
@@ -1970,6 +1970,23 @@ function display_weapon_detailed(weapon_index, container, showImage) {
   }
   container.append(weapon_range_display)
   container.append(weapon_damage_display)
+  container.show()
+}
+
+function display_item_detailed(item_index, container) {
+  var item = item_detailed_info[item_index]
+
+  var item_name_display = document.createElement("h2");
+  item_name_display.id = "item_name_display";
+  item_name_display.innerHTML = item.name;
+
+  var item_description_display = document.createElement("p");
+  item_description_display.id = "item_description_display";
+  item_description_display.innerHTML = item.description;
+
+
+  container.append(item_name_display)
+  container.append(item_description_display)
   container.show()
 }
 
@@ -2103,6 +2120,64 @@ function undo_selection() {
   }
 }
 
+function show_add_item_modal(position, starting_index) {
+  hide_modal()
+
+  var table = $("<table>");
+  var table_size = 3
+
+  for (let i = 0; i < table_size; i++) {
+    var row = $("<tr>");
+    for (let j = 0; j < table_size; j++) {
+      var index = starting_index + table_size*i + j
+      if (index < item_list.length) {
+        var column = $("<th>");
+        var icon = $("<IMG>");
+        var avatar = QUESTION_IMAGE
+        if (item_detailed_info[index].hasOwnProperty('avatar')) {
+          avatar = item_detailed_info[index].avatar
+        }
+        icon.addClass('icon');
+        icon.attr('width', '100px');
+        icon.attr('number', index);
+        icon.attr('height', '100px');
+        icon.attr('src', avatar);
+        icon.on('click', function(event) {
+          var item_number = event.target.getAttribute('number');
+          add_item_to_container(position, item_number);
+          hide_modal()
+        });
+        icon.on('mouseenter', function(event) {
+          var item_number = event.target.getAttribute('number');
+          display_item_detailed(item_number, skill_description_container)
+        })
+
+        icon.on('mouseleave', function(event) {
+          skill_description_container.html('');
+        })
+        column.append(icon);
+        row.append(column);
+      }
+    }
+    table.append(row);
+  }
+  skill_modal_content.append(table);
+
+  if (item_list.length > starting_index + table_size*table_size) {// there are more items to display
+    var next_page_button = $("<IMG>");
+    next_page_button.attr('width', '100px');
+    next_page_button.attr('height', '50px');
+    next_page_button.attr('src', RIGHT_ARROW_IMAGE);
+    next_page_button.on("click", function(event) {
+      show_add_item_modal(position, starting_index + table_size*table_size);
+    })
+
+    next_page_button_container.append(next_page_button);
+  }
+  skill_modal.show();
+
+}
+
 function show_weapon_modal(character_number, starting_index) {
   hide_modal()
   var character = character_detailed_info[character_number]
@@ -2165,7 +2240,7 @@ function show_weapon_modal(character_number, starting_index) {
 
 }
 
-function show_modal(character_number, starting_index) {
+function show_skill_modal(character_number, starting_index) {
   hide_modal();
   var character = character_detailed_info[character_number]
   var skillset = character.skillset
@@ -2254,7 +2329,7 @@ function show_modal(character_number, starting_index) {
     next_page_button.attr('height', '50px');
     next_page_button.attr('src', RIGHT_ARROW_IMAGE);
     next_page_button.on("click", function(event) {
-      show_modal(character_number, starting_index + table_size*table_size);
+      show_skill_modal(character_number, starting_index + table_size*table_size);
     })
 
     next_page_button_container.append(next_page_button);
@@ -2273,6 +2348,17 @@ function unhover_character(character_number) {
   var position = character_state.position[character_number]
   var board_cell = document.getElementById('cell_' + position);
   board_cell.style.transform = "";
+}
+
+// item related functions
+
+function add_item_to_container(position, item_number) {
+  var toSend = {};
+  toSend.command = 'add_item_to_container';
+  toSend.room_number = my_room;
+  toSend.position = position;
+  toSend.item_number = item_number;
+  socket.sendMessage(toSend);
 }
 
 // attack related helpers
@@ -7005,6 +7091,14 @@ socket.registerMessageHandler((data) => {
         var message = "Начало боя! Люди умирают, если их убить"
       }
       pushToList(message)
+    } else if (data.command == 'add_item_to_container_response') {
+      var position = data.position;
+      var item_number = data.item_number;
+      if (!game_state.obstacle_extra_info[position].hasOwnProperty('contained_items_list')) {
+        game_state.obstacle_extra_info[position].contained_items_list = new Array(item_list.length).fill(0);
+      }
+      game_state.obstacle_extra_info[position].contained_items_list[item_number] += 1;
+      console.log(game_state.obstacle_extra_info[position].contained_items_list);
     } else if (data.command == 'resolve_attack_response') {
       receiveAttack_play_attack_sound(data.attack_type);
       receiveAttack_invisibility_end_check(data.invisibility_ended, data.attacker_id, data.attacker_position);

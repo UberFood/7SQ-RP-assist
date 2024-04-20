@@ -269,6 +269,12 @@ wss.on('connection', (ws) => {
       wss.clients.forEach(function(clientSocket) {
         clientSocket.send(JSON.stringify(response));
       });
+    } else if (data.command == 'add_item_to_container') {
+      data.command = 'add_item_to_container_response';
+      data.to_name = 'all';
+      wss.clients.forEach(function(clientSocket) {
+        clientSocket.send(JSON.stringify(data));
+      });
     } else if (data.command == 'load_game') {
       var response = {};
       response.room_number = data.room_number;
