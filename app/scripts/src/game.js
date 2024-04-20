@@ -216,6 +216,8 @@ var hacking_success_threshold = 16;
 var hacking_critical_success_threshold = 25;
 
 const container_interaction_radius = 1.6;
+const character_interaction_radius = 1.6;
+
 
 const jump_cover_impossible_threshold = 10;
 const jump_base_distance = 1;
@@ -4626,6 +4628,23 @@ function grab_items(index, obstacle_number) {
   }
 }
 
+function give_items(index, target_number) {
+  var user_position = character_chosen.char_position;
+  var user_character_number = character_chosen.char_id;
+  if (isInRange(index, user_position, character_interaction_radius)) {
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.skill_index = character_chosen.skill_id
+    toSend.room_number = my_room;
+    toSend.user_index = user_character_number
+    toSend.target_index = target_number
+    toSend.interaction_type = 'give_items';
+    socket.sendMessage(toSend);
+  } else {
+    alert("Вы не дотягиваетесь до своего товарища. Подойдите ближе, чтобы передать предметы.")
+  }
+}
+
 function interact(index, cell) {
   var object_number = game_state.board_state[index];
   if (object_number == 0) {// empty, so diffuse landmine mod
@@ -4638,6 +4657,8 @@ function interact(index, cell) {
     } else if (obstacle.hasOwnProperty("item_container")) {
       grab_items(index, obstacle_number);
     }
+  } else { // character interaction
+    give_items(index, object_number);
   }
 
 }
@@ -6677,7 +6698,7 @@ socket.registerMessageHandler((data) => {
               for (let i = 0; i < container.contained_items_list.length; i++) {
                 if (container.contained_items_list[i] > 0) {
                   character_state.items[user_index][i] += container.contained_items_list[i];
-                  found_string += item_detailed_info[i].name + ", ";
+                  found_string += item_detailed_info[i].name + " (" + container.contained_items_list[i] + "), ";
                 }
               }
               game_state.obstacle_extra_info[position].contained_items_list = new Array(item_list.length).fill(0);
@@ -6686,11 +6707,21 @@ socket.registerMessageHandler((data) => {
               } else {
                 var message = character.name + " ничего не обнаружил."
               }
-              console.log(character_state.items[user_index]);
             } else {
               var message = character.name + " ничего не обнаружил."
             }
             pushToList(message);
+          } else if (data.interaction_type == "give_items") {
+            var target_index = data.target_index;
+            var give_list = character_state.items[target_index];
+            for (let i = 0; i < give_list.length; i++) {
+              character_state.items[user_index][i] += give_list[i];
+            }
+            character_state.items[target_index] = new Array(item_list.length).fill(0);
+            var message = character_detailed_info[user_index].name + " передает все ингредиенты " + character_detailed_info[target_index].name
+            pushToList(message);
+            console.log(character_state.items[user_index])
+            console.log(character_state.items[target_index])
           } else {
             console.log("Unknown interaction");
           }
