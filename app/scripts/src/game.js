@@ -1987,12 +1987,25 @@ function display_potion_detailed(potion_index, container) {
   potion_name_display.id = "potion_name_display";
   potion_name_display.innerHTML = potion.name;
 
+  var potion_cost_string = "";
+  for (let i = 0; i < potion.ingredients.length; i++) {
+    if (potion.ingredients[i] > 0) {
+      potion_cost_string += item_detailed_info[i].name + "(" + potion.ingredients[i] + "), "
+    }
+  }
+  var potion_cost_string = "Ингредиенты: " + potion_cost_string.slice(0,-2)
+
+  var potion_cost_display = document.createElement("p");
+  potion_cost_display.id = "potion_cost_display";
+  potion_cost_display.innerHTML = potion_cost_string;
+
   var potion_description_display = document.createElement("p");
   potion_description_display.id = "potion_description_display";
   potion_description_display.innerHTML = potion.description;
 
 
   container.append(potion_name_display)
+  container.append(potion_cost_display)
   container.append(potion_description_display)
   container.show()
 }
@@ -2167,8 +2180,8 @@ function show_potion_modal(character_number, starting_index) {
         icon.attr('height', '100px');
         icon.attr('src', avatar);
         icon.on('click', function(event) {
-          var item_number = event.target.getAttribute('number');
-          add_item_to_container(position, item_number);
+          var potion_number = event.target.getAttribute('number');
+          create_potion(potion_number, character_number);
           hide_modal()
         });
         icon.on('mouseenter', function(event) {
@@ -2440,6 +2453,33 @@ function add_item_to_container(position, item_number) {
   toSend.position = position;
   toSend.item_number = item_number;
   socket.sendMessage(toSend);
+}
+
+function create_potion(potion_number, character_number) {
+  var ingredients_required = potion_detailed_info[potion_number].ingredients;
+  var ingredients_present = character_state.items[character_number]
+  var enough = true;
+  for (let i = 0; i < ingredients_required.length; i++) {
+    ingredients_present[i] -= ingredients_required[i];
+    if (ingredients_present[i] < 0) {
+      enough = false;
+      break;
+    }
+  }
+  if (enough) {
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.skill_index = character_chosen.skill_id
+    toSend.room_number = my_room;
+    toSend.user_index = character_number
+    toSend.interaction_type = "potion_making"
+    toSend.potion_number = potion_number;
+    toSend.ingredients_present_updated = ingredients_present;
+    socket.sendMessage(toSend);
+  } else {
+    alert("У вас не хватает ингредиентов!");
+  }
+
 }
 
 // attack related helpers
@@ -6813,6 +6853,10 @@ socket.registerMessageHandler((data) => {
             pushToList(message);
             console.log(character_state.items[user_index])
             console.log(character_state.items[target_index])
+          } else if (data.interaction_type == "potion_making") {
+            character_state.items[user_index] = data.ingredients_present_updated;
+            var message = character.name + " успешно приготовил " + potion_detailed_info[data.potion_number].name + ". Поприветствуйте великого химика!";
+            pushToList(message);
           } else {
             console.log("Unknown interaction");
           }
