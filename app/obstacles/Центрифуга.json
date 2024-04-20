@@ -1,1 +1,1 @@
-{"name":"Центрифуга","avatar":"./images/centrifuge.jpg", "cover": 3, "toughness": 15}
+{"name":"Центрифуга","avatar":"./images/centrifuge.jpg", "cover": 3, "toughness": 15, "craft": "potion_maker"}

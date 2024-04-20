@@ -65,6 +65,8 @@ var skill_detailed_info;
 var saves_list = [];
 var item_list = [];
 var item_detailed_info;
+var potion_list = [];
+var potion_detailed_info;
 
 var initiative_order_array = [];
 
@@ -217,6 +219,7 @@ var hacking_critical_success_threshold = 25;
 
 const container_interaction_radius = 1.6;
 const character_interaction_radius = 1.6;
+const potion_making_radius = 1;
 
 
 const jump_cover_impossible_threshold = 10;
@@ -1977,6 +1980,23 @@ function display_weapon_detailed(weapon_index, container, showImage) {
   container.show()
 }
 
+function display_potion_detailed(potion_index, container) {
+  var potion = potion_detailed_info[potion_index]
+
+  var potion_name_display = document.createElement("h2");
+  potion_name_display.id = "potion_name_display";
+  potion_name_display.innerHTML = potion.name;
+
+  var potion_description_display = document.createElement("p");
+  potion_description_display.id = "potion_description_display";
+  potion_description_display.innerHTML = potion.description;
+
+
+  container.append(potion_name_display)
+  container.append(potion_description_display)
+  container.show()
+}
+
 function display_item_detailed(item_index, container) {
   var item = item_detailed_info[item_index]
 
@@ -2122,6 +2142,63 @@ function undo_selection() {
     var old_cell = document.getElementById("cell_" + character_chosen.char_position);
     old_cell.src = get_object_picture(character_chosen.char_id);
   }
+}
+
+function show_potion_modal(character_number, starting_index) {
+  hide_modal()
+
+  var table = $("<table>");
+  var table_size = 3
+
+  for (let i = 0; i < table_size; i++) {
+    var row = $("<tr>");
+    for (let j = 0; j < table_size; j++) {
+      var index = starting_index + table_size*i + j
+      if (index < potion_list.length) {
+        var column = $("<th>");
+        var icon = $("<IMG>");
+        var avatar = QUESTION_IMAGE
+        if (potion_detailed_info[index].hasOwnProperty('avatar')) {
+          avatar = potion_detailed_info[index].avatar
+        }
+        icon.addClass('icon');
+        icon.attr('width', '100px');
+        icon.attr('number', index);
+        icon.attr('height', '100px');
+        icon.attr('src', avatar);
+        icon.on('click', function(event) {
+          var item_number = event.target.getAttribute('number');
+          add_item_to_container(position, item_number);
+          hide_modal()
+        });
+        icon.on('mouseenter', function(event) {
+          var potion_number = event.target.getAttribute('number');
+          display_potion_detailed(potion_number, skill_description_container)
+        })
+
+        icon.on('mouseleave', function(event) {
+          skill_description_container.html('');
+        })
+        column.append(icon);
+        row.append(column);
+      }
+    }
+    table.append(row);
+  }
+  skill_modal_content.append(table);
+
+  if (potion_list.length > starting_index + table_size*table_size) {// there are more items to display
+    var next_page_button = $("<IMG>");
+    next_page_button.attr('width', '100px');
+    next_page_button.attr('height', '50px');
+    next_page_button.attr('src', RIGHT_ARROW_IMAGE);
+    next_page_button.on("click", function(event) {
+      show_potion_modal(character_number, starting_index + table_size*table_size);
+    })
+
+    next_page_button_container.append(next_page_button);
+  }
+  skill_modal.show();
 }
 
 function show_add_item_modal(position, starting_index) {
@@ -4645,6 +4722,16 @@ function give_items(index, target_number) {
   }
 }
 
+function make_potion(index, obstacle_number) {
+  var user_position = character_chosen.char_position;
+  var user_character_number = character_chosen.char_id;
+  if (isInRange(index, user_position, potion_making_radius)) {
+    show_potion_modal(user_character_number, 0);
+  } else {
+    alert("Работать с реагентами можно только в непосредственной близости")
+  }
+}
+
 function interact(index, cell) {
   var object_number = game_state.board_state[index];
   if (object_number == 0) {// empty, so diffuse landmine mod
@@ -4656,6 +4743,8 @@ function interact(index, cell) {
       computer_hacking(index, obstacle_number);
     } else if (obstacle.hasOwnProperty("item_container")) {
       grab_items(index, obstacle_number);
+    } else if (obstacle.hasOwnProperty("craft")) {
+      make_potion(index, obstacle_number);
     }
   } else { // character interaction
     give_items(index, object_number);
@@ -5895,6 +5984,8 @@ socket.registerMessageHandler((data) => {
       saves_list = data.saves_list
       item_list = data.item_list
       item_detailed_info = data.item_detailed_info
+      potion_list = data.potion_list
+      potion_detailed_info = data.potion_detailed_info
 
       for (let i = 0; i < saves_list.length; i++) {
         var current_option = $("<option>");

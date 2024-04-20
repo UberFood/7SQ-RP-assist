@@ -93,6 +93,10 @@ wss.on('connection', (ws) => {
       var item_list = JSON.parse(item_list_unparsed);
       answer.item_list = item_list;
 
+      var potion_list_unparsed = fs.readFileSync('./app/potions/potion_list.json');
+      var potion_list = JSON.parse(potion_list_unparsed);
+      answer.potion_list = potion_list;
+
       var saves_list_unparsed = fs.readFileSync('./app/saves/saves_list.json');
       var saves_list = JSON.parse(saves_list_unparsed);
       answer.saves_list = saves_list;
@@ -122,6 +126,19 @@ wss.on('connection', (ws) => {
         item_detailed_info.push(current_item)
       }
       answer.item_detailed_info = item_detailed_info
+
+      var potion_detailed_info = [];
+
+      for (potion_name of potion_list) {
+        var filename = './app/potions/' + potion_name + '.json'
+        if (fs.existsSync(filename)) {
+          var current_potion = JSON.parse(fs.readFileSync(filename));
+        } else {
+          var current_potion = {}
+        }
+        potion_detailed_info.push(current_potion)
+      }
+      answer.potion_detailed_info = potion_detailed_info
 
       var character_group_list = [];
       for (character_name of character_list) {
