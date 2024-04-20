@@ -63,6 +63,8 @@ var weapon_detailed_info = [];
 var skill_list = [];
 var skill_detailed_info;
 var saves_list = [];
+var item_list = [];
+var item_detailed_info;
 
 var initiative_order_array = [];
 
@@ -378,7 +380,6 @@ function construct_board(new_game_state) {
       button.onclick = function(event) {
         var cell = event.target;
         var index = cell.row * game_state.size + cell.column;
-
         if (event.shiftKey) {
           shift_onclick(index, cell)
         } else if (event.ctrlKey) {
@@ -390,6 +391,12 @@ function construct_board(new_game_state) {
         }
 
       };
+
+      button.ondblclick = function(event) {
+        var cell = event.target;
+        var index = cell.row * game_state.size + cell.column;
+        board_double_click(index, cell);
+      }
       button.draggable = true;
       button.ondragover = function(event) {
         event.preventDefault();
@@ -493,6 +500,15 @@ function ctrl_onclick(index) {
 function alt_onclick(index) {
   if (my_role == 'gm') {
     delete_object_command(index);
+  }
+}
+
+function board_double_click(index, cell) {
+  var entity_number = game_state.board_state[index];
+  if (entity_number < 0) { //препятствие
+    if (obstacle_detailed_info[Math.abs(entity_number)].hasOwnProperty("item_container")) { // тогда можем положить туда предметы
+      console.log("Item container")
+    }
   }
 }
 
@@ -5749,6 +5765,8 @@ socket.registerMessageHandler((data) => {
       skill_detailed_info = data.skill_detailed_info
       skill_list = data.skill_list
       saves_list = data.saves_list
+      item_list = data.item_list
+      item_detailed_info = data.item_detailed_info
 
       for (let i = 0; i < saves_list.length; i++) {
         var current_option = $("<option>");
