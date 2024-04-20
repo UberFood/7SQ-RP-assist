@@ -215,6 +215,8 @@ var hacking_critical_fail_threshold = 10;
 var hacking_success_threshold = 16;
 var hacking_critical_success_threshold = 25;
 
+const container_interaction_radius = 1.6;
+
 const jump_cover_impossible_threshold = 10;
 const jump_base_distance = 1;
 
@@ -250,7 +252,7 @@ var DECREASE_KD = 9;
 
 var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [],
   KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [],
-  special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: [], evade_bonus: [], melee_resist: [], bullet_resist: []};
+  special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: [], evade_bonus: [], melee_resist: [], bullet_resist: [], items: []};
 let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: [], battle_mod: 0, obstacle_extra_info: [],
   landmines: {positions: [], knowers: []}};
 let character_state = CHARACTER_STATE_CONSTANT;
@@ -4607,6 +4609,23 @@ function computer_hacking(index, obstacle_number) {
   }
 }
 
+function grab_items(index, obstacle_number) {
+  var user_position = character_chosen.char_position;
+  var user_character_number = character_chosen.char_id;
+  if (isInRange(index, user_position, container_interaction_radius)) {
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.skill_index = character_chosen.skill_id
+    toSend.room_number = my_room;
+    toSend.user_index = user_character_number
+    toSend.position = index
+    toSend.interaction_type = 'grab_items';
+    socket.sendMessage(toSend);
+  } else {
+    alert("Вы не дотягиваетесь до контейнера. Подойдите ближе.")
+  }
+}
+
 function interact(index, cell) {
   var object_number = game_state.board_state[index];
   if (object_number == 0) {// empty, so diffuse landmine mod
@@ -4616,6 +4635,8 @@ function interact(index, cell) {
     var obstacle = obstacle_detailed_info[obstacle_number];
     if (obstacle.hasOwnProperty("hackable_computer")) {
       computer_hacking(index, obstacle_number);
+    } else if (obstacle.hasOwnProperty("item_container")) {
+      grab_items(index, obstacle_number);
     }
   }
 
@@ -5897,6 +5918,7 @@ socket.registerMessageHandler((data) => {
       character_state.defensive_advantage[data.character_number] = 0
       character_state.special_effects[data.character_number] = {}
       character_state.position[data.character_number] = data.cell_id;
+      character_state.items[data.character_number] = new Array(item_list.length).fill(0);
       if (character.hasOwnProperty("evade_bonus")) {
         character_state.evade_bonus[data.character_number] = parseInt(character.evade_bonus);
       } else {
@@ -6647,6 +6669,28 @@ socket.registerMessageHandler((data) => {
                   pushToList(message);
                   break;
             }
+          } else if (data.interaction_type == "grab_items") {
+            var position = data.position
+            var container = game_state.obstacle_extra_info[position]
+            if (container.hasOwnProperty("contained_items_list")) {
+              var found_string = "";
+              for (let i = 0; i < container.contained_items_list.length; i++) {
+                if (container.contained_items_list[i] > 0) {
+                  character_state.items[user_index][i] += container.contained_items_list[i];
+                  found_string += item_detailed_info[i].name + ", ";
+                }
+              }
+              game_state.obstacle_extra_info[position].contained_items_list = new Array(item_list.length).fill(0);
+              if (found_string.length > 0) {
+                var message = character.name + " обнаружил " + found_string.slice(0,-1) + " порывшись в контейнере.";
+              } else {
+                var message = character.name + " ничего не обнаружил."
+              }
+              console.log(character_state.items[user_index]);
+            } else {
+              var message = character.name + " ничего не обнаружил."
+            }
+            pushToList(message);
           } else {
             console.log("Unknown interaction");
           }
