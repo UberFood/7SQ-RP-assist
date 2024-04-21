@@ -1773,6 +1773,10 @@ function selectCharacterConstructArmorMiniDisplay(character_number) {
     weapon_info_container.html("")
     weapon_info_container.hide()
   }
+
+  armor_mini_display.onclick = function() {
+      show_my_items_modal(character_number, 0);
+  }
   return armor_mini_display;
 }
 
@@ -1947,6 +1951,28 @@ function change_weapon(character_number, weapon_index) {
 
   var weapon_mini_display = document.getElementById("weapon_mini_display");
   weapon_mini_display.src = weapon.avatar;
+}
+
+function display_my_items_detailed(item_index, item_quantity, container) {
+  var item = item_detailed_info[item_index]
+
+  var item_name_display = document.createElement("h2");
+  item_name_display.id = "item_name_display";
+  item_name_display.innerHTML = item.name;
+
+  var item_description_display = document.createElement("p");
+  item_description_display.id = "item_description_display";
+  item_description_display.innerHTML = item.description;
+
+  var item_quantity_display = document.createElement("h3");
+  item_quantity_display.id = "item_quantity_display";
+  item_quantity_display.innerHTML = "Количество: " + item_quantity;
+
+
+  container.append(item_name_display)
+  container.append(item_quantity_display)
+  container.append(item_description_display)
+  container.show()
 }
 
 function display_weapon_detailed(weapon_index, container, showImage) {
@@ -2270,6 +2296,68 @@ function show_add_item_modal(position, starting_index) {
   }
   skill_modal.show();
 
+}
+
+function show_my_items_modal(character_number, starting_index) {
+  hide_modal()
+  var character = character_detailed_info[character_number]
+  var inventory = character_state.items[character_number]
+
+  var table = $("<table>");
+  var table_size = 3
+
+  for (let i = 0; i < table_size; i++) {
+    var row = $("<tr>");
+    for (let j = 0; j < table_size; j++) {
+      var index = starting_index + table_size*i + j
+        if (index < inventory.length) {
+          if (inventory[index] > 0) {
+            var number = index;
+            var column = $("<th>");
+            var icon = $("<IMG>");
+            var avatar = QUESTION_IMAGE
+            if (item_detailed_info[number].hasOwnProperty('avatar')) {
+              avatar = item_detailed_info[number].avatar
+            }
+            icon.addClass('icon');
+            icon.attr('width', '100px');
+            icon.attr('item_number', number);
+            icon.attr('item_quantity', inventory[number]);
+            icon.attr('height', '100px');
+            icon.attr('src', avatar);
+            icon.on('mouseenter', function(event) {
+              var item_num = event.target.getAttribute('item_number');
+              var item_quantity = event.target.getAttribute('item_quantity');
+              display_my_items_detailed(item_num, item_quantity, skill_description_container)
+            })
+
+            icon.on('mouseleave', function(event) {
+              skill_description_container.html('');
+            })
+            column.append(icon);
+            row.append(column);
+          } else {
+              j -= 1;
+              starting_index += 1;
+          }
+      }
+    }
+    table.append(row);
+  }
+  skill_modal_content.append(table);
+
+  if (inventory.length > starting_index + table_size*table_size) {// there are more skills to display
+    var next_page_button = $("<IMG>");
+    next_page_button.attr('width', '100px');
+    next_page_button.attr('height', '50px');
+    next_page_button.attr('src', RIGHT_ARROW_IMAGE);
+    next_page_button.on("click", function(event) {
+      show_my_items_modal(character_number, starting_index + table_size*table_size);
+    })
+
+    next_page_button_container.append(next_page_button);
+  }
+  skill_modal.show();
 }
 
 function show_weapon_modal(character_number, starting_index) {
