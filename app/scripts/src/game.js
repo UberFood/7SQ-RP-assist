@@ -6231,6 +6231,9 @@ socket.registerMessageHandler((data) => {
       if (data.success == 1) {
         var full_game_state = data.full_game_state;
         character_state = full_game_state.character_state;
+        if (!character_state.hasOwnProperty("items")) {
+          character_state.items = [];
+        }
         character_detailed_info = full_game_state.character_detailed_info;
         obstacle_detailed_info = full_game_state.obstacle_detailed_info;
         construct_board(full_game_state.game_state);
