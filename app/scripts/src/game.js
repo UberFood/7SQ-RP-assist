@@ -6932,15 +6932,13 @@ socket.registerMessageHandler((data) => {
             pushToList(message);
           } else if (data.interaction_type == "give_items") {
             var target_index = data.target_index;
-            var give_list = character_state.items[target_index];
+            var give_list = character_state.items[user_index];
             for (let i = 0; i < give_list.length; i++) {
-              character_state.items[user_index][i] += give_list[i];
+              character_state.items[target_index][i] += give_list[i];
             }
-            character_state.items[target_index] = new Array(item_list.length).fill(0);
+            character_state.items[user_index] = new Array(item_list.length).fill(0);
             var message = character_detailed_info[user_index].name + " передает все ингредиенты " + character_detailed_info[target_index].name
             pushToList(message);
-            console.log(character_state.items[user_index])
-            console.log(character_state.items[target_index])
           } else if (data.interaction_type == "potion_making") {
             character_state.items[user_index] = data.ingredients_present_updated;
             var message = character.name + " успешно приготовил " + potion_detailed_info[data.potion_number].name + ". Поприветствуйте великого химика!";
