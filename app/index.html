@@ -7,17 +7,24 @@
     <link charset="utf-8" rel="stylesheet" type="text/css" href="/stylesheets/index.css">
   </head>
   <body>
-    <input placeholder = "Имя персонажа" maxLength = "25" id="player_name"></input>
-    <input placeholder = "Пароль (только гм)" maxLength = "25" id="password"></input>
-    <select data-name="room_number_select">
+    <div id="decor"></div>
+    <h2 id="Squad_text">7Squad</h2>
 
-    </select>
+    <div class="login_modal">
+      <div class="background_box">
+        <input placeholder = "Имя персонажа" maxLength = "25" class="modal_input_field" id="player_name"></input>
+        <input placeholder = "Пароль (только гм)" maxLength = "25" class="modal_input_field" id="password"></input>
+        <select data-name="room_number_select" id="room_select"> </select>
+        <div class="modal_input_box">
+          <input type="checkbox" id="admin_checkbox" data-name="admin_checkbox"> </input>
+          <p id="checkbox_text">Admin</p>
+        </div>
+        <button class="red_button" id="create_char_button" data-name="create_char_button">Создать персонажа</button>
+        <img class="red_button" id="calculator_button" data-name="armor_calculator_button" src="/images/calculator.png"></img>
+        <button class="red_button" id="sign_in_button" data-name="sign_in_button">Подтвердить</button>
+      </div>
 
-    <button data-name="sign_player_button">Зайти как игрок</button>
-    <button data-name="sign_gm_button">Зайти как гм</button>
-    <button data-name="create_char_button">Создать персонажа</button>
-    <button data-name="armor_calculator_button">Калькулятор брони</button>
-    <button data-name="guild_sim_button">Guildmaster sim</button>
+    </div>
 
   </body>
 

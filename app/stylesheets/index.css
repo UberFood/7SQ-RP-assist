@@ -12,10 +12,195 @@
 }
 body
 {
-	color: white;
-  /*background: rgb(145,172,198);
-  background: linear-gradient(176deg, rgba(145,172,198,1) 43%, rgba(203,203,203,1) 100%); */
-  background-image: url("/images/7SQ.jpg");
+	background: rgb(29, 28, 28);
+  position: relative;
+}
+
+#decor {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  left: -5%;
+  top: -5%;
+  background-image: url("/images/start_page_decor.png");
+}
+
+#Squad_text {
+  position: absolute;
+width: 341px;
+height: 106px;
+left: 42%;
+top: 20%;
+
+color: rgba(94, 246, 255, 0.2);
+font-family: Cornerita;
+font-size: 96px;
+font-weight: 100;
+line-height: 110%;
+letter-spacing: 0%;
+text-align: left;
+text-transform: uppercase;
+
+-webkit-text-stroke: 1px rgb(94, 246, 255); /* Толщина и цвет обводки */
+
+}
+
+.login_modal {
+  position: absolute;
+  left: 33%;
+  top: 35%;
+}
+
+.background_box {
+  position: relative;
+  width: 862px;
+  height: 425px;
+  left: 0%;
+  right: 0.92%;
+  top: 2.97%;
+  bottom: 6.84%;
+
+  border-left: 4px solid rgb(94, 246, 255);
+  border-right: 4px solid rgb(94, 246, 255);
+  border-top: 4px solid rgb(94, 246, 255);
+  /* Центр интерфейса 2 */
+  background: rgba(94, 246, 255, 0.2);
+}
+
+.modal_input_field {
+  position: relative;
+  left: 25%;
+  width: 50%;
+  height: 40px;
+
+  border: 1px solid rgb(94, 246, 255);
+  /* Бекграунт импута */
+  background: rgba(228, 248, 246, 0.1);
+
+  color: rgba(114, 169, 166, 0.5);
+  font-family: PT Mono;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 130%;
+  letter-spacing: 0%;
+  text-align: left;
+}
+
+#player_name {
+  top: 8%;
+}
+
+#password {
+  top: 16%;
+}
+
+#room_select {
+  width: 25%;
+  height: 40px;
+
+  position: relative;
+  left: -26%;
+  top: 35%;
+
+  border: 1px solid rgb(94, 246, 255);
+/* Бекграунт импута */
+background: rgba(228, 248, 246, 0.1);
+
+color: rgba(114, 169, 166, 0.5);
+font-family: PT Mono;
+font-size: 18px;
+font-weight: 400;
+line-height: 130%;
+letter-spacing: 0%;
+text-align: left;
+}
+
+#admin_checkbox {
+  position: relative;
+  left: 5%;
+  top: 20%;
+  width: 30px;
+  height: 25px;
+
+  box-sizing: border-box;
+border: 1px solid rgba(114, 169, 166, 0.5);
+border-radius: 5px;
+}
+
+#checkbox_text {
+  position: relative;
+  left: 25%;
+  top: -100%;
+
+  color: rgba(114, 169, 166, 0.5);
+font-family: PT Mono;
+font-size: 18px;
+font-weight: 400;
+line-height: 130%;
+letter-spacing: 0%;
+text-align: left;
+}
+
+.modal_input_box {
+  width: 23%;
+  height: 40px;
+  position: relative;
+  left: 52%;
+  top: 25%;
+
+  border: 1px solid rgb(94, 246, 255);
+/* Бекграунт импута */
+background: rgba(228, 248, 246, 0.1);
+
+color: rgba(114, 169, 166, 0.5);
+font-family: PT Mono;
+font-size: 18px;
+font-weight: 400;
+line-height: 130%;
+letter-spacing: 0%;
+text-align: left;
+}
+
+.red_button {
+  /* Обводка интерфейса */
+border: 1px solid rgb(211, 72, 104);
+background: rgba(211, 72, 104, 0.2);
+width: 280px;
+height: 30px;
+
+color: rgb(228, 248, 246);
+font-family: PT Mono;
+font-size: 18px;
+font-weight: 400;
+line-height: 130%;
+letter-spacing: 0%;
+text-align: center;
+}
+.red_button:hover {
+background:linear-gradient(to bottom, #d6d6d6 5%, #9c9c9c 100%);
+background-color:#d6d6d6;
+}
+
+#create_char_button {
+  position: relative;
+  left: 28%;
+  top: 33%;
+}
+
+#sign_in_button {
+  position: relative;
+  left: -11.5%;
+  top: 45%;
+
+  width: 340px;
+}
+
+#calculator_button {
+  position: relative;
+  left: 28%;
+  top: 35.5%;
+  width: 50px;
+  height: 29px;
 }
 
 h1 {
@@ -30,38 +215,6 @@ h4 {
 	color: red;
 }
 
-input {
-  padding:7px 0 7px 25px;
-  border-radius: 20px;
-  border: 1px solid #dbdbdb;
-  box-shadow:4px 4px 10px rgba(0,0,0,0.06);
-  background-color: #f5f5f5;
-  font-family:Arial;
-}
-
-button {
-box-shadow: 3px 4px 0px 0px #91b8b3;
-background:linear-gradient(to bottom, #9c9c9c 5%, #d6d6d6 100%);
-background-color:#9c9c9c;
-border-radius:15px;
-border:1px solid #566963;
-display:inline-block;
-cursor:pointer;
-color:#000000;
-font-family:Arial;
-padding:7px 25px;
-text-decoration:none;
-text-shadow:0px 1px 0px #2b665e;
-transition-duration: 1s;
-}
-button:hover {
-background:linear-gradient(to bottom, #d6d6d6 5%, #9c9c9c 100%);
-background-color:#d6d6d6;
-}
-button:active {
-position:relative;
-top:1px;
-}
 
 .button_list {
   list-style: none;
@@ -104,19 +257,6 @@ top:1px;
     }
 
 .butt {
-    background-color: blue;
-    color: white;
-    text-decoration: none;
-    margin-right: 20px;
-    margin-left: 20px;
-    height: 60px;
-    width: 200px;
-    border-radius: 10px 10px;
-    font-size: 20px;
-    font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-}
-
-select {
     background-color: blue;
     color: white;
     text-decoration: none;
@@ -178,55 +318,6 @@ html, body {
 
 .header-info {
   flex: 0 1 auto;
-}
-
-#game-display-container {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: row;
-}
-
-#board-container {
-  width: 55%;
-  height: 700px;
-  overflow-x: auto;
-  overflow-y: auto;
-  margin: 10px;
-
-}
-
-#character-info-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  height: 700px;
-  margin: 10px;
-  transition: transform 333ms ease-in-out;
-}
-
-#special-info-container {
-  display: flex;
-  flex-direction: column;
-}
-
-#weapon-info-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  height: 700px;
-  margin: 10px;
-  transition: transform 333ms ease-in-out;
-}
-
-#notifications-container{
-  height: 700px;
-  height: 15%;
-}
-
-#character-info-container > * {
-  margin: 5px;
 }
 
 .add-object-button-container {
