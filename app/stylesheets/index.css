@@ -17,24 +17,24 @@ body
 }
 
 #decor {
-  position: absolute;
-  width: 100%;
+  /* Full height */
   height: 100%;
-  left: -5%;
-  top: -5%;
+
+  /* Center and scale the image nicely */
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
   background-image: url("/images/start_page_decor.png");
 }
 
 #Squad_text {
   position: absolute;
-width: 341px;
-height: 106px;
 left: 42%;
 top: 20%;
 
 color: rgba(94, 246, 255, 0.2);
 font-family: Cornerita;
-font-size: 96px;
+font-size: 8vh;
 font-weight: 100;
 line-height: 110%;
 letter-spacing: 0%;
@@ -48,17 +48,13 @@ text-transform: uppercase;
 .login_modal {
   position: absolute;
   left: 33%;
-  top: 35%;
+  top: 37%;
 }
 
 .background_box {
   position: relative;
-  width: 862px;
-  height: 425px;
-  left: 0%;
-  right: 0.92%;
-  top: 2.97%;
-  bottom: 6.84%;
+  width: 35vw;
+  height: 30vh;
 
   border-left: 4px solid rgb(94, 246, 255);
   border-right: 4px solid rgb(94, 246, 255);
@@ -71,7 +67,7 @@ text-transform: uppercase;
   position: relative;
   left: 25%;
   width: 50%;
-  height: 40px;
+  height: 3vh;
 
   border: 1px solid rgb(94, 246, 255);
   /* Бекграунт импута */
@@ -79,7 +75,7 @@ text-transform: uppercase;
 
   color: rgba(114, 169, 166, 0.5);
   font-family: PT Mono;
-  font-size: 18px;
+  font-size: 1.5vh;
   font-weight: 400;
   line-height: 130%;
   letter-spacing: 0%;
@@ -96,7 +92,7 @@ text-transform: uppercase;
 
 #room_select {
   width: 25%;
-  height: 40px;
+  height: 3vh;
 
   position: relative;
   left: -26%;
@@ -108,7 +104,7 @@ background: rgba(228, 248, 246, 0.1);
 
 color: rgba(114, 169, 166, 0.5);
 font-family: PT Mono;
-font-size: 18px;
+font-size: 1.5vh;
 font-weight: 400;
 line-height: 130%;
 letter-spacing: 0%;
@@ -119,8 +115,8 @@ text-align: left;
   position: relative;
   left: 5%;
   top: 20%;
-  width: 30px;
-  height: 25px;
+  width: 1.5vh;
+  height: 1.5vh;
 
   box-sizing: border-box;
 border: 1px solid rgba(114, 169, 166, 0.5);
@@ -130,11 +126,11 @@ border-radius: 5px;
 #checkbox_text {
   position: relative;
   left: 25%;
-  top: -100%;
+  top: -3vh;
 
   color: rgba(114, 169, 166, 0.5);
 font-family: PT Mono;
-font-size: 18px;
+font-size: 1.5vh;
 font-weight: 400;
 line-height: 130%;
 letter-spacing: 0%;
@@ -143,10 +139,10 @@ text-align: left;
 
 .modal_input_box {
   width: 23%;
-  height: 40px;
+  height: 3vh;
   position: relative;
   left: 52%;
-  top: 25%;
+  top: 7.25vh;
 
   border: 1px solid rgb(94, 246, 255);
 /* Бекграунт импута */
@@ -165,12 +161,10 @@ text-align: left;
   /* Обводка интерфейса */
 border: 1px solid rgb(211, 72, 104);
 background: rgba(211, 72, 104, 0.2);
-width: 280px;
-height: 30px;
 
 color: rgb(228, 248, 246);
 font-family: PT Mono;
-font-size: 18px;
+font-size: 1.5vh;
 font-weight: 400;
 line-height: 130%;
 letter-spacing: 0%;
@@ -183,24 +177,27 @@ background-color:#d6d6d6;
 
 #create_char_button {
   position: relative;
-  left: 28%;
-  top: 33%;
+  left: 10vw;
+  top: 8.5vh;
+  width: 10vw;
+  height: 3vh;
 }
 
 #sign_in_button {
   position: relative;
-  left: -11.5%;
+  left: -2vw;
   top: 45%;
 
-  width: 340px;
+  width: 12vw;
+  height: 3vh;
 }
 
 #calculator_button {
   position: relative;
-  left: 28%;
-  top: 35.5%;
-  width: 50px;
-  height: 29px;
+  left: 10vw;
+  top: 9.5vh;
+  width: 1.5vw;
+  height: 3vh;
 }
 
 h1 {
@@ -215,178 +212,11 @@ h4 {
 	color: red;
 }
 
-
-.button_list {
-  list-style: none;
-}
-
-.page_title {
-  font-size: 30px;
-  font-family: lakeshore;
-}
-
-  a
-  {
-    text-decoration: none;
-        color: white;
-  }
-    a:hover {
-        color: chartreuse;
-    }
-    .App {
-        text-align: center;
-        font-size: 20px;
-    }
-    .App button {
-        background-color: blue;
-        color: white;
-        text-decoration: none;
-        margin-right: 20px;
-        margin-left: 20px;
-        height: 60px;
-        width: 200px;
-        border-radius: 10px 10px;
-        font-size: 20px;
-        font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-    }
-    .App button:hover {
-        background-color: blue;
-        color:  chartreuse;
-        text-decoration: none;
-        background-color: firebrick;
-    }
-
-.butt {
-    background-color: blue;
-    color: white;
-    text-decoration: none;
-    margin-right: 20px;
-    margin-left: 20px;
-    height: 60px;
-    width: 200px;
-    border-radius: 10px 10px;
-    font-size: 20px;
-    font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: black;
-}
-
-.App-link {
-  color: black;
-}
-
-#navigation_link {
-	color: black;
-}
-
-#navigation_link:hover {
-	color: green;
-}
-
-
-.design{
-    margin-top: 200px;
-    text-align: center;
-    font-family:'Baskerville Old Face';
-    font-size: 22px;
-    color:  burlywood;
-    animation-name: cock;
-    animation-duration: 2s;
-    animation-timing-function: linear;
-    animation-iteration-count: infinite;
-    animation-direction:alternate-reverse;
-}
-
 html, body {
   height: 100vh;
   overflow: auto;
 }
 
-.App {
-  display: flex;
-  flex-direction: column;
-}
-
 .header-info {
   flex: 0 1 auto;
-}
-
-.add-object-button-container {
-  align-items: center;
-  justify-content: center;
-}
-
-.board {
-  display: block;
-  border-collapse: collapse;
-}
-
-.board_row {
-  margin: 0px;
-  padding: 0px;
-  border: none;
-
-  vertical-align: bottom;
-  display: block;
-
-}
-
-.cell_wrap {
-  margin: 0px;
-  padding: 0px;
-  position: relative;
-}
-
-.zone_text {
-  color: black;
-  position: absolute;
-  top: 40%;
-  left: 25%;
-}
-
-.chat {
-  list-style: none;
-  color: black;
-  font-size: 15;
-  font-weight: bold;
-}
-
-.notifications_list_element {
-  margin-top: 5px;
-}
-
-#weapon_mini_display {
-  float: left;
-  float: top;
-}
-
-.board_cell{
-  float: left;
-  vertical-align: bottom;
-  display: inline-block;
-  cursor:pointer;
-  padding: 0px;
-  margin: 0px;
-}
-
-.board_cell:hover {
-  transform: scale(1.2);
-}
-
-.is-tiny {
-  transform: scale(0.001);
-  transition: transform 0ms;
-}
-
-.is-red {
-  background: red
 }
