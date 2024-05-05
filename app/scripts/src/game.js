@@ -257,7 +257,7 @@ var DECREASE_KD = 9;
 
 var CHARACTER_STATE_CONSTANT = {HP: [], main_action: [], bonus_action: [], move_action: [], stamina: [], initiative: [], can_evade: [], has_moved: [],
   KD_points: [], current_weapon: [], visibility: [], invisibility: [], attack_bonus: [], damage_bonus: [], universal_bonus: [], bonus_KD: [],
-  special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: [], evade_bonus: [], melee_resist: [], bullet_resist: [], items: []};
+  special_effects: [], ranged_advantage: [], melee_advantage: [], defensive_advantage: [], position: [], evade_bonus: [], melee_resist: [], bullet_resist: [], items: [], potions: []};
 let game_state = {board_state: [], fog_state: [], zone_state: [], size: 0, search_modificator_state: [], terrain_effects: [], battle_mod: 0, obstacle_extra_info: [],
   landmines: {positions: [], knowers: []}};
 let character_state = CHARACTER_STATE_CONSTANT;
@@ -1975,6 +1975,28 @@ function display_my_items_detailed(item_index, item_quantity, container) {
   container.show()
 }
 
+function display_my_potions_detailed(potion_index, potion_quantity, container) {
+  var potion = potion_detailed_info[potion_index]
+
+  var potion_name_display = document.createElement("h2");
+  potion_name_display.id = "potion_name_display";
+  potion_name_display.innerHTML = potion.name;
+
+  var potion_description_display = document.createElement("p");
+  potion_description_display.id = "potion_description_display";
+  potion_description_display.innerHTML = potion.description;
+
+  var potion_quantity_display = document.createElement("h3");
+  potion_quantity_display.id = "potion_quantity_display";
+  potion_quantity_display.innerHTML = "Количество: " + potion_quantity;
+
+
+  container.append(potion_name_display)
+  container.append(potion_quantity_display)
+  container.append(potion_description_display)
+  container.show()
+}
+
 function display_weapon_detailed(weapon_index, container, showImage) {
   var default_weapon = weapon_detailed_info[weapon_index]
 
@@ -2240,6 +2262,78 @@ function show_potion_modal(character_number, starting_index) {
   skill_modal.show();
 }
 
+function show_my_potions_modal(character_number, starting_index) {
+  hide_modal()
+  var character = character_detailed_info[character_number]
+  if (character_state.potions[character_number] == null) {
+    character_state.potions[character_number] = new Array(potion_list.length).fill(0);
+  }
+  var inventory = character_state.potions[character_number]
+
+  var items_button = $("<button>");
+  items_button.html("Ингредиенты");
+  items_button.on("click", function() {
+    show_my_items_modal(character_number, 0);
+  })
+  skill_modal_content.append(items_button);
+
+  var table = $("<table>");
+  var table_size = 3
+
+  for (let i = 0; i < table_size; i++) {
+    var row = $("<tr>");
+    for (let j = 0; j < table_size; j++) {
+      var index = starting_index + table_size*i + j
+        if (index < inventory.length) {
+          if (inventory[index] > 0) {
+            var number = index;
+            var column = $("<th>");
+            var icon = $("<IMG>");
+            var avatar = QUESTION_IMAGE
+            if (potion_detailed_info[number].hasOwnProperty('avatar')) {
+              avatar = potion_detailed_info[number].avatar
+            }
+            icon.addClass('icon');
+            icon.attr('width', '100px');
+            icon.attr('item_number', number);
+            icon.attr('item_quantity', inventory[number]);
+            icon.attr('height', '100px');
+            icon.attr('src', avatar);
+            icon.on('mouseenter', function(event) {
+              var item_num = event.target.getAttribute('item_number');
+              var item_quantity = event.target.getAttribute('item_quantity');
+              display_my_potions_detailed(item_num, item_quantity, skill_description_container)
+            })
+
+            icon.on('mouseleave', function(event) {
+              skill_description_container.html('');
+            })
+            column.append(icon);
+            row.append(column);
+          } else {
+              j -= 1;
+              starting_index += 1;
+          }
+      }
+    }
+    table.append(row);
+  }
+  skill_modal_content.append(table);
+
+  if (inventory.length > starting_index + table_size*table_size) {// there are more skills to display
+    var next_page_button = $("<IMG>");
+    next_page_button.attr('width', '100px');
+    next_page_button.attr('height', '50px');
+    next_page_button.attr('src', RIGHT_ARROW_IMAGE);
+    next_page_button.on("click", function(event) {
+      show_my_potions_modal(character_number, starting_index + table_size*table_size);
+    })
+
+    next_page_button_container.append(next_page_button);
+  }
+  skill_modal.show();
+}
+
 function show_add_item_modal(position, starting_index) {
   hide_modal()
 
@@ -2302,6 +2396,13 @@ function show_my_items_modal(character_number, starting_index) {
   hide_modal()
   var character = character_detailed_info[character_number]
   var inventory = character_state.items[character_number]
+
+  var potions_button = $("<button>");
+  potions_button.html("Зелья");
+  potions_button.on("click", function() {
+    show_my_potions_modal(character_number, 0);
+  })
+  skill_modal_content.append(potions_button);
 
   var table = $("<table>");
   var table_size = 3
@@ -2545,7 +2646,12 @@ function add_item_to_container(position, item_number) {
 
 function create_potion(potion_number, character_number) {
   var ingredients_required = potion_detailed_info[potion_number].ingredients;
-  var ingredients_present = character_state.items[character_number]
+  var ingredients_present = [];
+  for (let i = 0; i < character_state.items[character_number].length; i++) {
+    ingredients_present[i] = character_state.items[character_number][i];
+  }
+  console.log(ingredients_required)
+  console.log(ingredients_present)
   var enough = true;
   for (let i = 0; i < ingredients_required.length; i++) {
     ingredients_present[i] -= ingredients_required[i];
@@ -6159,6 +6265,7 @@ socket.registerMessageHandler((data) => {
       character_state.special_effects[data.character_number] = {}
       character_state.position[data.character_number] = data.cell_id;
       character_state.items[data.character_number] = new Array(item_list.length).fill(0);
+      character_state.potions[data.character_number] = new Array(potion_list.length).fill(0);
       if (character.hasOwnProperty("evade_bonus")) {
         character_state.evade_bonus[data.character_number] = parseInt(character.evade_bonus);
       } else {
@@ -6233,6 +6340,9 @@ socket.registerMessageHandler((data) => {
         character_state = full_game_state.character_state;
         if (!character_state.hasOwnProperty("items")) {
           character_state.items = [];
+        }
+        if (!character_state.hasOwnProperty("potions")) {
+          character_state.potions = [];
         }
         character_detailed_info = full_game_state.character_detailed_info;
         obstacle_detailed_info = full_game_state.obstacle_detailed_info;
@@ -6944,6 +7054,10 @@ socket.registerMessageHandler((data) => {
             pushToList(message);
           } else if (data.interaction_type == "potion_making") {
             character_state.items[user_index] = data.ingredients_present_updated;
+            if (character_state.potions[user_index] == null) {
+              character_state.potions[user_index] = new Array(potion_list.length).fill(0);
+            }
+            character_state.potions[user_index][data.potion_number] += 1;
             var message = character.name + " успешно приготовил " + potion_detailed_info[data.potion_number].name + ". Поприветствуйте великого химика!";
             pushToList(message);
           } else {
