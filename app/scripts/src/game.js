@@ -992,6 +992,11 @@ function add_character(board_index) {
   shield_optgroup.className = "character_optgroup"
   shield_optgroup.label = "Сквадовцы"
 
+  var seven_squad_optgroup = document.createElement("optgroup");
+  seven_squad_optgroup.id = "seven_squad_optgroup"
+  seven_squad_optgroup.className = "character_optgroup"
+  seven_squad_optgroup.label = "7 отряд"
+
   var sword_optgroup = document.createElement("optgroup");
   sword_optgroup.id = "sword_optgroup"
   sword_optgroup.className = "character_optgroup"
@@ -1043,6 +1048,9 @@ function add_character(board_index) {
         break;
       case "vanshot1":
         vanshot1_optgroup.appendChild(current_option);
+        break;
+      case "7squad":
+        seven_squad_optgroup.appendChild(current_option);
         break;
       default:
         other_optgroup.appendChild(current_option);
