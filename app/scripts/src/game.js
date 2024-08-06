@@ -994,7 +994,7 @@ function add_character(board_index) {
 
   var seven_squad_optgroup = document.createElement("optgroup");
   seven_squad_optgroup.id = "seven_squad_optgroup"
-  seven_squad_optgroup.className = "seven_squad_optgroup"
+  seven_squad_optgroup.className = "character_optgroup"
   seven_squad_optgroup.label = "7 отряд"
 
   var sword_optgroup = document.createElement("optgroup");
