@@ -992,10 +992,10 @@ function add_character(board_index) {
   shield_optgroup.className = "character_optgroup"
   shield_optgroup.label = "Сквадовцы"
 
-  var seven_squad_optgroup = document.createElement("optgroup");
-  seven_squad_optgroup.id = "seven_squad_optgroup"
-  seven_squad_optgroup.className = "character_optgroup"
-  seven_squad_optgroup.label = "7 отряд"
+  var squad7_optgroup = document.createElement("optgroup");
+  squad7_optgroup.id = "squad7_optgroup"
+  squad7_optgroup.className = "character_optgroup"
+  squad7_optgroup.label = "Отряд №7"
 
   var sword_optgroup = document.createElement("optgroup");
   sword_optgroup.id = "sword_optgroup"
@@ -1050,7 +1050,7 @@ function add_character(board_index) {
         vanshot1_optgroup.appendChild(current_option);
         break;
       case "squad7":
-        seven_squad_optgroup.appendChild(current_option);
+        squad7_optgroup.appendChild(current_option);
         break;
       default:
         other_optgroup.appendChild(current_option);
@@ -1079,7 +1079,7 @@ function add_character(board_index) {
 
   select.append(players_optgroup);
   select.append(shield_optgroup);
-  select.append(seven_squad_optgroup);
+  select.append(squad7_optgroup);
   select.append(vanshot1_optgroup);
   select.append(sword_optgroup);
   select.append(mutant_optgroup);
