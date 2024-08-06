@@ -1049,7 +1049,7 @@ function add_character(board_index) {
       case "vanshot1":
         vanshot1_optgroup.appendChild(current_option);
         break;
-      case "7squad":
+      case "squad7":
         seven_squad_optgroup.appendChild(current_option);
         break;
       default:
