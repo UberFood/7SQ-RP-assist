@@ -1,1 +1,1 @@
-{"name":"Ахито","avatar":"/images/ahito_new.jpg","strength":"2","stamina":"3","agility":"3","intelligence":"8", "KD_points": "12", "special_type": "engineer", "inventory": [27], "skillset": [15,4, 10, 11,26,0, 37,29,30,38], "group":"shield", "melee_resist": "15", "bullet_resist": "15"}
+{"name":"Ахито","avatar":"/images/ahito_new.jpg","strength":"2","stamina":"3","agility":"4","intelligence":"9", "KD_points": "12", "special_type": "engineer", "inventory": [27], "skillset": [15,4, 10, 11,26,0, 37,29,30,38], "group":"shield", "melee_resist": "15", "bullet_resist": "15"}

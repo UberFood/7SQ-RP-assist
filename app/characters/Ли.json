@@ -1,1 +1,1 @@
-{"name":"Ли","avatar":"/images/Li.png", "chibi_avatar":"/images/chibi_li.png", "strength":"1","stamina":"2","agility":"3","intelligence":"5", "KD_points": "12", "special_type": "sniper", "inventory": [8], "skillset": [3,28,4,10,11,0, 37,26,29], "group":"player", "evade_bonus": "1"}
+{"name":"Ли","avatar":"/images/Li.png", "chibi_avatar":"/images/chibi_li.png", "strength":"1","stamina":"2","agility":"3","intelligence":"6", "KD_points": "12", "special_type": "sniper", "inventory": [8], "skillset": [3,28,4,10,11,0, 37,26,29], "group":"player", "evade_bonus": "1"}
