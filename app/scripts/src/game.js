@@ -1079,6 +1079,7 @@ function add_character(board_index) {
 
   select.append(players_optgroup);
   select.append(shield_optgroup);
+  select.append(seven_squad_optgroup);
   select.append(vanshot1_optgroup);
   select.append(sword_optgroup);
   select.append(mutant_optgroup);
