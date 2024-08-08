@@ -1,3 +1,3 @@
-{"name":"Чел","avatar":"/images/stat_male.png", "chibi_avatar": "/images/chibi_stat_male_5.png", "strength":"1","stamina":"3","agility":"6","intelligence":"8", "KD_points": "12", "special_type": "tank", "inventory": [28], "skillset": [0, 4,10,11,26,29,30,37,38,15], "group":"vanshot1", "bullet_resist": "5", "extra_movement":"-1", "evade_bonus": "2"}
+{"name":"Чел","avatar":"/images/stat_male.png", "chibi_avatar": "/images/chibi_stat_male_5.png", "strength":"1","stamina":"3","agility":"6","intelligence":"8", "KD_points": "12", "special_type": "tank", "inventory": [28,27], "skillset": [0, 4,10,11,26,29,30,37,38,15], "group":"vanshot1", "bullet_resist": "5", "extra_movement":"-1", "evade_bonus": "2"}
 
 
