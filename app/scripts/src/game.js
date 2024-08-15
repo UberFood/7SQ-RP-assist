@@ -236,6 +236,9 @@ const carry_bonus_actions_cost = 1;
 const heal_potion_small_flat_hp = 10;
 const heal_potion_small_index = 0;
 
+const heal_potion_large_percent_hp = 0.5;
+const heal_potion_large_index = 1;
+
 // This is a constant, will be moved to database later
 const HP_values = [15, 30, 40, 55, 75, 100, 130, 165, 205, 250, 300, 355, 415, 480, 550, 625, 705];
 const stamina_values = [30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240, 255, 270, 285, 300];
@@ -245,8 +248,8 @@ const bonus_action_map= [0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5
 const main_action_map = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5]
 
 var effect_list = ["Увеличить силу", "Увеличить телосложение", "Увеличить ловкость", "Увеличить интеллект", "Увеличить КД", "Уменьшить силу",
-"Уменьшить телосложение", "Уменьшить ловкость", "Уменьшить интеллект", "Уменьшить КД", "Малое зелье лечения"];
-const potion_to_effect = [10];
+"Уменьшить телосложение", "Уменьшить ловкость", "Уменьшить интеллект", "Уменьшить КД", "Малое зелье лечения", "Большое зелье лечения"];
+const potion_to_effect = [10, 11];
 
 var INCREASE_STRENGTH = 0;
 var INCREASE_STAMINA = 1;
@@ -5347,9 +5350,18 @@ function apply_effect(character_number, effect_number) {
       restore_hp(character_number, heal_potion_small_flat_hp);
       remove_item(character_number, heal_potion_small_index, "potions");
       var character = character_detailed_info[character_number];
-      var message = character.name + " выпивает малое зелье лечения. Ваше здоровье!"
+      var message = character.name + " выпивает мутаген регенерации. Ваше здоровье!"
       pushToList(message);
       break;
+    case 11: // большое зелье лечения
+      var character = character_detailed_info[character_number];
+      var hp_amount = HP_values[character.stamina] * heal_potion_large_percent_hp;
+      restore_hp(character_number, hp_amount);
+      remove_item(character_number, heal_potion_large_index, "potions");
+      var message = character.name + " выпивает мутаген ускоренной регенерации. Ваше здоровье!"
+      pushToList(message);
+      break;
+
     default:
       console.log("Tried to apply unknown effect")
   }
