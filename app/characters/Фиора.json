@@ -1,1 +1,1 @@
-{"name":"Фиора","avatar":"/images/Filicia.jpg","strength":"2","stamina":"2","agility":"2","intelligence":"12", "KD_points": "10", "special_type": "engineer", "inventory": [0], "skillset": [4], "group":"mutant"}
+{"name":"Филисия де Виль","avatar":"/images/Filicia.jpg","chibi_avatar":"/images/chibi_fiora.png","strength":"2","stamina":"4","agility":"2","intelligence":"12", "KD_points": "25", "special_type": "engineer", "inventory": [0], "skillset": [0, 4,10,11,26,29,30,37,38], "group":"mutant"}

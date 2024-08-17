@@ -1,1 +1,1 @@
-{"name":"Вольт","avatar":"/images/volt.png","chibi_avatar":"/images/chibi_volt.png","strength":"4","stamina":"5","agility":"5","intelligence":"6", "KD_points": "10", "special_type": "mutant", "inventory": [13, 14, 15, 16], "skillset": [4], "group":"mutant"}
+{"name":"Вольт","avatar":"/images/volt.png","chibi_avatar":"/images/chibi_volt.png","strength":"4","stamina":"7","agility":"6","intelligence":"10", "KD_points": "10", "special_type": "mutant", "inventory": [13, 14, 15, 16], "skillset": [0, 4,10,11,26,29,30,37,38,21,13,14], "group":"mutant"}
