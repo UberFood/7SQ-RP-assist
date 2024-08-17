@@ -163,9 +163,9 @@ var acid_bomb_duration = 2 // 2+1 really
 var acid_bomb_cooldown = 5
 var acid_bomb_radius = 1.6
 
-var mines_0_distance_damage = 20
-var mines_1_distance_damage = 15
-var mines_1p5_distance_damage = 10
+var mines_0_distance_damage = 500
+var mines_1_distance_damage = 350
+var mines_1p5_distance_damage = 250
 var landmine_detection_radius = 4;
 var landmine_diffusion_radius = 3;
 var landmine_diffuse_threshold = 10
