@@ -1,1 +1,1 @@
-{"name":"Шкаф","avatar":"./images/wardrobe_scientific.jpg", "cover": 5, "toughness":10}
+{"name":"Шкаф","avatar":"./images/wardrobe_scientific.jpg", "cover": 5, "toughness":10, "item_container":true}
