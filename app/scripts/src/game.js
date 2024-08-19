@@ -1,51 +1,7 @@
 import socket from './ws-client';
+import * as Selectors from './selectors.js';
 
 var $ = window.jQuery;
-
-var CHARACTER_INFO_CONTANER_SELECTOR = '[data-name="character-info-container"]';
-var WEAPON_INFO_CONTANER_SELECTOR = '[data-name="weapon-info-container"]';
-var NOTIFICATIONS_CONTANER_SELECTOR = '[data-name="notifications-container"]';
-var INITIATIVE_ORDER_CONTANER_SELECTOR = '[data-name="initiative-order-display-container"]';
-var INITIATIVE_DROPBOX_CONTAINER_SELECTOR = '[data-name="initiative-order-dropbox-container"]';
-
-var SHOW_BOARD_CREATION_GROUP_BUTTON_SELECTOR = '[data-name="show_board_creation_group_button"]';
-var SHOW_BOARD_EDIT_GROUP_BUTTON_SELECTOR = '[data-name="show_board_edit_group_button"]';
-var SHOW_BATTLE_CONTROL_GROUP_BUTTON_SELECTOR = '[data-name="show_battle_control_group_button"]';
-var CREATE_BOARD_BUTTON_SELECTOR = '[data-name="create_board_button"]';
-var SAVE_BOARD_BUTTON_SELECTOR = '[data-name="save_board_button"]';
-var LOAD_BOARD_BUTTON_SELECTOR = '[data-name="load_board_button"]';
-var ROLL_INITIATIVE_BUTTON_SELECTOR = '[data-name="roll_initiative_button"]';
-var RESET_INITIATIVE_BUTTON_SELECTOR = '[data-name="reset_initiative_button"]';
-var FOG_BUTTON_SELECTOR = '[data-name="fog_button"]';
-var ZONE_BUTTON_SELECTOR = '[data-name="zone_button"]';
-var CHAT_BUTTON_SELECTOR = '[data-name="chat_button"]';
-var MIRROR_BUTTON_SELECTOR = '[data-name="mirror_button"]';
-var NEXT_ROUND_BUTTON_SELECTOR = '[data-name="next_round_button"]';
-var BATTLE_MOD_BUTTON_SELECTOR = '[data-name="battle_mod_button"]';
-var SYNC_BUTTON_SELECTOR = '[data-name="sync_button"]';
-var LANDMINE_BUTTON_SELECTOR = '[data-name="landmine_button"]';
-var FOG_ZONE_BUTTON_SELECTOR = '[data-name="fog_zone_button"]';
-var UNFOG_ZONE_BUTTON_SELECTOR = '[data-name="unfog_zone_button"]';
-var DOWNLOAD_BOARD_BUTTON_SELECTOR = '[data-name="download_board_button"]';
-
-var SAVES_SELECT_SELECTOR = '[data-name="saves_select"]';
-
-var ZONE_NUMBER_SELECTOR = '[data-name="zone_number_select"]';
-var SEARCH_MODIFICATOR_SELECTOR = '[data-name="search_modificator"]';
-
-var BOARD_SIZE_INPUT_SELECTOR = '[data-name="board_size_input"]';
-var SAVE_NAME_INPUT_SELECTOR = '[data-name="save_name_input"]';
-
-var NOTIFICATIONS_LIST_SELECTOR = '[data-name="notifications_list"]';
-
-var SKILL_MODAL_SELECTOR = '[data-name="skill-modal"]';
-var SKILL_MODAL_CONTENT_SELECTOR = '[data-name="skill-modal-content"]';
-var SKILL_DESCRIPTION_CONTAINER_SELECTOR = '[data-name="skill-description-container"]';
-var NEXT_PAGE_BUTTON_CONTAINER_SELECTOR = '[data-name="next-page-button-container"]';
-
-var BOARD_CREATION_GROUP_SELECTOR = '[data-group-name="board_creation_group"]';
-var BOARD_EDIT_GROUP_SELECTOR = '[data-group-name="board_edit_group"]';
-var BATTLE_CONTROL_GROUP_SELECTOR = '[data-group-name="battle_control_group"]';
 
 var SERVER_ADDRESS = location.origin.replace(/^http/, 'ws');
 
@@ -7658,64 +7614,64 @@ socket.registerMessageHandler((data) => {
   }
 });
 
-var show_board_creation_group_button = $(SHOW_BOARD_CREATION_GROUP_BUTTON_SELECTOR);
+var show_board_creation_group_button = $(Selectors.SHOW_BOARD_CREATION_GROUP_BUTTON_SELECTOR);
 show_board_creation_group_button.on('click', showBoardCreationGroup);
 
-var show_board_edit_group_button = $(SHOW_BOARD_EDIT_GROUP_BUTTON_SELECTOR);
+var show_board_edit_group_button = $(Selectors.SHOW_BOARD_EDIT_GROUP_BUTTON_SELECTOR);
 show_board_edit_group_button.on('click', showBoardEditGroup);
 
-var show_battle_control_group_button = $(SHOW_BATTLE_CONTROL_GROUP_BUTTON_SELECTOR);
+var show_battle_control_group_button = $(Selectors.SHOW_BATTLE_CONTROL_GROUP_BUTTON_SELECTOR);
 show_battle_control_group_button.on('click', showBattleControlGroup);
 
-var create_board_button = $(CREATE_BOARD_BUTTON_SELECTOR);
+var create_board_button = $(Selectors.CREATE_BOARD_BUTTON_SELECTOR);
 create_board_button.on('click', createBoard);
 
-var save_board_button = $(SAVE_BOARD_BUTTON_SELECTOR);
+var save_board_button = $(Selectors.SAVE_BOARD_BUTTON_SELECTOR);
 save_board_button.on('click', saveBoard);
 
-var load_board_button = $(LOAD_BOARD_BUTTON_SELECTOR);
+var load_board_button = $(Selectors.LOAD_BOARD_BUTTON_SELECTOR);
 load_board_button.on('click', loadBoard);
 
-var download_board_button = $(DOWNLOAD_BOARD_BUTTON_SELECTOR);
+var download_board_button = $(Selectors.DOWNLOAD_BOARD_BUTTON_SELECTOR);
 download_board_button.on('click', downloadBoard);
 
-var roll_initiative_button = $(ROLL_INITIATIVE_BUTTON_SELECTOR);
+var roll_initiative_button = $(Selectors.ROLL_INITIATIVE_BUTTON_SELECTOR);
 roll_initiative_button.on('click', rollInitiative);
 
-var reset_initiative_button = $(RESET_INITIATIVE_BUTTON_SELECTOR);
+var reset_initiative_button = $(Selectors.RESET_INITIATIVE_BUTTON_SELECTOR);
 reset_initiative_button.on('click', resetInitiative);
 
-var fog_button = $(FOG_BUTTON_SELECTOR);
+var fog_button = $(Selectors.FOG_BUTTON_SELECTOR);
 fog_button.on('click', fogModeChange);
 
-var zone_button = $(ZONE_BUTTON_SELECTOR);
+var zone_button = $(Selectors.ZONE_BUTTON_SELECTOR);
 zone_button.on('click', zoneModeChange);
 
-var chat_button = $(CHAT_BUTTON_SELECTOR);
+var chat_button = $(Selectors.CHAT_BUTTON_SELECTOR);
 chat_button.on('click', changeChatVisibility);
 
-var mirror_button = $(MIRROR_BUTTON_SELECTOR);
+var mirror_button = $(Selectors.MIRROR_BUTTON_SELECTOR);
 mirror_button.on('click', mirror_board);
 
-var next_round_button = $(NEXT_ROUND_BUTTON_SELECTOR);
+var next_round_button = $(Selectors.NEXT_ROUND_BUTTON_SELECTOR);
 next_round_button.on('click', start_new_round);
 
-var battle_mod_button = $(BATTLE_MOD_BUTTON_SELECTOR);
+var battle_mod_button = $(Selectors.BATTLE_MOD_BUTTON_SELECTOR);
 battle_mod_button.on('click', change_battle_mod);
 
-var sync_button = $(SYNC_BUTTON_SELECTOR);
+var sync_button = $(Selectors.SYNC_BUTTON_SELECTOR);
 sync_button.on('click', sync_board);
 
-var landmine_button = $(LANDMINE_BUTTON_SELECTOR);
+var landmine_button = $(Selectors.LANDMINE_BUTTON_SELECTOR);
 landmine_button.on('click', show_landmines);
 
-var fog_zone_button = $(FOG_ZONE_BUTTON_SELECTOR);
+var fog_zone_button = $(Selectors.FOG_ZONE_BUTTON_SELECTOR);
 fog_zone_button.on('click', fogCurrentZone);
 
-var unfog_zone_button = $(UNFOG_ZONE_BUTTON_SELECTOR);
+var unfog_zone_button = $(Selectors.UNFOG_ZONE_BUTTON_SELECTOR);
 unfog_zone_button.on('click', unfogCurrentZone);
 
-var zone_number_select = $(ZONE_NUMBER_SELECTOR);
+var zone_number_select = $(Selectors.ZONE_NUMBER_SELECTOR);
 for (let i = 1; i < MAX_ZONES; i++) {
   var current_option = $("<option>");
   current_option.text('Зона ' + i);
@@ -7723,11 +7679,11 @@ for (let i = 1; i < MAX_ZONES; i++) {
   zone_number_select.append(current_option);
 }
 
-var saves_select = $(SAVES_SELECT_SELECTOR);
+var saves_select = $(Selectors.SAVES_SELECT_SELECTOR);
 
-var search_modificator = $(SEARCH_MODIFICATOR_SELECTOR);
+var search_modificator = $(Selectors.SEARCH_MODIFICATOR_SELECTOR);
 
-var notifications_list = $(NOTIFICATIONS_LIST_SELECTOR);
+var notifications_list = $(Selectors.NOTIFICATIONS_LIST_SELECTOR);
 for (let i = 0; i < CHAT_CASH; i++) {
   var current_element = $("<li>");
   current_element.attr('data-name', 'notifications_list_element_' + i);
@@ -7735,28 +7691,28 @@ for (let i = 0; i < CHAT_CASH; i++) {
   notifications_list.append(current_element);
 }
 
-var board_size_input = $(BOARD_SIZE_INPUT_SELECTOR);
+var board_size_input = $(Selectors.BOARD_SIZE_INPUT_SELECTOR);
 
-var save_name_input = $(SAVE_NAME_INPUT_SELECTOR);
+var save_name_input = $(Selectors.SAVE_NAME_INPUT_SELECTOR);
 
-var notifications_container = $(NOTIFICATIONS_CONTANER_SELECTOR);
+var notifications_container = $(Selectors.NOTIFICATIONS_CONTANER_SELECTOR);
 
-var character_info_container = $(CHARACTER_INFO_CONTANER_SELECTOR);
+var character_info_container = $(Selectors.CHARACTER_INFO_CONTANER_SELECTOR);
 
-var weapon_info_container = $(WEAPON_INFO_CONTANER_SELECTOR);
+var weapon_info_container = $(Selectors.WEAPON_INFO_CONTANER_SELECTOR);
 weapon_info_container.hide();
 
-var initiative_order_container = $(INITIATIVE_ORDER_CONTANER_SELECTOR);
+var initiative_order_container = $(Selectors.INITIATIVE_ORDER_CONTANER_SELECTOR);
 
-var initiative_dropbox_container = $(INITIATIVE_DROPBOX_CONTAINER_SELECTOR);
+var initiative_dropbox_container = $(Selectors.INITIATIVE_DROPBOX_CONTAINER_SELECTOR);
 
-var skill_modal = $(SKILL_MODAL_SELECTOR);
+var skill_modal = $(Selectors.SKILL_MODAL_SELECTOR);
 
-var skill_description_container = $(SKILL_DESCRIPTION_CONTAINER_SELECTOR);
+var skill_description_container = $(Selectors.SKILL_DESCRIPTION_CONTAINER_SELECTOR);
 
-var skill_modal_content = $(SKILL_MODAL_CONTENT_SELECTOR);
+var skill_modal_content = $(Selectors.SKILL_MODAL_CONTENT_SELECTOR);
 
-var next_page_button_container = $(NEXT_PAGE_BUTTON_CONTAINER_SELECTOR);
+var next_page_button_container = $(Selectors.NEXT_PAGE_BUTTON_CONTAINER_SELECTOR);
 
 var span = document.getElementById("skill-modal-close");
 
