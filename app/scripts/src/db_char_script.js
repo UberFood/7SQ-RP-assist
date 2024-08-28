@@ -19,7 +19,7 @@ function openModal(title, imageSources, description, fullName, gender, squad) {
     imageInterval = setInterval(() => {
         currentImageIndex = (currentImageIndex + 1) % imageSources.length;
         document.getElementById("modal-image").src = imageSources[currentImageIndex];
-    }, 3000); // Смена изображения каждые 3 секунды
+    }, 10000); // Смена изображения каждые 10 секунд
 
     modal.style.display = "flex";
 }
