@@ -1,1 +1,1 @@
-{"name":"Шион пингвин","avatar":"/images/ilya_penguin.jpg","strength":"4","stamina":"2","agility":"3","intelligence":"2", "group":"penguin"}
+{"name":"Шион пингвин","avatar":"/images/ilya_penguin.jpg", "strength":"6","stamina":"3","agility":"3","intelligence":"1", "KD_points": "13", "special_type": "rogue", "inventory": [33,4, 1,28], "skillset": [35,36,2,0, 37,4,10,11,26,29,38,39], "group":"penguin", "bullet_resist": "10", "melee_resist": "10", "extra_movement":"-1", "evade_bonus": "0"}
