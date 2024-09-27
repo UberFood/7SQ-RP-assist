@@ -1,1 +1,1 @@
-{"name":"Арра","avatar":"/images/ara.png","strength":"2","stamina":"3","agility":"2","intelligence":"8", "group":"mutant"}
+{"name":"Арра","avatar":"/images/ara.png","strength":"2","stamina":"3","agility":"2","intelligence":"8", "KD_points": "12", "special_type": "tank", "inventory": [6, 3], "skillset": [5,6,16], "group": "mutant"}

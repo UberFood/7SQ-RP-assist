@@ -10,6 +10,8 @@ var my_name = JSON.parse(sessionStorage.getItem('username'));
 var my_role = JSON.parse(sessionStorage.getItem('user_role'));
 var my_room = JSON.parse(sessionStorage.getItem('room_number'));
 
+const base_kit_skills_list = [0,4,10,11,26,29,30,37,38];
+
 var character_list = [];
 var group_list = [];
 var character_detailed_info = [];
@@ -6089,6 +6091,7 @@ socket.registerMessageHandler((data) => {
       game_state.board_state[data.cell_id] = data.character_number;
       var character = data.character_info;
       character_detailed_info[data.character_number] = character;
+      character_detailed_info[data.character_number].skillset = Array.from(new Set(character_detailed_info[data.character_number].skillset.concat(base_kit_skills_list)));
       character_detailed_info[data.character_number].strength = parseInt(character.strength);
       character_detailed_info[data.character_number].stamina = parseInt(character.stamina);
       character_detailed_info[data.character_number].agility = parseInt(character.agility);
