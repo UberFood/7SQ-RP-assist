@@ -11,6 +11,7 @@ var my_role = JSON.parse(sessionStorage.getItem('user_role'));
 var my_room = JSON.parse(sessionStorage.getItem('room_number'));
 
 const base_kit_skills_list = [0,4,10,11,26,29,30,37,38];
+const DEFAULT_OPTGROUP = "player"
 
 var character_list = [];
 var group_list = [];
@@ -778,11 +779,6 @@ function add_obstacle(board_index) {
 
 }
 
-function optgroup_onclick() {
-  console.log("pedro pog")
-  //$('[option_optgroup_name="' + optgroup_name + '"]').show()
-}
-
 function create_optgroup(optgroup_name, optgroup_label) {
   var optgroup = $("<optgroup>");
   optgroup.attr("optgroup_name", optgroup_name);
@@ -823,54 +819,21 @@ function add_character(board_index) {
   select.attr("id", "character_chosen")
   select.attr("class", "object_select")
 
-  var players_optgroup = create_optgroup("player", "Игроки")
-  var penguin_optgroup = create_optgroup("penguin", "Пингвины")
-  var shield_optgroup = create_optgroup("shield", "Сквадовцы")
-  var sword_optgroup = create_optgroup("sword", "Мечи")
-  var mutant_optgroup = create_optgroup("mutant", "Мутанты")
-  var anima_optgroup = create_optgroup("anima", "Звери")
-  var vanshot1_optgroup = create_optgroup("vanshot1", "Ваншот 1")
-  var other_optgroup = create_optgroup("other", "Остальные")
-  console.log(other_optgroup)
-
   for (let i = 0; i < character_list.length; i++) {
     var current_option = $("<option>");
     current_option.text(character_list[i]);
     current_option.attr("value", i);
     var character_group = group_list[i]
-    current_option.attr("option_optgroup_name", character_group);
-    current_option.attr("data-name", "character_add_option");
-    current_option.hide();
-    switch(character_group) {
-      case "player":
-        players_optgroup.append(current_option);
-        break;
-      case "penguin":
-        penguin_optgroup.append(current_option);
-        break;
-      case "shield":
-        shield_optgroup.append(current_option);
-        break;
-      case "sword":
-        sword_optgroup.append(current_option);
-        break;
-      case "mutant":
-        mutant_optgroup.append(current_option);
-        break;
-      case "anima":
-        anima_optgroup.append(current_option);
-        break;
-      case "vanshot1":
-        vanshot1_optgroup.append(current_option);
-        break;
-      default:
-        current_option.attr("option_optgroup_name", "other");
-        other_optgroup.append(current_option);
-
+    if (optgroup_list.includes(character_group)) {
+      current_option.attr("option_optgroup_name", character_group);
+    } else {
+      current_option.attr("option_optgroup_name", "other");
     }
+    current_option.attr("data-name", "character_add_option");
+    //current_option.hide();
+    select.append(current_option);
 
   }
-  //$('[data-name="character_add_option"]').hide()
 
   var button = document.createElement("button");
   button.innerHTML = "Добавить";
@@ -890,17 +853,11 @@ function add_character(board_index) {
     clear_containers(0)
   }
 
-  select.append(players_optgroup);
-  select.append(shield_optgroup);
-  select.append(vanshot1_optgroup);
-  select.append(sword_optgroup);
-  select.append(mutant_optgroup);
-  select.append(anima_optgroup);
-  select.append(penguin_optgroup);
-  select.append(other_optgroup);
   character_info_container.append(optgroup_select);
   character_info_container.append(select);
   character_info_container.append(button);
+  $('[data-name="character_add_option"]').hide()
+  $('[option_optgroup_name="' + DEFAULT_OPTGROUP + '"]').show()
   tiny_animate_containers()
 
 }
