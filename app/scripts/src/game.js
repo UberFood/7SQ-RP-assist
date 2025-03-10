@@ -4260,7 +4260,7 @@ function heal(index, cell) {
   var critical_threshold = 0
 
   if (ratio > 0.9) {
-    threshold = 10
+    threshold = Skill_constants.heal_thresholds_list[0]
     if (heal_roll > threshold) {
       toSend.outcome = "success"
       toSend.new_hp = target_full_hp
@@ -4268,8 +4268,8 @@ function heal(index, cell) {
       toSend.outcome = "fail"
     }
   } else if (ratio > 0.75) {
-    threshold = 15
-    critical_threshold = 25
+    threshold = Skill_constants.heal_thresholds_list[1]
+    critical_threshold = Skill_constants.critical_heal_thresholds_list[1]
     if (heal_roll > threshold) {
       if (heal_roll > critical_threshold && healer_character.special_type == "med") {
         toSend.outcome = "critical success"
@@ -4282,8 +4282,8 @@ function heal(index, cell) {
       toSend.outcome = "fail"
     }
   } else if (ratio > 0.5) {
-    threshold = 20
-    critical_threshold = 29
+    threshold = Skill_constants.heal_thresholds_list[2]
+    critical_threshold = Skill_constants.critical_heal_thresholds_list[2]
     if (heal_roll > threshold) {
       if (heal_roll > critical_threshold && healer_character.special_type == "med") {
         toSend.outcome = "critical success"
@@ -4296,8 +4296,8 @@ function heal(index, cell) {
       toSend.outcome = "fail"
     }
   } else if (ratio > 0.3) {
-    threshold = 23
-    critical_threshold = 32
+    threshold = Skill_constants.heal_thresholds_list[3]
+    critical_threshold = Skill_constants.critical_heal_thresholds_list[3]
     if (heal_roll > threshold) {
       if (heal_roll > critical_threshold && healer_character.special_type == "med") {
         toSend.outcome = "critical success"
@@ -4310,8 +4310,8 @@ function heal(index, cell) {
       toSend.outcome = "fail"
     }
   } else if (ratio > 0.15) {
-    threshold = 26
-    critical_threshold = 35
+    threshold = Skill_constants.heal_thresholds_list[4]
+    critical_threshold = Skill_constants.critical_heal_thresholds_list[4]
     if (heal_roll > threshold) {
       if (heal_roll > critical_threshold && healer_character.special_type == "med") {
         toSend.outcome = "critical success"
@@ -4323,9 +4323,9 @@ function heal(index, cell) {
     } else {
       toSend.outcome = "fail"
     }
-  } else if (ratio > 0.05) {
-    threshold = 30
-    critical_threshold = 40
+  } else if (ratio > 0.01) {
+    threshold = Skill_constants.heal_thresholds_list[5]
+    critical_threshold = Skill_constants.critical_heal_thresholds_list[5]
     if (heal_roll > threshold) {
       if (heal_roll > critical_threshold && healer_character.special_type == "med") {
         toSend.outcome = "critical success"

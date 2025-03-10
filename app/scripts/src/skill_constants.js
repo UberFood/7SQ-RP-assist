@@ -146,3 +146,6 @@ export const heal_potion_small_index = 0;
 
 export const heal_potion_large_percent_hp = 0.5;
 export const heal_potion_large_index = 1;
+
+export const heal_thresholds_list = [7, 10, 14, 19, 25, 32]
+export const critical_heal_thresholds_list = [7, 14, 18, 23, 29, 36]
