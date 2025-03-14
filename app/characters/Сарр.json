@@ -1,1 +1,1 @@
-{"name":"Сарр","avatar":"/images/sarr.jpg","strength":"9","stamina":"8","agility":"5","intelligence":"5", "KD_points": "18", "special_type": "war", "inventory": [12,49], "skillset": [4,0,10,11,26,29,30,37,38,5,6,16,21 ], "group":"shield", "extra_movement":"-3"}
+{"name":"Сарр","avatar":"/images/sarr.jpg","avatar":"/images/Chibi_Sarr.png","strength":"9","stamina":"8","agility":"5","intelligence":"5", "KD_points": "18", "special_type": "war", "inventory": [12,49], "skillset": [4,0,10,11,26,29,30,37,38,5,6,16,21 ], "group":"shield", "extra_movement":"-3"}
