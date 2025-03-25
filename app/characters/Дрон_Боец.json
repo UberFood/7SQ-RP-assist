@@ -1,3 +1,1 @@
-{"name":"Дрон Б.О.Е.Ц.","avatar":"/images/Robot_box.png", "chibi_avatar": "/images/Chibi_Robot_box.png", "strength":"2","stamina":"1","agility":"4","intelligence":"1", "KD_points": "10", "special_type": "drone", "inventory": [53,0], "skillset": [0,4,10,11,26,29,30,37,38,2,21,14,13,31], "group":"player"}
-
-
+{"name":"Дрон Б.О.Е.Ц.","avatar":"/images/Robot_box.png", "chibi_avatar": "/images/Chibi_Robot_box.png", "strength":"2","stamina":"1","agility":"4","intelligence":"1", "KD_points": "10", "special_type": "drone", "inventory": [53,0], "skillset": [0,4,10,11,26,29,30,37,38,2,21,14,13,31], "group":"drone"}

@@ -58,6 +58,9 @@ var effect_list = ["Увеличить силу", "Увеличить телос
 "Уменьшить телосложение", "Уменьшить ловкость", "Уменьшить интеллект", "Уменьшить КД", "Малое зелье лечения", "Большое зелье лечения"];
 const potion_to_effect = [10, 11];
 
+var optgroup_list = ["player", "shield", "sword", "mutant", "anima", "retired", "drone", "vanshot1", "penguin", "other"]
+var optgroup_labels = ["Активные Игроки", "Сквадовцы", "Мечи", "Мутанты", "Звери", "Игроки на пенсии", "Дроны", "Ваншот 1", "Пингвины", "Остальные"]
+
 var INCREASE_STRENGTH = 0;
 var INCREASE_STAMINA = 1;
 var INCREASE_AGILITY = 2;
@@ -796,9 +799,6 @@ function create_optgroup_option(optgroup_name, optgroup_label) {
 
 function add_character(board_index) {
   clear_containers()
-
-  var optgroup_list = ["player", "penguin", "shield", "sword", "mutant", "anima", "vanshot1", "other"]
-  var optgroup_labels = ["Игроки", "Пингвины", "Сквадовцы", "Мечи", "Мутанты", "Звери", "Ваншот 1", "Остальные"]
 
   var optgroup_select = $("<select>");
   optgroup_select.attr("id", "optgroup_select")
