@@ -1,1 +1,1 @@
-{"name":"Робот Убийца","avatar":"/images/Droid_Assasin.png","chibi_avatar":"/images/Chibi_Droid_Assasin.png","strength":"1","stamina":"2","agility":"6","intelligence":"6", "KD_points": "10", "special_type": "drone", "inventory": [4, 8], "skillset": [3,27,28,4,10,11,0,26,29]}
+{"name":"Робот Убийца","avatar":"/images/Droid_Assasin.png","chibi_avatar":"/images/Chibi_Droid_Assasin.png","strength":"1","stamina":"2","agility":"6","intelligence":"6", "KD_points": "10", "special_type": "drone", "inventory": [4, 8], "skillset": [3,27,28,4,10,11,0,26,29], "group":"robots_npc"}

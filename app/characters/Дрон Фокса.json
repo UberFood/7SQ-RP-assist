@@ -1,1 +1,1 @@
-{"name":"Дрон Фокса","avatar":"/images/Dron_Fox.jpg","strength":"1","stamina":"3","agility":"6","intelligence":"1", "KD_points": "10", "special_type": "drone", "inventory": [0], "skillset": [14,13,4], "landmine_immune": true}
+{"name":"Дрон Фокса","avatar":"/images/Dron_Fox.jpg","strength":"1","stamina":"3","agility":"6","intelligence":"1", "KD_points": "10", "special_type": "drone", "inventory": [0], "skillset": [14,13,4], "landmine_immune": true, "group":"drone"}

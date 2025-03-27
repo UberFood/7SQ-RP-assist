@@ -1,1 +1,1 @@
-{"name":"Робот Качок","avatar":"/images/chibi_robot3.png","strength":"5","stamina":"3","agility":"3","intelligence":"1", "KD_points": "14", "special_type": "war", "inventory": [12], "skillset": [4,0], "group":"mutant", "extra_movement":"-1"}
+{"name":"Робот Качок","avatar":"/images/chibi_robot3.png","strength":"5","stamina":"3","agility":"3","intelligence":"1", "KD_points": "14", "special_type": "war", "inventory": [12], "skillset": [4,0], "group":"drone", "extra_movement":"-1"}

@@ -1,1 +1,1 @@
-{"name":"Роборога","avatar":"/images/chibi_robot1.png","strength":"3","stamina":"1","agility":"6","intelligence":"1", "KD_points": "10", "special_type": "rogue", "inventory": [4, 1], "skillset": [0,2,4,10,11,17,26,29], "group":"mutant"}
+{"name":"Роборога","avatar":"/images/chibi_robot1.png","strength":"3","stamina":"1","agility":"6","intelligence":"1", "KD_points": "10", "special_type": "rogue", "inventory": [4, 1], "skillset": [0,2,4,10,11,17,26,29], "group":"drone"}

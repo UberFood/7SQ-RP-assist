@@ -1,1 +1,1 @@
-{"name":"Правая Нога Мундо","avatar":"/images/RLM.png","strength":"1","stamina":"2","agility":"6","intelligence":"1", "KD_points": "11", "special_type": "mutant", "inventory": [28], "skillset": [4,0,21,22,24,12,23,10,11,29], "group":"mutant", "extra_movement":"1"}
+{"name":"Правая Нога Мундо","avatar":"/images/RLM.png","strength":"1","stamina":"2","agility":"6","intelligence":"1", "KD_points": "11", "special_type": "mutant", "inventory": [28], "skillset": [4,0,21,22,24,12,23,10,11,29], "group":"belvet_team", "extra_movement":"1"}
