@@ -1,1 +1,1 @@
-{"name":"Маркус","avatar":"/images/markus.png","chibi_avatar":"/images/chibi_markus.png","strength":"6","stamina":"5","agility":"5","intelligence":"4", "KD_points": "12", "special_type": "med", "inventory": [6, 3], "skillset": [7,8,9,0, 4,10,11,26,29,30,37,38,24], "group":"mutant"}
+{"name":"Маркус","avatar":"/images/markus.png","chibi_avatar":"/images/chibi_markus.png","strength":"6","stamina":"8","agility":"6","intelligence":"4", "KD_points": "12", "special_type": "med", "inventory": [6, 3], "skillset": [7,8,9,0, 4,10,11,26,29,30,37,38,24], "group":"mutant"}

@@ -1,1 +1,1 @@
-{"name":"Робби","avatar":"/images/Robbi.png","strength":"2","stamina":"3","agility":"3","intelligence":"4", "KD_points": "10", "special_type": "med", "inventory": [6, 3], "skillset": [1,4,10,11,12], "group":"shield"}
+{"name":"Робби","avatar":"/images/Robbi.png","strength":"2","stamina":"3","agility":"3","intelligence":"5", "KD_points": "10", "special_type": "med", "inventory": [6,3,28], "skillset": [1,4,10,11,12], "group":"shield"}
