@@ -17,8 +17,8 @@ var DODGE_PRICE_SELECTOR = '[data-name="dodge_price"]';
 var TOTAL_PRICE_SELECTOR = '[data-name="total_price"]';
 var MOVE_CHANGE_SELECTOR = '[data-name="move_change_display"]';
 
-var module_scale = 1.2;
-var specialization_scale = 1.8;
+var module_scale = 1.1;
+var specialization_scale = 1.7;
 
 var initial_KD = 10;
 var initial_melee_resist = 0;
@@ -48,6 +48,10 @@ var current_dodge_price = initial_dodge_price;
 var total_cost = 0;
 var move_change = 0;
 
+function round_and_convert_to_string(number) {
+  return  parseInt(number).toString();
+}
+
 function update_move_change(update) {
   move_change = move_change + update;
   move_change_display.html("Изменение перемещения: " + move_change.toString());
@@ -55,21 +59,21 @@ function update_move_change(update) {
 
 function update_total_cost(price) {
   total_cost = total_cost + price;
-  total_price_entry.html("Общая стоимость: " + total_cost.toString());
+  total_price_entry.html("Общая стоимость: " + round_and_convert_to_string(total_cost));
 }
 
 function update_price_display() {
-  KD_price.html("Цена апгрейда: " + current_KD_price.toString())
-  melee_resist_price.html("Цена апгрейда: " + current_melee_resist_price.toString())
-  move_price.html("Цена апгрейда: " + current_move_price.toString())
-  dodge_price.html("Цена апгрейда: " + current_dodge_price.toString())
+  KD_price.html("Цена апгрейда: " + round_and_convert_to_string(current_KD_price))
+  melee_resist_price.html("Цена апгрейда: " + round_and_convert_to_string(current_melee_resist_price))
+  move_price.html("Цена апгрейда: " + round_and_convert_to_string(current_move_price))
+  dodge_price.html("Цена апгрейда: " + round_and_convert_to_string(current_dodge_price))
 }
 
 function apply_module_scale() {
-  current_KD_price = parseInt(current_KD_price*module_scale);
-  current_melee_resist_price = parseInt(current_melee_resist_price*module_scale);
-  current_move_price = parseInt(current_move_price*module_scale);
-  current_dodge_price = parseInt(current_dodge_price*module_scale);
+  current_KD_price = current_KD_price*module_scale;
+  current_melee_resist_price = current_melee_resist_price*module_scale;
+  current_move_price = current_move_price*module_scale;
+  current_dodge_price = current_dodge_price*module_scale;
 }
 
 function increase_KD() {
