@@ -1,1 +1,1 @@
-{"name":"Дравен","avatar":"/images/Draven.jpg","strength":"6","stamina":"8","agility":"6","intelligence":"4", "KD_points": "14", "special_type": "spy", "inventory": [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20], "skillset": [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]}
+{"name":"Дравен","avatar":"/images/Draven.jpg","strength":"6","stamina":"8","agility":"6","intelligence":"4", "KD_points": "14", "special_type": "spy", "inventory": [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20], "skillset": [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], "group":"citizen"}

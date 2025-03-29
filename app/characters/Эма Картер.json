@@ -1,1 +1,1 @@
-{"name":"Эма Картер", "avatar":"/images/ema_karter.png","chibi_avatar":"/images/chibi_ema_karter.png","strength":"1","stamina":"2","agility":"3","intelligence":"4", "KD_points": "12", "special_type": "engineer", "inventory": [50], "skillset": [15], "group":"player"}
+{"name":"Эма Картер", "avatar":"/images/ema_karter.png","chibi_avatar":"/images/chibi_ema_karter.png","strength":"1","stamina":"2","agility":"3","intelligence":"5", "KD_points": "12", "special_type": "engineer", "inventory": [50,3,28], "skillset": [15], "group":"player"}
