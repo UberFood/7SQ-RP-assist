@@ -1,6 +1,18 @@
 import socket from './ws-client';
 import * as Selectors from './selectors.js';
 import * as Skill_constants from './skill_constants.js';
+import {
+  top_left_coord,
+  bottom_right_coord,
+  coord_to_index,
+  index_to_coordinates,
+  findDistance,
+  isInRange,
+  index_in_radius,
+  line_from_endpoints,
+  distance_to_line,
+  cells_on_line
+} from './coordinate_helpers.js';
 
 var $ = window.jQuery;
 
@@ -553,147 +565,6 @@ function fogParseZone(mod, current_zone) {
   socket.sendMessage(toSend);
 }
 
-// Helper coordinate related functions
-
-function top_left_coord(coord1, coord2) {
-  var toRet = {}
-  toRet.x = Math.min(coord1.x, coord2.x)
-  toRet.y = Math.min(coord1.y, coord2.y)
-  return toRet
-}
-
-function bottom_right_coord(coord1, coord2) {
-  var toRet = {}
-  toRet.x = Math.max(coord1.x, coord2.x)
-  toRet.y = Math.max(coord1.y, coord2.y)
-  return toRet
-}
-
-function coord_to_index(coord, size) {
-  var index = coord.x * size + coord.y
-  return index
-}
-
-function index_to_coordinates(index, size) {
-  var toRet = {}
-  toRet.x = Math.floor(index/size)
-  toRet.y = index % size
-  return toRet
-}
-
-function findDistance(index1, index2) {
-  var x1 = Math.floor(index1/game_state.size)
-  var y1 = index1 % game_state.size
-
-  var x2 = Math.floor(index2/game_state.size)
-  var y2 = index2 % game_state.size
-
-  var distance_squared = (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2)
-  var distance = Math.sqrt(distance_squared)
-  return parseFloat(distance)
-}
-
-function isInRange(index1, index2, range) {
-  var x1 = Math.floor(index1/game_state.size)
-  var y1 = index1 % game_state.size
-
-  var x2 = Math.floor(index2/game_state.size)
-  var y2 = index2 % game_state.size
-
-  var distance = (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2)
-  return distance <= range*range
-}
-
-function index_in_radius(index, range) {
-  var size = game_state.size
-  var x = Math.floor(index/size)
-  var y = index % size
-  var candidate_index_list = []
-
-  //console.log("x: " + x + " y: " + y + " index: " + index)
-
-  for (let i = Math.floor(-1 * range); i <= Math.ceil(range); i++) {
-    for (let j = Math.floor(-1 * range); j <= Math.ceil(range); j++) {
-      var cand_x = x + i
-      var cand_y = y + j
-      //console.log("cand_x: " + cand_x + " cand_y: " + cand_y)
-      if (cand_x >=0 && cand_x < size && cand_y >=0 && cand_y < size) {
-        var cand_index = cand_x*size + cand_y
-        //console.log("cand_index: " + cand_index)
-        if (isInRange(index, cand_index, range)) {
-          //console.log("cand_index: " + cand_index + "was considered in range")
-          candidate_index_list.push(cand_index)
-        }
-      }
-    }
-  }
-  return candidate_index_list
-}
-
-function line_from_endpoints(point1, point2) {
-  var line = {}
-  line.a = -1*(point1.y - point2.y)
-  line.b = point1.x - point2.x
-  line.c = -1*(line.a * point2.x + line.b * point2.y)
-  return line
-}
-
-function distance_to_line(endpoint1, endpoint2, size, testpoint) {
-  var endpoint1_coord = index_to_coordinates(endpoint1, size)
-  var endpoint2_coord = index_to_coordinates(endpoint2, size)
-  var testpoint_coord = index_to_coordinates(testpoint, size)
-
-  var line = line_from_endpoints(endpoint1_coord, endpoint2_coord)
-  console.log(line)
-  console.log(testpoint_coord)
-
-  var distance = Math.abs(line.a*testpoint_coord.x + line.b*testpoint_coord.y + line.c)/Math.sqrt(line.a*line.a + line.b*line.b)
-
-  console.log(distance)
-  return distance
-}
-
-function cells_on_line(endpoint1, endpoint2, size) {
-  var endpoint1_coord = index_to_coordinates(endpoint1, size)
-  var endpoint2_coord = index_to_coordinates(endpoint2, size)
-  var line = line_from_endpoints(endpoint1_coord, endpoint2_coord)
-
-  var scale = Math.max(Math.abs(line.a), Math.abs(line.b))
-  // need to be reversed! remember line.a = delta y
-  var x_step = line.b/scale
-  var y_step = -1*line.a/scale
-  var current_point = endpoint2_coord
-
-  var safety_iter = 0
-  var candidate_cells = []
-  while (Math.abs(current_point.x - endpoint1_coord.x) > 0.5 || Math.abs(current_point.y - endpoint1_coord.y) > 0.5) {
-    current_point.x += x_step
-    current_point.y += y_step
-
-    var ceil = {}
-    ceil.x = Math.ceil(current_point.x)
-    ceil.y = Math.ceil(current_point.y)
-    var ceil_index = coord_to_index(ceil, size)
-
-    var floor = {}
-    floor.x = Math.floor(current_point.x)
-    floor.y = Math.floor(current_point.y)
-    var floor_index = coord_to_index(floor, size)
-
-
-    candidate_cells.push(ceil_index)
-    if (ceil_index != floor_index) {
-      candidate_cells.push(floor_index)
-    }
-
-    safety_iter = safety_iter + 1
-    if (safety_iter > 50) {
-      break;
-    }
-  }
-  return candidate_cells
-}
-
 // animations, container maintance
 
 function clear_containers() {
@@ -934,7 +805,7 @@ function move_character(to_index, to_cell) {
   var chosen_character_index = character_chosen.char_id;
   var chosen_index = character_state.position[chosen_character_index];
 
-  var distance = findDistance(to_index, chosen_index)
+  var distance = findDistance(to_index, chosen_index, game_state.size)
   var max_distance = character_state.move_action[chosen_character_index]
 
   var true_distance = distance;
@@ -962,8 +833,8 @@ function move_character(to_index, to_cell) {
 function constructMoveSendObject(chosen_index, to_index, chosen_character_index, distance) {
   var toSend = setup_move_send_object(chosen_index, to_index, chosen_character_index, distance);
 
-  var immediate_nbh = index_in_radius(to_index, 1.6);
-  var extended_invisibility_nbh = index_in_radius(to_index, Skill_constants.invisibility_detection_radius);
+  var immediate_nbh = index_in_radius(to_index, 1.6, game_state.size);
+  var extended_invisibility_nbh = index_in_radius(to_index, Skill_constants.invisibility_detection_radius, game_state.size);
 
   toSend = updateMoveForceFieldStatus(chosen_character_index, to_index, toSend);
   toSend = updateMoveOwnInvisibility(chosen_character_index, to_index, toSend, immediate_nbh, extended_invisibility_nbh);
@@ -1220,7 +1091,7 @@ function jump(to_index, to_cell) {
   var chosen_character_index = character_chosen.char_id;
   var chosen_index = character_state.position[chosen_character_index];
 
-  var distance = findDistance(to_index, chosen_index)
+  var distance = findDistance(to_index, chosen_index, game_state.size)
   var max_distance = findJumpDistance(chosen_character_index);
 
   if (distance <= max_distance) {
@@ -2743,7 +2614,7 @@ function search_action(search_button) {
     toSend.mines_detected = []
     toSend.character_number = character_number
 
-    var landmine_candidates = index_in_radius(index, Skill_constants.landmine_detection_radius)
+    var landmine_candidates = index_in_radius(index, Skill_constants.landmine_detection_radius, game_state.size)
     for (let i = 0; i < landmine_candidates.length; i++) {
         if (game_state.landmines.positions.includes(landmine_candidates[i])) {
           toSend.mines_detected.push(landmine_candidates[i])
@@ -2867,7 +2738,7 @@ function perform_attack(index, cell) {
   var target_character_number = game_state.board_state[index]
   var weapon = weapon_detailed_info[character_chosen.weapon_id]
 
-  if (isInRange(index, user_position, weapon.range)) {
+  if (isInRange(index, user_position, weapon.range, game_state.size)) {
     var accumulated_cover = get_accumulated_cover(user_position, index)
     var cover_modifier = cover_mod(accumulated_cover)
 
@@ -2904,7 +2775,7 @@ function attack_obstacle(index, cell) {
   var user_character_number = character_chosen.char_id
   var weapon = weapon_detailed_info[character_chosen.weapon_id]
 
-  if (isInRange(index, user_position, weapon.range)) {
+  if (isInRange(index, user_position, weapon.range, game_state.size)) {
     var target_obstacle_number = Math.abs(game_state.board_state[index]);
     var target_obstacle = obstacle_detailed_info[target_obstacle_number]
 
@@ -3076,7 +2947,7 @@ function compute_damage(weapon, character_number, attack_roll, target_number) {
 }
 
 function damage_skill_template(target_pos, user_pos, range, user_id, skill_id, bonus_attack, weapon, accumulated_cover) {
-  if (isInRange(target_pos, user_pos, range)) {
+  if (isInRange(target_pos, user_pos, range, game_state.size)) {
 
     var target_character_number = game_state.board_state[target_pos]
     var attacking_character = character_detailed_info[user_id]
@@ -3961,7 +3832,7 @@ function pass_the_ball(index, cell) {
   var user_position = character_chosen.char_position;
   var pass_range = find_pass_range(user_character_number);
   var ball_index = character_state.special_effects[user_character_number].carry_user.carry_target_index;
-  if (isInRange(index, user_position, pass_range)) {
+  if (isInRange(index, user_position, pass_range, game_state.size)) {
     var toSend = {}
     toSend.command = 'skill';
     toSend.skill_index = character_chosen.skill_id
@@ -3980,7 +3851,7 @@ function belvet_jump(to_index, to_cell) {
   var chosen_character_index = character_chosen.char_id;
   var chosen_index = character_state.position[chosen_character_index];
 
-  var distance = findDistance(to_index, chosen_index)
+  var distance = findDistance(to_index, chosen_index, game_state.size)
   var max_distance = Skill_constants.belvet_jump_base_distance + findJumpDistance(chosen_character_index);
 
   if (distance <= max_distance) {
@@ -4026,7 +3897,7 @@ function belvet_jump_damage_object(from_index, to_index, character_number) {
 function carry(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
-  if (isInRange(index, user_position, Skill_constants.carry_range)) {
+  if (isInRange(index, user_position, Skill_constants.carry_range. game_state.size)) {
     var target_character_number = game_state.board_state[index]
     if (! (character_state.special_effects[target_character_number].hasOwnProperty("carry_target") || character_state.special_effects[target_character_number].hasOwnProperty("carry_user"))) {
       var toSend = {};
@@ -4056,7 +3927,7 @@ function carry_interruption(carry_user_index, carry_target_index) {
 
 function hook(index, cell) {
   var user_position = character_chosen.char_position;
-  if (isInRange(index, user_position, Skill_constants.hook_range)) {
+  if (isInRange(index, user_position, Skill_constants.hook_range, game_state.size)) {
     var target_position = index;
     var user_character_number = character_chosen.char_id;
     var target_character_number = game_state.board_state[target_position];
@@ -4159,7 +4030,7 @@ function belvet_transformation(user_index, skill_index) {
 function safety_service(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
-  if (isInRange(index, user_position, Skill_constants.safety_service_range)) {
+  if (isInRange(index, user_position, Skill_constants.safety_service_range, game_state.size)) {
     var target_character_number = game_state.board_state[index]
     if (!character_state.special_effects[target_character_number].hasOwnProperty("safety_service_target")) {
       var toSend = {};
@@ -4180,7 +4051,7 @@ function safety_service(index, cell) {
 function belvet_buff(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
-  if (isInRange(index, user_position, Skill_constants.belvet_buff_range)) {
+  if (isInRange(index, user_position, Skill_constants.belvet_buff_range, game_state.size)) {
     var target_character_number = game_state.board_state[index]
     if (!character_state.special_effects[target_character_number].hasOwnProperty("belvet_buff_target")) {
       var toSend = {};
@@ -4204,7 +4075,7 @@ function weak_spot(index, cell) {
   var user_position = character_state.position[user_character_number];
   var attacking_character = character_detailed_info[user_character_number]
 
-  if (isInRange(user_position, index, Skill_constants.weak_spot_range)) {
+  if (isInRange(user_position, index, Skill_constants.weak_spot_range, game_state.size)) {
     var accumulated_cover = get_accumulated_cover(user_position, index);
 
     if (accumulated_cover < Skill_constants.weak_spot_cover_impossible_threshold) {
@@ -4234,7 +4105,7 @@ function weak_spot(index, cell) {
 function heal(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
-  if (isInRange(index, user_position, Skill_constants.heal_range)) {
+  if (isInRange(index, user_position, Skill_constants.heal_range, game_state.size)) {
 
   var target_character_number = game_state.board_state[index]
   var healer_character = character_detailed_info[user_character_number]
@@ -4351,7 +4222,7 @@ function heal(index, cell) {
 function big_bro(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
-  if (isInRange(index, user_position, Skill_constants.big_bro_range)) {
+  if (isInRange(index, user_position, Skill_constants.big_bro_range, game_state.size)) {
   var target_character_number = game_state.board_state[index]
 
   var shield_KD = parseInt(character_state.KD_points[user_character_number]) + parseInt(character_state.bonus_KD[user_character_number])
@@ -4526,7 +4397,7 @@ function shock_wave(index, cell) {
 function devour(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
-  if (isInRange(index, user_position, 1)) {
+  if (isInRange(index, user_position, 1, game_state.size)) {
     var target_character_number = game_state.board_state[index]
     var stacks = 0
     if (character_state.special_effects[target_character_number].hasOwnProperty("Markus_stacks")) {
@@ -4549,7 +4420,7 @@ function devour(index, cell) {
 function absolute_recovery(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
-  if (isInRange(index, user_position, 1)) {
+  if (isInRange(index, user_position, 1, game_state.size)) {
     var target_character_number = game_state.board_state[index]
     var heal_amount = 0
 
@@ -4585,7 +4456,7 @@ function gas_bomb(index, cell) {
   var user_character_number = character_chosen.char_id
   var character = character_detailed_info[user_character_number]
   var throw_range = findThrowRange(character)
-  if (isInRange(index, user_position, throw_range)) {
+  if (isInRange(index, user_position, throw_range, game_state.size)) {
     var toSend = {};
     toSend.command = 'skill';
     toSend.skill_index = character_chosen.skill_id
@@ -4608,7 +4479,7 @@ function calingalator(index, cell) {
   var user_character_number = character_chosen.char_id
   var character = character_detailed_info[user_character_number]
   if (game_state.board_state[index] == 0) {// устанавливается только в пустую клетку
-    if (isInRange(index, user_position, Skill_constants.calingalator_range)) {
+    if (isInRange(index, user_position, Skill_constants.calingalator_range, game_state.size)) {
       var toSend = {};
       toSend.command = 'skill';
       toSend.skill_index = character_chosen.skill_id
@@ -4631,7 +4502,7 @@ function diffuse_landmine(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
   var character = character_detailed_info[user_character_number]
-  if (isInRange(index, user_position, Skill_constants.landmine_diffusion_radius)) {
+  if (isInRange(index, user_position, Skill_constants.landmine_diffusion_radius, game_state.size)) {
     var toSend = {};
     toSend.command = 'skill';
     toSend.skill_index = character_chosen.skill_id
@@ -4668,7 +4539,7 @@ function hacking_bonus(character_number) {
 function computer_hacking(index, obstacle_number) {
   var user_position = character_chosen.char_position;
   var user_character_number = character_chosen.char_id;
-  if (isInRange(index, user_position, Skill_constants.computer_interaction_radius)) {
+  if (isInRange(index, user_position, Skill_constants.computer_interaction_radius, game_state.size)) {
     var hack_stage = 0;
     var hack_fails = 0;
     var info_object = game_state.obstacle_extra_info[index];
@@ -4728,7 +4599,7 @@ function computer_hacking(index, obstacle_number) {
 function grab_items(index, obstacle_number) {
   var user_position = character_chosen.char_position;
   var user_character_number = character_chosen.char_id;
-  if (isInRange(index, user_position, Skill_constants.container_interaction_radius)) {
+  if (isInRange(index, user_position, Skill_constants.container_interaction_radius, game_state.size)) {
     var toSend = {};
     toSend.command = 'skill';
     toSend.skill_index = character_chosen.skill_id
@@ -4745,7 +4616,7 @@ function grab_items(index, obstacle_number) {
 function give_items(index, target_number) {
   var user_position = character_chosen.char_position;
   var user_character_number = character_chosen.char_id;
-  if (isInRange(index, user_position, Skill_constants.character_interaction_radius)) {
+  if (isInRange(index, user_position, Skill_constants.character_interaction_radius, game_state.size)) {
     var toSend = {};
     toSend.command = 'skill';
     toSend.skill_index = character_chosen.skill_id
@@ -4762,7 +4633,7 @@ function give_items(index, target_number) {
 function make_potion(index, obstacle_number) {
   var user_position = character_chosen.char_position;
   var user_character_number = character_chosen.char_id;
-  if (isInRange(index, user_position, Skill_constants.potion_making_radius)) {
+  if (isInRange(index, user_position, Skill_constants.potion_making_radius, game_state.size)) {
     show_potion_modal(user_character_number, 0);
   } else {
     alert("Работать с реагентами можно только в непосредственной близости")
@@ -4794,7 +4665,7 @@ function acid_bomb(index, cell) {
   var user_character_number = character_chosen.char_id
   var character = character_detailed_info[user_character_number]
   var throw_range = findThrowRange(character)
-  if (isInRange(index, user_position, throw_range)) {
+  if (isInRange(index, user_position, throw_range, game_state.size)) {
     var toSend = {};
     toSend.command = 'skill';
     toSend.skill_index = character_chosen.skill_id
@@ -4811,7 +4682,7 @@ function light_sound_bomb(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
 
-  if (isInRange(index, user_position, Skill_constants.light_sound_bomb_range)) {
+  if (isInRange(index, user_position, Skill_constants.light_sound_bomb_range, game_state.size)) {
   var toSend = {};
   toSend.command = 'skill';
   toSend.skill_index = character_chosen.skill_id
@@ -4824,7 +4695,7 @@ function light_sound_bomb(index, cell) {
 
   var radius = Skill_constants.light_sound_bomb_radius
 
-  var candidate_cells = index_in_radius(index, radius)
+  var candidate_cells = index_in_radius(index, radius, game_state.size)
   console.log(candidate_cells)
   for (let i = 0; i < candidate_cells.length; i++) {
     var target_character_number = game_state.board_state[candidate_cells[i]]
@@ -4854,7 +4725,7 @@ function force_field(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
 
-  if (isInRange(index, user_position, Skill_constants.force_field_range)) {
+  if (isInRange(index, user_position, Skill_constants.force_field_range, game_state.size)) {
   var toSend = {};
   toSend.command = 'skill';
   toSend.skill_index = character_chosen.skill_id
@@ -4871,7 +4742,7 @@ function force_field(index, cell) {
 
   var radius = Skill_constants.force_field_radius
 
-  var candidate_cells = index_in_radius(index, radius)
+  var candidate_cells = index_in_radius(index, radius, game_state.size)
   for (let i = 0; i < candidate_cells.length; i++) {
     var target_character_number = game_state.board_state[candidate_cells[i]]
     if (target_character_number > 0) {// персонаж в радиусе щита
@@ -4893,7 +4764,7 @@ function adrenaline(index, cell) {
   var user_character_number = character_chosen.char_id
 
   var target_number = game_state.board_state[index]
-  if (isInRange(index, user_position, Skill_constants.adrenaline_range)) {
+  if (isInRange(index, user_position, Skill_constants.adrenaline_range, game_state.size)) {
     var toSend = {};
     toSend.command = 'skill';
     toSend.room_number = my_room;
@@ -4915,7 +4786,7 @@ function poisonous_adrenaline(index, cell) {
   var user_character_number = character_chosen.char_id
 
   var target_number = game_state.board_state[index]
-  if (isInRange(index, user_position, Skill_constants.poisonous_adrenaline_range)) {
+  if (isInRange(index, user_position, Skill_constants.poisonous_adrenaline_range, game_state.size)) {
     var toSend = {};
     toSend.command = 'skill';
     toSend.room_number = my_room;
@@ -4960,7 +4831,7 @@ function lucky_shot(index, cell) {
   var target_character_number = game_state.board_state[index]
   var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]]
 
-  if (isInRange(index, user_position, weapon.range)) {
+  if (isInRange(index, user_position, weapon.range, game_state.size)) {
     var toSend = {};
     toSend.command = 'skill';
     toSend.skill_index = character_chosen.skill_id
@@ -4984,7 +4855,7 @@ function lottery_shot(index, cell) {
   var target_character_number = game_state.board_state[index]
   var weapon = weapon_detailed_info[character_state.current_weapon[user_character_number]]
 
-  if (isInRange(index, user_position, weapon.range)) {
+  if (isInRange(index, user_position, weapon.range, game_state.size)) {
     var toSend = {};
     toSend.command = 'skill';
     toSend.skill_index = character_chosen.skill_id
@@ -5151,7 +5022,7 @@ function forced_movement(from_index, to_index, character_number) {
 
 // прок газовой гранаты
 function apply_bomb(position, radius, threshold) {
-  var candidate_cells = index_in_radius(position, radius)
+  var candidate_cells = index_in_radius(position, radius, game_state.size)
   //console.log(candidate_cells)
   for (let i = 0; i < candidate_cells.length; i++) {
     var target_character_number = game_state.board_state[candidate_cells[i]]
@@ -5177,7 +5048,7 @@ function apply_bomb(position, radius, threshold) {
 }
 
 function apply_calingalator(position, radius, flat_heal, roll_heal, heal_roll_list, coin_flip_list) {
-  var candidate_cells = index_in_radius(position, radius)
+  var candidate_cells = index_in_radius(position, radius, game_state.size)
   for (let i = 0; i < candidate_cells.length; i++) {
     var target_character_number = game_state.board_state[candidate_cells[i]]
     if (target_character_number > 0) {// персонаж в радиусе для отхила
@@ -5257,7 +5128,7 @@ function apply_calingalator(position, radius, flat_heal, roll_heal, heal_roll_li
 }
 
 function apply_acid_bomb(position, radius) {
-  var candidate_cells = index_in_radius(position, radius)
+  var candidate_cells = index_in_radius(position, radius, game_state.size)
   //console.log(candidate_cells)
   for (let i = 0; i < candidate_cells.length; i++) {
     var target_character_number = game_state.board_state[candidate_cells[i]]
