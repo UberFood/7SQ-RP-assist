@@ -112,6 +112,12 @@ export const belvet_buff_attack_bonus = 2;
 export const belvet_buff_melee_advantage = 1;
 export const belvet_buff_ranged_advantage = 1;
 
+export const filicia_buff_range = 1.6;
+export const filicia_buff_skill_duration = 3;
+export const filicia_buff_strength_bonus = 3;
+export const filicia_buff_agility_bonus = 3;
+export const filicia_buff_intelligence_bonus = 3;
+
 export const hook_cooldown = 2;
 export const hook_duration = 1;
 export const hook_defensive_advantage = -1;

@@ -3700,6 +3700,24 @@ function use_skill(skill_index, character_number, position, cell) {
         alert("Умение на кулдауне")
       }
       break;
+    case 41: // Бафф Эволюции
+        if (character_state.main_action[character_number] > 0) {
+            choose_character_skill(skill_index, character_number, position, cell);
+        } else {
+            alert("Не хватает действий!")
+        }
+        break;
+    case 42: // Трансформация Эволюции
+      if (character_state.special_effects[character_number].hasOwnProperty("filicia_buff_user")) {
+        if (!character_state.special_effects[character_number].filicia_buff_user.hasOwnProperty("transformed")) {
+          filicia_transformation(character_number, skill_index);
+        } else {
+          alert("Вы уже открыли свою истинную сущность - повторная трансформация невозможна!");
+        }
+      } else {
+        alert("Вы должны сперва подготовиться к трансформации, собрав достаточно днк противников");
+      }
+        break;
     default:
       alert("Не знаем это умение")
   }
@@ -3805,6 +3823,10 @@ function perform_skill(index, cell) {
 
     case 40:
       belvet_jump(index, cell);
+      break;
+
+    case 41:
+      filicia_buff(index, cell)
       break;
 
     default:
@@ -4027,6 +4049,60 @@ function belvet_transformation(user_index, skill_index) {
 
 }
 
+function filicia_transformation(user_index, skill_index) {
+  var user =  character_detailed_info[user_index];
+  var targets_set = character_state.special_effects[user_index].filicia_buff_user.targets_set;
+  var total_upgrade = 0;
+  var rolled_buffs_targets = [];
+  var rolled_buffs_outcomes = [];
+  for (var target_id of targets_set) {
+    var target = character_detailed_info[target_id];
+    var target_stacks = character_state.special_effects[target_id].filicia_buff_stacks.stacks;
+    var buffs_array = [];
+    var rolled_array = [0,0,0,0,0];
+    buffs_array.push(target.strength);
+    buffs_array.push(target.stamina);
+    buffs_array.push(target.agility);
+    buffs_array.push(target.intelligence);
+    buffs_array.push(character_state.KD_points[target_id] - 8);
+    var total_roll = target.strength + target.stamina + target.agility + target.intelligence + character_state.KD_points[target_id] - 8;
+    while (target_stacks > 0 && total_roll > 0) {
+      var roll = roll_x(total_roll);
+      if (roll <= buffs_array[0]) {// strength
+        buffs_array[0] -= 1;
+        rolled_array[0] += 1;
+      } else if (roll <= buffs_array[0] + buffs_array[1]) {//stamina
+        buffs_array[1] -= 1;
+        rolled_array[1] += 1;
+      } else if (roll <= buffs_array[0] + buffs_array[1] + buffs_array[2]) {// agility
+        buffs_array[2] -= 1;
+        rolled_array[2] += 1;
+      } else if (roll <= buffs_array[0] + buffs_array[1] + buffs_array[2] + buffs_array[3]) {// intelligence
+        buffs_array[3] -= 1;
+        rolled_array[3] += 1;
+      } else {// KD
+        buffs_array[4] -= 1;
+        rolled_array[4] += 1;
+      }
+      total_roll -= 1;
+      target_stacks -= 1;
+      total_upgrade += 1;
+    }
+    rolled_buffs_targets.push(target_id);
+    rolled_buffs_outcomes.push(rolled_array);
+  }
+  var toSend = {};
+  toSend.command = 'skill';
+  toSend.room_number = my_room;
+  toSend.skill_index = skill_index
+  toSend.user_index = user_index
+  toSend.total_upgrade = total_upgrade;
+  toSend.rolled_buffs_targets = rolled_buffs_targets
+  toSend.rolled_buffs_outcomes = rolled_buffs_outcomes;
+  socket.sendMessage(toSend);
+
+}
+
 function safety_service(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
@@ -4054,6 +4130,27 @@ function belvet_buff(index, cell) {
   if (isInRange(index, user_position, Skill_constants.belvet_buff_range, game_state.size)) {
     var target_character_number = game_state.board_state[index]
     if (!character_state.special_effects[target_character_number].hasOwnProperty("belvet_buff_target")) {
+      var toSend = {};
+      toSend.command = 'skill';
+      toSend.skill_index = character_chosen.skill_id
+      toSend.room_number = my_room;
+      toSend.user_index = user_character_number
+      toSend.target_id = target_character_number
+      socket.sendMessage(toSend);
+    } else {
+      alert("На этом персонаже уже есть активный бафф этого типа (увы)")
+    }
+  } else {
+    alert("Вы не можете баффать (хе-хе) с такого расстояния")
+  }
+}
+
+function filicia_buff(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  if (isInRange(index, user_position, Skill_constants.filicia_buff_range, game_state.size)) {
+    var target_character_number = game_state.board_state[index]
+    if (!character_state.special_effects[target_character_number].hasOwnProperty("filicia_buff_target")) {
       var toSend = {};
       toSend.command = 'skill';
       toSend.skill_index = character_chosen.skill_id
@@ -5307,6 +5404,7 @@ function check_default_cooldowns(i) {
 function check_all_round_effects(i, character, data) {
   safety_service_target_round_effect(i);
   belvet_buff_target_round_effect(i);
+  filicia_buff_target_round_effect(i);
   hook_target_round_effect(i);
   calingalator_target_round_effect(i);
   pich_pich_user_round_effect(i);
@@ -5349,6 +5447,19 @@ function belvet_buff_target_round_effect(i) {
       delete character_state.special_effects[i].belvet_buff_target
     } else {
       character_state.special_effects[i].belvet_buff_target.duration = character_state.special_effects[i].belvet_buff_target.duration - 1
+    }
+  }
+}
+
+function filicia_buff_target_round_effect(i) {
+  if (character_state.special_effects[i].hasOwnProperty("filicia_buff_target")) {
+    if (character_state.special_effects[i].filicia_buff_target.duration == 0) {
+      change_character_detailed_attribute("strength", i, -1*character_state.special_effects[i].filicia_buff_target.strength_bonus);
+      change_character_detailed_attribute("agility", i, -1*character_state.special_effects[i].filicia_buff_target.agility_bonus);
+      change_character_detailed_attribute("intelligence", i, -1*character_state.special_effects[i].filicia_buff_target.intelligence_bonus);
+      delete character_state.special_effects[i].filicia_buff_target
+    } else {
+      character_state.special_effects[i].filicia_buff_target.duration = character_state.special_effects[i].filicia_buff_target.duration - 1
     }
   }
 }
@@ -7166,6 +7277,113 @@ socket.registerMessageHandler((data) => {
         deal_AOE_damage(data.damage_object_array, user_index);
         setCooldown(user_index, "belvet_jump", Skill_constants.belvet_jump_cooldown);
         break;
+
+      case 41: // бафф Фили
+          if (game_state.battle_mod == 1) {
+            change_character_property("main_action", user_index, -1);
+          }
+          var target_id = data.target_id;
+
+          var buffer = character_detailed_info[user_index]
+          var target = character_detailed_info[target_id]
+
+          // Непосредственно бафф
+          var filicia_buff_target_object = {};
+          filicia_buff_target_object.duration = Skill_constants.filicia_buff_skill_duration;
+          filicia_buff_target_object.strength_bonus = Skill_constants.filicia_buff_strength_bonus;
+          filicia_buff_target_object.agility_bonus = Skill_constants.filicia_buff_agility_bonus;
+          filicia_buff_target_object.intelligence_bonus = Skill_constants.filicia_buff_intelligence_bonus;
+          character_state.special_effects[target_id].filicia_buff_target = filicia_buff_target_object;
+          change_character_detailed_attribute("strength", target_id, Skill_constants.filicia_buff_strength_bonus);
+          change_character_detailed_attribute("agility", target_id, Skill_constants.filicia_buff_agility_bonus);
+          change_character_detailed_attribute("intelligence", target_id, Skill_constants.filicia_buff_intelligence_bonus);
+
+
+          // Подсчет скрытых стаков
+          if (character_state.special_effects[target_id].hasOwnProperty("filicia_buff_stacks")) {
+            var filicia_buff_stacks_object = character_state.special_effects[target_id].filicia_buff_stacks;
+          } else {
+            var filicia_buff_stacks_object = {};
+            filicia_buff_stacks_object.stacks = 0;
+          }
+          filicia_buff_stacks_object.stacks = filicia_buff_stacks_object.stacks + 1;
+          character_state.special_effects[target_id].filicia_buff_stacks = filicia_buff_stacks_object;
+
+          // Наконец, добавляем в список целей у юзера
+          if (character_state.special_effects[user_index].hasOwnProperty("filicia_buff_user")) {
+            if (!character_state.special_effects[user_index].filicia_buff_user.targets_set.includes(target_id)) {
+              character_state.special_effects[user_index].filicia_buff_user.targets_set.push(target_id);
+            }
+          } else {
+            var filicia_buff_user_object = {};
+            filicia_buff_user_object.targets_set = [];
+            filicia_buff_user_object.targets_set.push(target_id);
+            character_state.special_effects[user_index].filicia_buff_user = filicia_buff_user_object;
+          }
+          var message = buffer.name + " раскрывает полную мощь " + target.name + ". Подчинитесь эволюции!";
+          pushToList(message);
+          break;
+
+        case 42: // трансформация Эволюции
+          var user =  character_detailed_info[user_index];
+          for (let j = 0; j < data.rolled_buffs_targets.length; j++) {
+            var target_id = data.rolled_buffs_targets[j];
+            var rolled_buffs_array = data.rolled_buffs_outcomes[j];
+            var i = 0;
+            while (i < 5) {
+              if (rolled_buffs_array[i] > 0) {
+                rolled_buffs_array[i] -= 1;
+                switch(i) {
+                  case 0: //strength
+                    apply_effect(user_index, INCREASE_STRENGTH);
+                    apply_effect(target_id, DECREASE_STRENGTH);
+                    break;
+
+                  case 1:
+                    apply_effect(user_index, INCREASE_STAMINA);
+                    apply_effect(target_id, DECREASE_STAMINA);
+                    break;
+
+                  case 2:
+                    apply_effect(user_index, INCREASE_AGILITY);
+                    apply_effect(target_id, DECREASE_AGILITY);
+                    break;
+
+                  case 3:
+                    apply_effect(user_index, INCREASE_INT);
+                    apply_effect(target_id, DECREASE_INT);
+                    break;
+
+                  case 4:
+                    apply_effect(user_index, INCREASE_KD);
+                    apply_effect(target_id, DECREASE_KD);
+                    break;
+                }
+              } else {
+                i +=1;
+              }
+            }
+          }
+          character_state.special_effects[user_index].filicia_buff_user.transformed = {};
+          if (user.hasOwnProperty("secondary_avatar")) {
+            var temp = user.avatar;
+            character_detailed_info[user_index].avatar = character_detailed_info[user_index].secondary_avatar;
+            character_detailed_info[user_index].secondary_avatar = temp;
+            var char_position = character_state.position[user_index];
+          }
+          if (user.hasOwnProperty("secondary_chibi_avatar")) {
+            var temp = user.chibi_avatar;
+            character_detailed_info[user_index].chibi_avatar = character_detailed_info[user_index].secondary_chibi_avatar;
+            character_detailed_info[user_index].secondary_chibi_avatar = temp;
+            var char_position = character_state.position[user_index];
+          }
+          if (!(((my_role == 'player')&&(game_state.fog_state[char_position] == 1)) || (character_state.invisibility[user_index] != "all" && character_state.invisibility[user_index] != my_name))) {
+            var to_cell = document.getElementById('cell_' + char_position);
+            to_cell.src = get_object_picture(user_index);
+          }
+          var message = user.name + " достигает финальной стадии эволюции, получая " + data.total_upgrade + " усилений. Сдавайтесь, бессмысленно сопротивляться прогрессу...";
+          pushToList(message);
+          break;
 
         default:
           alert("Received unknown skill command")
