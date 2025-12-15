@@ -3919,7 +3919,7 @@ function belvet_jump_damage_object(from_index, to_index, character_number) {
 function carry(index, cell) {
   var user_position = character_chosen.char_position
   var user_character_number = character_chosen.char_id
-  if (isInRange(index, user_position, Skill_constants.carry_range. game_state.size)) {
+  if (isInRange(index, user_position, Skill_constants.carry_range, game_state.size)) {
     var target_character_number = game_state.board_state[index]
     if (! (character_state.special_effects[target_character_number].hasOwnProperty("carry_target") || character_state.special_effects[target_character_number].hasOwnProperty("carry_user"))) {
       var toSend = {};
