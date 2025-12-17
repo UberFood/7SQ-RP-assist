@@ -3011,9 +3011,7 @@ function attack_hitting_template(toSend, weapon, user_id, target_character_numbe
 }
 
 function do_damage(character_number, damage) {
-  if (!character_state.special_effects[character_number].hasOwnProperty("force_field_target")) {
-    character_state.HP[character_number] = character_state.HP[character_number] - damage
-  } else {
+  if (character_state.special_effects[character_number].hasOwnProperty("force_field_target")) {
     var shield_index = character_state.special_effects[character_number].force_field_target.shield_index
     game_state.terrain_effects[shield_index].shield = game_state.terrain_effects[shield_index].shield - damage
     var message = "Щит принял урон на себя! Оставшаяся прочность: " + game_state.terrain_effects[shield_index].shield
@@ -3029,6 +3027,11 @@ function do_damage(character_number, damage) {
       delete_object_command(game_state.terrain_effects[shield_index].position)
       delete game_state.terrain_effects[shield_index]
     }
+  } else if (character_state.special_effects[character_number].hasOwnProperty("pain_transfer_target")) {
+    var protector_character_number = character_state.special_effects[character_number].pain_transfer_target.protector_index
+    do_damage(protector_character_number, damage)
+  } else {
+    character_state.HP[character_number] = character_state.HP[character_number] - damage
   }
 }
 
@@ -3729,6 +3732,21 @@ function use_skill(skill_index, character_number, position, cell) {
           alert("Умение все еще на кулдауне!")
         }
         break;
+    case 44: // Перевод стрелок
+      if (!character_state.special_effects[character_number].hasOwnProperty("pain_transfer_target")) {
+          if (!character_state.special_effects[character_number].hasOwnProperty("pain_transfer_user")) {
+            if (character_state.bonus_action[character_number] > 0) {
+              choose_character_skill(skill_index, character_number, position, cell)
+            } else {
+              alert("Не хватает действий!")
+            }
+          } else {
+            alert("Умение все еще на кулдауне!")
+          }
+      } else {
+        alert("Вы уже участвуете в переводе стрелок как цель! Паровозы боли запрещены")
+      }
+        break;
     default:
       alert("Не знаем это умение")
   }
@@ -3842,6 +3860,9 @@ function perform_skill(index, cell) {
     case 43:
       hook(index, cell, Skill_constants.flower_hook_range)
       break;
+    case 44:
+      pain_transfer(index, cell)
+      break;
 
     default:
       alert("Unknown targeted skill")
@@ -3880,6 +3901,29 @@ function pass_the_ball(index, cell) {
     socket.sendMessage(toSend);
   } else {
     alert("Не хватит силы для такого паса")
+  }
+}
+
+function pain_transfer(index, cell) {
+  var user_position = character_chosen.char_position
+  var user_character_number = character_chosen.char_id
+  if (isInRange(index, user_position, Skill_constants.pain_transfer_range, game_state.size)) {
+    var target_character_number = game_state.board_state[index]
+    if (! (character_state.special_effects[target_character_number].hasOwnProperty("pain_transfer_target") || character_state.special_effects[target_character_number].hasOwnProperty("pain_transfer_user"))) {
+      var toSend = {};
+      toSend.command = 'skill';
+      toSend.skill_index = character_chosen.skill_id
+      toSend.room_number = my_room;
+      toSend.user_index = user_character_number
+      toSend.target_index = target_character_number
+      toSend.duration = Skill_constants.pain_transfer_duration
+      toSend.cooldown = Skill_constants.pain_transfer_cooldown
+      socket.sendMessage(toSend);
+    } else {
+      alert("Эта цель уже участвует в переводе стрелок");
+    }
+  } else {
+    alert("Цель слишком далеко чтобы защитить")
   }
 }
 
@@ -5024,6 +5068,20 @@ function check_cooldown(character_number, effect, message) {
   }
 }
 
+// helper function patterns
+function check_duration(character_number, effect, message) {
+  if (character_state.special_effects[character_number].hasOwnProperty(effect)) {
+    if (character_state.special_effects[character_number][effect].duration == 0) {
+      delete character_state.special_effects[character_number][effect]
+      if (message.length > 0) {
+        pushToList(message)
+      }
+    } else {
+      character_state.special_effects[character_number][effect].duration = character_state.special_effects[character_number][effect].duration - 1
+    }
+  }
+}
+
 function setCooldown(character_number, cooldown_name, cooldown_length) {
   var cooldown_object = {};
   cooldown_object.cooldown = cooldown_length;
@@ -5413,6 +5471,9 @@ function check_default_cooldowns(i) {
   check_cooldown(i, "punishing_strike_user", "");
   check_cooldown(i, "jump_user", "");
   check_cooldown(i, "belvet_jump", "");
+  check_cooldown(i, "pain_transfer_user", "");
+
+  check_duration(i, "pain_transfer_target", "");
 }
 
 function check_all_round_effects(i, character, data) {
@@ -7397,6 +7458,26 @@ socket.registerMessageHandler((data) => {
           }
           var message = user.name + " достигает финальной стадии эволюции, получая " + data.total_upgrade + " усилений. Сдавайтесь, бессмысленно сопротивляться прогрессу...";
           pushToList(message);
+          break;
+        case 44: // Перевод стрелок
+          if (game_state.battle_mod == 1) {
+            change_character_property("bonus_action", user_index, -1);
+            change_character_property("stamina", user_index, -1 * Skill_constants.pain_transfer_stamina_cost);
+          }
+
+          var pain_transfer_target = {}
+          pain_transfer_target.protector_index = user_index
+          pain_transfer_target.duration = data.duration
+
+          character_state.special_effects[data.target_index].pain_transfer_target = pain_transfer_target
+
+          var pain_transfer_user = {}
+          pain_transfer_user.cooldown = data.cooldown
+          character_state.special_effects[user_index].pain_transfer_user = pain_transfer_user
+          var character = character_detailed_info[user_index]
+          var target_character = character_detailed_info[data.target_index]
+          var message = character.name + " забирает на себя боль " + target_character.name
+          pushToList(message)
           break;
 
         default:

@@ -158,3 +158,8 @@ export const heal_potion_large_index = 1;
 
 export const heal_thresholds_list = [7, 10, 14, 19, 25, 32]
 export const critical_heal_thresholds_list = [7, 14, 18, 23, 29, 36]
+
+export const pain_transfer_range = 1.6
+export const pain_transfer_duration = 1
+export const pain_transfer_cooldown = 5
+export const pain_transfer_stamina_cost = 4
