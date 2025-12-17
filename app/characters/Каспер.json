@@ -1,1 +1,1 @@
-{"name":"Каспер","avatar":"/images/Chibi_Kasper.png","chibi_avatar":"/images/Chibi_Kasper.png","strength":"1","stamina":"4","agility":"6","intelligence":"10", "KD_points": "11", "special_type": "sniper", "inventory": [18, 0], "skillset": [3,27,28], "group":"shield", "melee_resist": "15.0"}
+{"name":"Каспер","avatar":"/images/Kasper.png","chibi_avatar":"/images/Chibi_Kasper.png","strength":"1","stamina":"4","agility":"6","intelligence":"10", "KD_points": "11", "special_type": "sniper", "inventory": [18, 0], "skillset": [3,27,28], "group":"shield", "melee_resist": "15.0"}
