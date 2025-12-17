@@ -122,6 +122,9 @@ export const hook_cooldown = 2;
 export const hook_duration = 1;
 export const hook_defensive_advantage = -1;
 export const hook_range = 3;
+export const hook_skill_number = 35;
+
+export const flower_hook_range = 8;
 
 export const punishing_strike_cooldown = 3;
 export const punishing_strike_multiplyer = 0.5;

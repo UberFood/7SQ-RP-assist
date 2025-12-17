@@ -3718,6 +3718,17 @@ function use_skill(skill_index, character_number, position, cell) {
         alert("Вы должны сперва подготовиться к трансформации, собрав достаточно днк противников");
       }
         break;
+    case 43: // цветочный хук
+        if (!character_state.special_effects[character_number].hasOwnProperty("hook_user")) {
+          if (character_state.bonus_action[character_number] > 0) {
+            choose_character_skill(skill_index, character_number, position, cell)
+          } else {
+            alert("Не хватает действий!")
+          }
+        } else {
+          alert("Умение все еще на кулдауне!")
+        }
+        break;
     default:
       alert("Не знаем это умение")
   }
@@ -3802,7 +3813,7 @@ function perform_skill(index, cell) {
       break;
 
     case 35:
-      hook(index, cell)
+      hook(index, cell, Skill_constants.hook_range)
       break;
 
     case 36:
@@ -3827,6 +3838,9 @@ function perform_skill(index, cell) {
 
     case 41:
       filicia_buff(index, cell)
+      break;
+    case 43:
+      hook(index, cell, Skill_constants.flower_hook_range)
       break;
 
     default:
@@ -3947,9 +3961,9 @@ function carry_interruption(carry_user_index, carry_target_index) {
   delete character_state.special_effects[carry_target_index].carry_target;
 }
 
-function hook(index, cell) {
+function hook(index, cell, hook_range) {
   var user_position = character_chosen.char_position;
-  if (isInRange(index, user_position, Skill_constants.hook_range, game_state.size)) {
+  if (isInRange(index, user_position, hook_range, game_state.size)) {
     var target_position = index;
     var user_character_number = character_chosen.char_id;
     var target_character_number = game_state.board_state[target_position];
@@ -3973,7 +3987,7 @@ function hook(index, cell) {
       }
       var toSend = {}
       toSend.command = 'skill';
-      toSend.skill_index = character_chosen.skill_id
+      toSend.skill_index = Skill_constants.hook_skill_number
       toSend.room_number = my_room;
       toSend.user_index = user_character_number
       toSend.target_id = target_character_number
