@@ -4262,112 +4262,30 @@ function heal(index, cell) {
   var user_character_number = character_chosen.char_id
   if (isInRange(index, user_position, Skill_constants.heal_range, game_state.size)) {
 
-  var target_character_number = game_state.board_state[index]
-  var healer_character = character_detailed_info[user_character_number]
-  var target_character = character_detailed_info[target_character_number]
+    var target_character_number = game_state.board_state[index]
+    var healer_character = character_detailed_info[user_character_number]
+    var target_character = character_detailed_info[target_character_number]
 
-  var target_hp = character_state.HP[target_character_number]
-  var target_full_hp = HP_values[target_character.stamina]
-  var ratio = parseFloat(target_hp)/parseFloat(target_full_hp)
+    var target_hp = character_state.HP[target_character_number]
+    var target_full_hp = HP_values[target_character.stamina]
+    var ratio = parseFloat(target_hp)/parseFloat(target_full_hp)
 
-  var heal_roll = roll_x(20) + parseInt(healer_character.intelligence) + character_state.universal_bonus[user_character_number]
-  if (healer_character.special_type == "med") {
-    heal_roll = heal_roll + parseInt(healer_character.intelligence)
-  }
-  var toSend = {};
-  toSend.command = 'skill';
-  toSend.skill_index = character_chosen.skill_id
-  toSend.room_number = my_room;
-  toSend.user_index = user_character_number
-  toSend.target_id = target_character_number
-  toSend.heal_roll = heal_roll
+    var heal_roll = roll_x(parseInt(healer_character.intelligence)) + parseInt(healer_character.intelligence)/2 + character_state.universal_bonus[user_character_number]
+    if (healer_character.special_type == "med") {
+      heal_roll = heal_roll + roll_x(parseInt(healer_character.intelligence)) + parseInt(healer_character.intelligence)/2
+    }
+    if (target_hp < 0) {
+      heal_roll = heal_roll/2
+    }
+    var toSend = {};
+    toSend.command = 'skill';
+    toSend.skill_index = character_chosen.skill_id
+    toSend.room_number = my_room;
+    toSend.user_index = user_character_number
+    toSend.target_id = target_character_number
+    toSend.heal_roll = heal_roll
 
-  var threshold = 0
-  var critical_threshold = 0
-
-  if (ratio > 0.9) {
-    threshold = Skill_constants.heal_thresholds_list[0]
-    if (heal_roll > threshold) {
-      toSend.outcome = "success"
-      toSend.new_hp = target_full_hp
-    } else {
-      toSend.outcome = "fail"
-    }
-  } else if (ratio > 0.75) {
-    threshold = Skill_constants.heal_thresholds_list[1]
-    critical_threshold = Skill_constants.critical_heal_thresholds_list[1]
-    if (heal_roll > threshold) {
-      if (heal_roll > critical_threshold && healer_character.special_type == "med") {
-        toSend.outcome = "critical success"
-        toSend.new_hp = target_full_hp
-      } else {
-        toSend.outcome = "success"
-        toSend.new_hp = Math.floor(target_full_hp * 0.95)
-      }
-    } else {
-      toSend.outcome = "fail"
-    }
-  } else if (ratio > 0.5) {
-    threshold = Skill_constants.heal_thresholds_list[2]
-    critical_threshold = Skill_constants.critical_heal_thresholds_list[2]
-    if (heal_roll > threshold) {
-      if (heal_roll > critical_threshold && healer_character.special_type == "med") {
-        toSend.outcome = "critical success"
-        toSend.new_hp = Math.floor(target_full_hp * 0.95)
-      } else {
-        toSend.outcome = "success"
-        toSend.new_hp = Math.floor(target_full_hp * 0.82)
-      }
-    } else {
-      toSend.outcome = "fail"
-    }
-  } else if (ratio > 0.3) {
-    threshold = Skill_constants.heal_thresholds_list[3]
-    critical_threshold = Skill_constants.critical_heal_thresholds_list[3]
-    if (heal_roll > threshold) {
-      if (heal_roll > critical_threshold && healer_character.special_type == "med") {
-        toSend.outcome = "critical success"
-        toSend.new_hp = Math.floor(target_full_hp * 0.82)
-      } else {
-        toSend.outcome = "success"
-        toSend.new_hp = Math.floor(target_full_hp * 0.62)
-      }
-    } else {
-      toSend.outcome = "fail"
-    }
-  } else if (ratio > 0.15) {
-    threshold = Skill_constants.heal_thresholds_list[4]
-    critical_threshold = Skill_constants.critical_heal_thresholds_list[4]
-    if (heal_roll > threshold) {
-      if (heal_roll > critical_threshold && healer_character.special_type == "med") {
-        toSend.outcome = "critical success"
-        toSend.new_hp = Math.floor(target_full_hp * 0.62)
-      } else {
-        toSend.outcome = "success"
-        toSend.new_hp = Math.floor(target_full_hp * 0.4)
-      }
-    } else {
-      toSend.outcome = "fail"
-    }
-  } else if (ratio > 0.01) {
-    threshold = Skill_constants.heal_thresholds_list[5]
-    critical_threshold = Skill_constants.critical_heal_thresholds_list[5]
-    if (heal_roll > threshold) {
-      if (heal_roll > critical_threshold && healer_character.special_type == "med") {
-        toSend.outcome = "critical success"
-        toSend.new_hp = Math.floor(target_full_hp * 0.4)
-      } else {
-        toSend.outcome = "success"
-        toSend.new_hp = Math.floor(target_full_hp * 0.22)
-      }
-    } else {
-      toSend.outcome = "fail"
-    }
-  } else {
-    toSend.outcome = "fail"
-  }
-
-  socket.sendMessage(toSend);
+    socket.sendMessage(toSend);
 
   } else {
     alert("Нужно подойти ближе к цели чтобы вылечить")
@@ -5090,6 +5008,11 @@ function setCooldown(character_number, cooldown_name, cooldown_length) {
 
 function restore_hp(character_number, amount) {
   var character = character_detailed_info[character_number]
+  if ((character_state.HP[character_number] < 0)&(character_state.HP[character_number] + amount > 0)) {
+    var message = character.name + " встает из отключки"
+    pushToList(message)
+    character_state.stamina[character_number] = character_state.stamina[character_number]/2
+  }
   character_state.HP[character_number] = Math.min(character_state.HP[character_number] + amount, HP_values[character.stamina]);
 }
 
@@ -5489,7 +5412,7 @@ function check_all_round_effects(i, character, data) {
   poisonous_adrenaline_target_round_effect(i);
   shocked_round_effect(i);
   cut_limb_round_effect(i, character);
-  healed_round_effect(i);
+  //healed_round_effect(i);
   blind_round_effect(i, character);
   Marcus_stacks_round_effect(i);
   shield_up_round_effect(i, character);
@@ -5670,6 +5593,7 @@ function cut_limb_round_effect(i, character) {
   }
 }
 
+// disabled currently
 function healed_round_effect(i) {
   if (character_state.special_effects[i].hasOwnProperty("healed")) {
     if (character_state.special_effects[i].healed.cooldown > 0) {
@@ -6396,41 +6320,15 @@ socket.registerMessageHandler((data) => {
           break;
 
         case 4: // лечение
-        var healer = character_detailed_info[user_index]
-        var target = character_detailed_info[data.target_id]
-        character_state.main_action[user_index] = character_state.main_action[user_index] - 1
-        character_state.stamina[user_index] = character_state.stamina[user_index] - 1
-        var cooldown = 0
-        if (character_state.initiative[user_index] > character_state.initiative[data.target_id]) {
-          // пациент не ходит в этот же ход
-          character_state.main_action[data.target_id] = character_state.main_action[data.target_id] - 1
-          character_state.bonus_action[data.target_id] = character_state.bonus_action[data.target_id] - 1
-          character_state.move_action[data.target_id] = character_state.move_action[data.target_id]/2
-          cooldown = 0
-        } else {
-          cooldown = 1
-        }
-        var healed_object = {}
-        healed_object.cooldown = cooldown
-        character_state.special_effects[data.target_id].healed = healed_object
-          switch (data.outcome) {
-            case "fail":
-              var message = "У " + healer.name + " не получилось вылечить " + target.name + " (" + data.heal_roll + ")"
-              pushToList(message)
-              break;
-            case "success":
-              var message = "У " + healer.name + " получилось успешно вылечить " + target.name + " (" + data.heal_roll + ")"
-              pushToList(message)
-              character_state.HP[data.target_id] = data.new_hp
-              break;
-            case "critical success":
-              var message = "У " + healer.name + " получилось критически (2 степени) вылечить " + target.name + " (" + data.heal_roll + ")"
-              pushToList(message)
-              character_state.HP[data.target_id] = data.new_hp
-              break;
-            default:
-              console.log("Ошибка при разборе отхила")
+          var healer = character_detailed_info[user_index]
+          var target = character_detailed_info[data.target_id]
+          if (game_state.battle_mod == 1) {
+            change_character_property("main_action", user_index, -1);
+            change_character_property("stamina", user_index, -1 * Skill_constants.heal_cost);
           }
+          restore_hp(data.target_id, data.heal_roll)
+          var message = healer.name + " восстаналивает " + data.heal_roll + " хп " + target.name
+          pushToList(message)
           break;
         case 5: // большой брат
           character_state.bonus_action[user_index] = character_state.bonus_action[user_index] - 1
