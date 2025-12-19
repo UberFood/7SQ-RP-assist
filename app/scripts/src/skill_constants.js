@@ -9,6 +9,7 @@ export const action_splash_stamina_cost = 2
 export const adrenaline_stamina_cost = 3
 export const acid_bomb_stamina_cost = 3
 export const curved_bullets_stamina_cost = 2
+export const heal_stamina_cost = 1
 
 export const cut_limb_cooldown = 1
 

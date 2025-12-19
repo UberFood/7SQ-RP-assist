@@ -6324,7 +6324,7 @@ socket.registerMessageHandler((data) => {
           var target = character_detailed_info[data.target_id]
           if (game_state.battle_mod == 1) {
             change_character_property("main_action", user_index, -1);
-            change_character_property("stamina", user_index, -1 * Skill_constants.heal_cost);
+            change_character_property("stamina", user_index, -1 * Skill_constants.heal_stamina_cost);
           }
           restore_hp(data.target_id, data.heal_roll)
           var message = healer.name + " восстаналивает " + data.heal_roll + " хп " + target.name
@@ -7251,6 +7251,10 @@ socket.registerMessageHandler((data) => {
         break;
 
       case 40: //belvet jump
+        if (game_state.battle_mod == 1) {
+          change_character_property("main_action", user_index, -1);
+          change_character_property("bonus_action", user_index, -1);
+        }
         receiveMoveOverall(data.movement_object, "belvet_jump");
         deal_AOE_damage(data.damage_object_array, user_index);
         setCooldown(user_index, "belvet_jump", Skill_constants.belvet_jump_cooldown);
