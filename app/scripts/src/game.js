@@ -5337,6 +5337,22 @@ function apply_terrain_effects(data) {
               game_state.terrain_effects[i] = null
             }
             break;
+        case "force_field":
+            var shield_object = game_state.terrain_effects[i]
+            var force_field_target = {}
+            force_field_target.shield_index = i
+
+            for (let j = 0; j < shield_object.cells_protected.length; j++) {
+              var cell_index = shield_object.cells_protected[j]
+              if (game_state.board_state[cell_index] > 0) {
+                var current_character_number = game_state.board_state[cell_index];
+                if (!shield_object.character_list.includes(current_character_number)) {
+                  shield_object.character_list.push(current_character_number)
+                  character_state.special_effects[current_character_number].force_field_target = force_field_target
+                }
+              }
+            }
+            break;
         default:
             console.log("Messed up resolving terrain effects")
             console.log(game_state.terrain_effects[i].type);
