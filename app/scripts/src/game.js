@@ -5101,6 +5101,23 @@ function forced_movement(from_index, to_index, character_number) {
   character_state.position[character_number] = to_index;
   game_state.board_state[from_index] = 0;
 
+  var shield_info = {}
+  if (character_state.special_effects[character_number].hasOwnProperty("force_field_target")) {
+    var shield_index = character_state.special_effects[character_number].force_field_target.shield_index
+    if(!game_state.terrain_effects[shield_index].cells_protected.includes(to_index)) {// покинул зону защиты
+      shield_info.left_shield = 1
+      shield_info.shield_index = shield_index
+    }
+  }
+
+  if (shield_info.left_shield == 1) {
+    delete character_state.special_effects[character_number].force_field_target;
+    var index = game_state.terrain_effects[shield_info.shield_index].character_list.indexOf(character_number);
+    if (index !== -1) {
+      game_state.terrain_effects[shield_info.shield_index].character_list.splice(index, 1);
+    }
+  }
+
   if (!(((my_role == 'player')&&(game_state.fog_state[to_index] == 1)) || (character_state.invisibility[character_number] != "all" && character_state.invisibility[character_number] != my_name))) {
     var to_cell = document.getElementById('cell_' + to_index);
     to_cell.src = get_object_picture(character_number);
