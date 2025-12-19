@@ -6436,6 +6436,11 @@ socket.registerMessageHandler((data) => {
             break;
 
         case 13: // светошумовая гранат
+            if (game_state.battle_mod == 1) {
+              change_character_property("main_action", user_index, -1);
+              change_character_property("bonus_action", user_index, -1);
+              change_character_property("stamina", user_index, -1 * Skill_constants.light_sound_bomb_stamina_cost);
+            }
             var light_sound_bomb_user = {}
             light_sound_bomb_user.cooldown = Skill_constants.light_sound_bomb_skill_cooldown
             character_state.special_effects[user_index].light_sound_bomb_user = light_sound_bomb_user

@@ -30,8 +30,9 @@ export const gas_bomb_obstacle = 15
 export const gas_bomb_skill_cooldown = 5
 
 export const light_sound_bomb_radius = 4
-export const light_sound_bomb_threshold = 15
+export const light_sound_bomb_threshold = 18
 export const light_sound_bomb_skill_cooldown = 5
+export const light_sound_bomb_stamina_cost = 3
 
 export const weak_spot_threshold = 15;
 export const weak_spot_range = 25;
